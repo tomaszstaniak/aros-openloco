@@ -78,14 +78,20 @@ Wątki C++ w runtime: sprawdzone **tylko na ABIv11**. Mainline niepotwierdzony.
 `hardware_concurrency()` zwraca tam 0 — OpenLoco jej nie używa, ale kolejny
 projekt może.
 
-## 9. libpng i zlib trzeba zbudować statycznie
+## 9. Linkować `-lz.static -lpng_nostdio`, nie `-lz -lpng`
 
-`libpng.a` i `libz.a` w SDK to link stuby do `png.library` i `z1.library`, a
-`z1.library` nie ma na AROS One. Linkowanie może przejść, a program umrzeć przy
-starcie na otwieraniu biblioteki, której nie ma.
+`libz.a` i `libpng.a` w SDK to link stuby do `z1.library` i `png.library`
+(sprawdzone `ar t` na obu SDK, 2026-09-12: `z1_*_stub.o`, ~1.1 KB, `U Z1Base`).
+`z1.library` nie ma na AROS One, więc program zlinkuje się i padnie przy
+starcie.
 
-**Zamknie to:** statyczny build zlib i libpng dla ABIv11, obok SDL3, w
-`deps/<abi>`. Recepta C++ jest w `~/Work/AROS/docs/aros-reference.md`.
+Nie trzeba niczego budować ze źródeł: oba SDK mają `libz.static.a` i
+`libpng_nostdio.a` z prawdziwymi obiektami. Brak `png_init_io` w wariancie
+nostdio nie przeszkadza — OpenLoco używa własnych callbacków
+(`PngImage.cpp:73`, `Screenshot.cpp:96`).
+
+**Zamknie to:** ustawienie tych bibliotek w konfiguracji linkowania portu i
+potwierdzenie przy pierwszym pełnym linku.
 
 ## 10. Współrzędne myszy w SDL3 niesprawdzone
 
