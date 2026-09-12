@@ -16,9 +16,10 @@ z którego ABI pochodzi.
   czysty, to jest błąd, nie stan pracy. `scripts/bootstrap.sh` to sprawdza.
 - `work/OpenLoco` — tu się edytuje. Nie jest repozytorium i nie przetrwa
   `--reset`.
-- Każda zmiana w kodzie gry, która ma zostać, ląduje jako łatka w
-  `patches/openloco/`, z nagłówkiem mówiącym po co jest. Zmiana żyjąca tylko w
-  `work/` jest stracona.
+- Każda zmiana w kodzie gry, która ma zostać, ląduje jako łatka:
+  `scripts/save-patch.sh <nazwa> "po co"`. Zmiana żyjąca tylko w `work/` nie
+  jest zapisana — ale nie jest też cicho kasowana: `bootstrap.sh --reset`
+  odmawia, dopóki `git -C work/OpenLoco status` nie jest czysty.
 - Łatki zależności (`patches/dependencies/`) tak samo: w nagłówku musi być
   powód i zakres, bo za pół roku nikt nie odtworzy, czemu fmt jest ruszony.
 

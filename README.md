@@ -29,7 +29,18 @@ deps/<abi>/    zależności zewnętrzne — poza Gitem
 
 `upstream/` jest referencją i nigdy go nie edytujemy — dzięki temu w każdej
 chwili wiadomo, co jest nasze, a co gry. Zmiany w kodzie gry powstają w
-`work/`, a utrwalamy je jako łatki w `patches/openloco/`.
+`work/`, a utrwalamy je jako łatki:
+
+```sh
+scripts/save-patch.sh <nazwa> "po co ta łatka"
+```
+
+`work/` ma własne, prywatne repozytorium Git, którego pierwszy commit to
+upstream + wszystkie łatki. To nie jest historia portu — to mechanizm, dzięki
+któremu `git -C work/OpenLoco status` odpowiada dokładnie na jedno pytanie: co
+zmieniłem i jeszcze nie zapisałem jako łatki. **`bootstrap.sh --reset` odmówi
+skasowania `work/`, jeśli są tam niezapisane zmiany**; dopiero `--force` je
+wyrzuci.
 
 Commitujemy tylko do tego repozytorium. Wysłanie czegokolwiek do upstreamu
 OpenLoco byłoby osobnym, świadomym krokiem (PR z obsługą AROS) — lokalny
@@ -39,6 +50,7 @@ commit nigdy niczego tam nie wysyła.
 
 ```sh
 scripts/bootstrap.sh                 # upstream/ na przypiętym commicie + work/
+scripts/bootstrap.sh --reset         # odbuduj work/ (odmówi, jeśli są tam zmiany)
 scripts/fetch-deps.sh abiv11         # SDL3 (contrib + nasze łatki), fmt, sfl, yaml
 scripts/compile-probe.py             # próba kompilacji, oba ABI -> docs/evidence/
 scripts/build-sdl3.sh abiv11         # libSDL3_static.a -> deps/abiv11/lib
