@@ -14,8 +14,9 @@ z którego ABI pochodzi.
 
 - `upstream/OpenLoco` — **nigdy nie edytuj.** Jeśli `git status` tam nie jest
   czysty, to jest błąd, nie stan pracy. `scripts/bootstrap.sh` to sprawdza.
-- `work/OpenLoco` — tu się edytuje. Nie jest repozytorium i nie przetrwa
-  `--reset`.
+- `work/OpenLoco` — tu się edytuje. Ma prywatne repo Git, ale to **nie jest
+  historia portu**: jego jedyne zadanie to odpowiadać, co jest zmienione i
+  jeszcze niezapisane. Nie commituj tam ręcznie.
 - Każda zmiana w kodzie gry, która ma zostać, ląduje jako łatka:
   `scripts/save-patch.sh <nazwa> "po co"`. Zmiana żyjąca tylko w `work/` nie
   jest zapisana — ale nie jest też cicho kasowana: `bootstrap.sh --reset`
