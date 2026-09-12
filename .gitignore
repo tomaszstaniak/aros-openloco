@@ -1,0 +1,7 @@
+# Generated, never committed: our history stays ours.
+/upstream/
+/work/
+/build/
+/deps/
+
+.DS_Store

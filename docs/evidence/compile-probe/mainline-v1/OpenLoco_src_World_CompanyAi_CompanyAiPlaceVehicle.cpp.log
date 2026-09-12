@@ -1,0 +1,81 @@
+/Volumes/arosmain/toolchain-mainline/x86_64-aros-g++ --sysroot=/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer -std=c++20 -O1 -fno-char8_t -fstrict-aliasing -w -DFMT_HEADER_ONLY=1 -DOPENLOCO_VERSION_TAG="probe" -DOPENLOCO_BRANCH="probe" -DOPENLOCO_COMMIT_SHA1="0" -DOPENLOCO_COMMIT_SHA1_SHORT="0" -DOPENLOCO_BUILD_SERVER="" -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/App/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include/OpenLoco/Audio -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include/OpenLoco/Core -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include/OpenLoco/Diagnostics -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include/OpenLoco/Engine -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include/OpenLoco/Gfx -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include/OpenLoco/Math -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include/OpenLoco/Platform -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include/OpenLoco/Resources -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include/OpenLoco/Utility -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Version/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Version/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/SDL3-3.4.12/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/fmt/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/sfl/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/yaml/include -I/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include -c ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp -o ~/Work/AROS-dev/aros-openloco/build/mainline-v1/compile-probe/OpenLoco_src_World_CompanyAi_CompanyAiPlaceVehicle.o
+exit=1
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp: In function 'void OpenLoco::CompanyAi::processVehiclePlaceStateMachine(OpenLoco::Company&)':
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:639:15: error: expected nested-name-specifier before 'enum'
+  639 |         using enum AiPlaceVehicleState;
+      |               ^~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:642:18: error: 'begin' was not declared in this scope
+  642 |             case begin:
+      |                  ^~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:642:18: note: suggested alternatives:
+In file included from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/string_view:43,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Objects/Object.h:6,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/GameCommands.h:4,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/Vehicles/VehicleChangeRunningMode.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:3:
+/Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/range_access.h:108:37: note:   'std::begin'
+  108 |   template<typename _Tp> const _Tp* begin(const valarray<_Tp>&) noexcept;
+      |                                     ^~~~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/Company.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/Window.h:14,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/LastMapWindowAttributes.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameState.h:10,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:8:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/CompanyAi/CompanyAi.h:53:9: note:   'OpenLoco::AiPlaceVehicleState::begin'
+   53 |         begin,
+      |         ^~~~~
+In file included from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/stl_iterator_base_types.h:71,
+                 from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/stl_algobase.h:65,
+                 from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/char_traits.h:39,
+                 from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/string_view:41,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Objects/Object.h:6,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/GameCommands.h:4,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/Vehicles/VehicleChangeRunningMode.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:3:
+/Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/iterator_concepts.h:921:10: note:   'std::__detail::begin'
+  921 |     void begin(const auto&) = delete;
+      |          ^~~~~
+In file included from /Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/string_view:43,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Objects/Object.h:6,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/GameCommands.h:4,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameCommands/Vehicles/VehicleChangeRunningMode.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:3:
+/Volumes/arosmain/toolchain-mainline/lib/gcc/x86_64-aros/10.5.0/include/c++/bits/range_access.h:855:44: note:   'std::ranges::__cust::begin'
+  855 |     inline constexpr __cust_access::_Begin begin{};
+      |                                            ^~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:645:18: error: 'resetList' was not declared in this scope; did you mean 'OpenLoco::AiPlaceVehicleState::resetList'?
+  645 |             case resetList:
+      |                  ^~~~~~~~~
+      |                  OpenLoco::AiPlaceVehicleState::resetList
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/Company.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/Window.h:14,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/LastMapWindowAttributes.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameState.h:10,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:8:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/CompanyAi/CompanyAi.h:54:9: note: 'OpenLoco::AiPlaceVehicleState::resetList' declared here
+   54 |         resetList,
+      |         ^~~~~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:648:18: error: 'place' was not declared in this scope; did you mean 'OpenLoco::AiPlaceVehicleState::place'?
+  648 |             case place:
+      |                  ^~~~~
+      |                  OpenLoco::AiPlaceVehicleState::place
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/Company.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/Window.h:14,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/LastMapWindowAttributes.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameState.h:10,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:8:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/CompanyAi/CompanyAi.h:55:9: note: 'OpenLoco::AiPlaceVehicleState::place' declared here
+   55 |         place,
+      |         ^~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:651:18: error: 'restart' was not declared in this scope; did you mean 'OpenLoco::AiPlaceVehicleState::restart'?
+  651 |             case restart:
+      |                  ^~~~~~~
+      |                  OpenLoco::AiPlaceVehicleState::restart
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/Company.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/Window.h:14,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Ui/LastMapWindowAttributes.h:3,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/GameState.h:10,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp:8:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/World/CompanyAi/CompanyAi.h:56:9: note: 'OpenLoco::AiPlaceVehicleState::restart' declared here
+   56 |         restart,
+      |         ^~~~~~~

@@ -1,0 +1,182 @@
+/Volumes/arosmain/toolchain-mainline/x86_64-aros-g++ --sysroot=/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer -std=c++20 -O1 -fno-char8_t -fstrict-aliasing -w -DFMT_HEADER_ONLY=1 -DOPENLOCO_VERSION_TAG="probe" -DOPENLOCO_BRANCH="probe" -DOPENLOCO_COMMIT_SHA1="0" -DOPENLOCO_COMMIT_SHA1_SHORT="0" -DOPENLOCO_BUILD_SERVER="" -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/App/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Audio/include/OpenLoco/Audio -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Core/include/OpenLoco/Core -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Diagnostics/include/OpenLoco/Diagnostics -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Engine/include/OpenLoco/Engine -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Gfx/include/OpenLoco/Gfx -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Math/include/OpenLoco/Math -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Platform/include/OpenLoco/Platform -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Resources/include/OpenLoco/Resources -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/src -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Utility/include/OpenLoco/Utility -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Version/include -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/Version/include/OpenLoco -I~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/SDL3-3.4.12/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/fmt/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/sfl/include -I~/Work/AROS-dev/aros-openloco/deps/mainline-v1/src/yaml/include -I/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include -c ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp -o ~/Work/AROS-dev/aros-openloco/build/mainline-v1/compile-probe/OpenLoco_src_Network_Socket.o
+exit=1
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:61:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:65:89: error: macro "listen" passed 3 arguments, but takes just 2
+   65 |         virtual void listen(Protocol procotol, const std::string& address, uint16_t port) = 0;
+      |                                                                                         ^
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/bsdsocket.h:22,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/socket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/netdb.h:97,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:40:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/defines/bsdsocket.h:51: note: macro "listen" defined here
+   51 | #define listen(arg1, arg2) \
+      | 
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:415:38: error: macro "listen" passed 3 arguments, but takes just 2
+  415 |             listen(protocol, "", port);
+      |                                      ^
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/bsdsocket.h:22,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/socket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/netdb.h:97,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:40:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/defines/bsdsocket.h:51: note: macro "listen" defined here
+   51 | #define listen(arg1, arg2) \
+      | 
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:418:81: error: macro "listen" passed 3 arguments, but takes just 2
+  418 |         void listen(Protocol protocol, const std::string& address, uint16_t port) override
+      |                                                                                 ^
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/bsdsocket.h:22,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/socket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/netdb.h:97,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:40:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/defines/bsdsocket.h:51: note: macro "listen" defined here
+   51 | #define listen(arg1, arg2) \
+      | 
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:466:19: error: field 'ifru_addr' has incomplete type 'sockaddr'
+  466 |   struct sockaddr ifru_addr;
+      |                   ^~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:467:19: error: field 'ifru_dstaddr' has incomplete type 'sockaddr'
+  467 |   struct sockaddr ifru_dstaddr;
+      |                   ^~~~~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:468:19: error: field 'ifru_broadaddr' has incomplete type 'sockaddr'
+  468 |   struct sockaddr ifru_broadaddr;
+      |                   ^~~~~~~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:489:18: error: field 'ifra_addr' has incomplete type 'sockaddr'
+  489 |  struct sockaddr ifra_addr;
+      |                  ^~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:490:18: error: field 'ifra_broadaddr' has incomplete type 'sockaddr'
+  490 |  struct sockaddr ifra_broadaddr;
+      |                  ^~~~~~~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:491:18: error: field 'ifra_mask' has incomplete type 'sockaddr'
+  491 |  struct sockaddr ifra_mask;
+      |                  ^~~~~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:516,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:39:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if_arp.h:87:18: error: field 'arp_pa' has incomplete type 'sockaddr'
+   87 |  struct sockaddr arp_pa;  /* protocol address */
+      |                  ^~~~~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/arpa/inet.h:63,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:36:
+/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/net/if.h:138:3: note: forward declaration of 'struct sockaddr'
+  138 |   __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+      |   ^~~
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/clib/bsdsocket_protos.h:8,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/bsdsocket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/socket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/netdb.h:97,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:40:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: error: expected unqualified-id before 'int'
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: error: expected ')' before 'int'
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: note: to match this '('
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: error: expected ')' before 'int'
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: note: to match this '('
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: error: expected ')' before 'int'
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:64:22: note: to match this '('
+   64 |         virtual void listen(Protocol procotol, uint16_t port) = 0;
+      |                      ^~~~~~
+In file included from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:61:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/include/OpenLoco/Network/Socket.h:65:22: error: variable or field 'listen' declared void
+   65 |         virtual void listen(Protocol procotol, const std::string& address, uint16_t port) = 0;
+      |                      ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp: In member function 'virtual std::string OpenLoco::Network::NetworkEndpoint::getIpAddress() const':
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:190:21: error: 'inet_ntop' was not declared in this scope; did you mean 'inet_ntoa'?
+  190 |                     inet_ntop(AF_INET, &_address4.sin_addr, buffer, sizeof(buffer));
+      |                     ^~~~~~~~~
+      |                     inet_ntoa
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp: In member function 'virtual std::string OpenLoco::Network::NetworkEndpoint::getHostname() const':
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:202:23: error: 'getnameinfo' was not declared in this scope
+  202 |             int res = getnameinfo(&_address, _addressLen, hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
+      |                       ^~~~~~~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp: In static member function 'static bool OpenLoco::Network::BaseSocket::tryResolveAddress(OpenLoco::Network::Protocol, const string&, uint16_t, sockaddr_storage*, socklen_t*, std::string&)':
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:361:29: error: 'getaddrinfo' was not declared in this scope; did you mean 'addrinfo'?
+  361 |             int errorcode = getaddrinfo(address.empty() ? nullptr : address.c_str(), serviceName.c_str(), &hints, &result);
+      |                             ^~~~~~~~~~~
+      |                             addrinfo
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:364:28: error: 'gai_strerror' was not declared in this scope; did you mean 'strerror'?
+  364 |                 auto msg = gai_strerror(errorcode);
+      |                            ^~~~~~~~~~~~
+      |                            strerror
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:377:13: error: 'freeaddrinfo' was not declared in this scope; did you mean 'addrinfo'?
+  377 |             freeaddrinfo(result);
+      |             ^~~~~~~~~~~~
+      |             addrinfo
+In file included from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/clib/bsdsocket_protos.h:8,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/bsdsocket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/proto/socket.h:11,
+                 from /Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer/include/netdb.h:97,
+                 from ~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:40:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp: At global scope:
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: error: expected unqualified-id before 'int'
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: error: expected ')' before 'int'
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: note: to match this '('
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: error: expected ')' before 'int'
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: note: to match this '('
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: error: expected ')' before 'int'
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:413:14: note: to match this '('
+  413 |         void listen(Protocol protocol, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:418:14: error: variable or field 'listen' declared void
+  418 |         void listen(Protocol protocol, const std::string& address, uint16_t port) override
+      |              ^~~~~~
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:418:14: error: expected ';' at end of member declaration
+  418 |         void listen(Protocol protocol, const std::string& address, uint16_t port) override
+      |              ^~~~~~
+      |                    ;
+~/Work/AROS-dev/aros-openloco/work/OpenLoco/src/OpenLoco/src/Network/Socket.cpp:418:83: error: 'override' does not name a type
+  418 |         void listen(Protocol protocol, const std::string& address, uint16_t port) override
+      |                                                                                   ^~~~~~~~
