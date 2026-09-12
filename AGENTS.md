@@ -3,6 +3,21 @@
 Wspólne zasady są w `../AGENTS.md` i obowiązują tu w całości. Poniżej tylko to,
 co specyficzne dla tego portu.
 
+## Odstępstwo od wspólnej reguły zakresu — zapisane świadomie
+
+Wspólna decyzja brzmi: **rozwój śledzi mainline AROS**, a dystrybucja nie jest
+celem (`../docs/platform/porting-notes.md`, §Decyzje o zakresie; źródło:
+the testbench's shared rules, poprawione 2026-09-03).
+
+**Ten port ma inaczej i jest to polecenie użytkownika z 2026-09-12:** ABIv11
+(AROS One) jest celem głównym, mainline v1 drugim. Powód jest praktyczny — to
+ABIv11 ma w SDK OpenAL, iconv i działający toolchain dla tej gry, i to na nim
+uruchomiono SDL3. Odstępstwo dotyczy **priorytetu, nie porzucenia mainline**:
+mainline zostaje drugim targetem i każda próba jest robiona na obu.
+
+Gdyby ktoś wrócił do tego za pół roku: to nie jest zapomniana reguła, tylko
+świadomy wyjątek.
+
 ## Cel i priorytet
 
 **ABIv11 jest celem głównym, mainline v1 drugim.** Wynik z jednego ABI nie jest
@@ -46,6 +61,22 @@ działanie. Tak to opisuj.
 Nie przeskakuj stopni w opisie. SDL3 na ABIv11 jest dziś na stopniu 5, ale jako
 statyczny build obok systemu budowania AROS-a — nie jako `sdl3.library` z
 contrib, i to trzeba mówić za każdym razem.
+
+## Pułapki, które już raz kosztowały popołudnie
+
+Pełna lista: `../docs/platform/porting-notes.md` — **przeczytaj przed pierwszym
+buildem**, nie po. Trzy z nich trafiają w ten port wprost:
+
+- **Nie stripuj binarki na pełno.** `x86_64-aros-strip` bez flag daje plik,
+  który AROS One ładuje bez relokacji `.text` i który umiera w pierwszym
+  `OpenLibrary()` — wygląda jak błąd programu. Używaj
+  `--strip-unneeded --remove-section .comment`.
+- **`libpng.a` i `libz.a` w SDK to stuby** do `png.library` i `z1.library`, a
+  `z1.library` nie ma na AROS One. OpenLoco wymaga obu — trzeba je zbudować
+  statycznie, a nie polegać na tym, że „są w SDK".
+- **Współrzędne myszy ze zdarzeń SDL2 dawały na AROS (0,0).** Nasz test SDL3
+  liczył zdarzenia, a nie współrzędne, więc dla SDL3 to jest **niesprawdzone**.
+  Zanim uznasz mysz za działającą, sprawdź współrzędne.
 
 ## Uruchamianie na maszynach
 

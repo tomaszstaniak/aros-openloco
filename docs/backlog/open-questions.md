@@ -78,7 +78,32 @@ Wątki C++ w runtime: sprawdzone **tylko na ABIv11**. Mainline niepotwierdzony.
 `hardware_concurrency()` zwraca tam 0 — OpenLoco jej nie używa, ale kolejny
 projekt może.
 
-## 9. Ścieżka „zamknij na żądanie" niesprawdzona
+## 9. libpng i zlib trzeba zbudować statycznie
+
+`libpng.a` i `libz.a` w SDK to link stuby do `png.library` i `z1.library`, a
+`z1.library` nie ma na AROS One. Linkowanie może przejść, a program umrzeć przy
+starcie na otwieraniu biblioteki, której nie ma.
+
+**Zamknie to:** statyczny build zlib i libpng dla ABIv11, obok SDL3, w
+`deps/<abi>`. Recepta C++ jest w `~/Work/AROS/docs/aros-reference.md`.
+
+## 10. Współrzędne myszy w SDL3 niesprawdzone
+
+W SDL2 na AROS `ev.button.x/y` dawało (0,0) i obejściem był polling
+`SDL_GetMouseState`. Nasz test SDL3 liczył zdarzenia myszy, a nie ich
+współrzędne, więc o SDL3 nie wiemy nic.
+
+**Zamknie to:** rozszerzenie testu o odczyt współrzędnych i porównanie zdarzeń
+z `SDL_GetMouseState`.
+
+## 11. Strip binarki — nie na pełno
+
+`x86_64-aros-strip` bez flag psuje relokacje `.text`; program umiera w pierwszym
+`OpenLibrary()` i wygląda to jak błąd programu. Bezpieczna forma:
+`--strip-unneeded --remove-section .comment`. Do zapisania w skrypcie pakującym,
+zanim ktoś zoptymalizuje rozmiar 4 MB binarki.
+
+## 12. Ścieżka „zamknij na żądanie" niesprawdzona
 
 W żadnym przebiegu nie było `quit_event`, a ESC w przebiegu 1 nie dał zdarzenia
 (program skończył 300 klatek w tej samej chwili). Gadżet zamknięcia okna

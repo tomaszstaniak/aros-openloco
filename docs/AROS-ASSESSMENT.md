@@ -33,7 +33,11 @@ Z `thirdparty/CMakeLists.txt`, nie z README:
 - **SDL3** (`find_package(SDL3 REQUIRED CONFIG)`) — jedyna twarda zależność GUI.
 - **OpenAL** — cały dźwięk, `src/Audio/src/AudioEngine.cpp` używa `AL/al.h`,
   `AL/alc.h`, `AL/alext.h`.
-- **libpng + zlib** — oba SDK mają.
+- **libpng + zlib** — nagłówki i archiwa są w obu SDK, **ale `libpng.a` i
+  `libz.a` to link stuby** do `png.library` i `z1.library`, a `z1.library` nie
+  ma na AROS One. Trzeba je zbudować statycznie. Wcześniejsza wersja tej oceny
+  mówiła po prostu, że oba SDK je mają — to było za mocne.
+  Źródło: `../../docs/platform/porting-notes.md`.
 - **fmt 11.1.4, sfl 2.2.0, yaml-cpp 0.9.0** — pobierane przez CMake, czysty C++.
 - **TBB** — przez `<execution>`. Szerzej niżej; to nie jest zmiana jednej linii.
 - **libzip** — **nie jest używane.** README je wymienia, ale w całym drzewie nie
