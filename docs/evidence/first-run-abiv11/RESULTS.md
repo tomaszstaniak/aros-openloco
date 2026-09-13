@@ -90,16 +90,39 @@ trafiał wcześniej w `OpenLoco/Graphics/Gfx.h`. Stąd osobne
 na zawsze przy 100% CPU (patrz `../../../../docs/platform/porting-notes.md`).
 Użyj dysku vvfat:
 
+### Wariant, który testujemy: wszystko na RAM:
+
+Zarówno gra, jak i zasoby lądują w RAM:, a vvfat służy wyłącznie do
+przeniesienia ich do gościa. Powód jest jeden i konkretny: **zapis z gościa na
+vvfat cicho psuje pliki po stronie hosta**, a nie wiemy z góry, czy OpenLoco
+niczego nie zapisze obok zasobów. RAM: nie ma tego problemu i jest szybszy.
+Miejsca starczy — RAM: pokazywał ~1 GB wolnego.
+
 ```sh
+# NA HOŚCIE, przed startem QEMU:
 cp -R build/abiv11/openloco/OpenLoco build/abiv11/openloco/data ~/Work/AROS/shared/loco/
-cp -R "<instalacja Locomotion>"/* ~/Work/AROS/shared/Locomotion/   # PRZED startem
+cp -R "<instalacja Locomotion>"/* ~/Work/AROS/shared/Locomotion/
 ~/Work/AROS/vm.sh start one          # FAT powstaje przy starcie QEMU
-# w gościu:
-#   makedir RAM:loco
-#   copy "Qemu Vvfat:loco" RAM:loco ALL QUIET
-#   cd RAM:loco
-#   OpenLoco --version >RAM:ver.log
 ```
 
-Program uruchamiany z RAM:, bo `PROGDIR:` musi być zapisywalny, a zapis na
-vvfat z gościa cicho psuje pliki po stronie hosta.
+```
+; W GOŚCIU:
+makedir RAM:loco
+copy "Qemu Vvfat:loco" RAM:loco ALL QUIET
+makedir RAM:Locomotion
+copy "Qemu Vvfat:Locomotion" RAM:Locomotion ALL QUIET
+cd RAM:loco
+OpenLoco >RAM:run.log
+; gdy zapyta o ścieżkę, podaj:
+RAM:Locomotion
+```
+
+Program uruchamiany z `RAM:loco`, bo `PROGDIR:` musi być zapisywalny.
+
+### Wariant alternatywny: zasoby zostają na vvfat
+
+Wtedy do RAM: idzie **tylko** OpenLoco, a grze podaje się
+`Qemu Vvfat:Locomotion`. Oszczędza kopiowanie kilkudziesięciu MB, ale jest
+dobry tylko dopóki gra nic w tym katalogu nie zapisze — a tego jeszcze nie
+sprawdziliśmy. **Nie mieszać wariantów:** ścieżka podana grze musi wskazywać
+ten wolumin, na który zasoby faktycznie trafiły.
