@@ -1,0 +1,40 @@
+# SDL3 3.4.12 na AROS: okno na żądanie dla okna ukrytego
+#
+# Backend AROS otwiera okno Intuition dopiero w AROS_ShowWindow_Internal(), więc
+# okno utworzone z SDL_WINDOW_HIDDEN nie ma jeszcze data->win i każda próba
+# zbudowania framebuffera kończy się "No system window".
+#
+# SDL pozwala wołać SDL_GetWindowSurface() na oknie ukrytym i aplikacje z tego
+# korzystają: OpenLoco tworzy okno ukryte, buduje programowy renderer i dopiero
+# potem woła SDL_ShowWindow(). Na AROS ta sekwencja była niewykonalna - gra
+# przerywała start komunikatem "Unable to create software renderer".
+#
+# Otwieramy więc okno systemowe na żądanie; późniejsze SDL_ShowWindow() tylko je
+# aktywuje.
+#
+# Nakładane przez scripts/fetch-deps.sh po łatce AROS z contrib.
+# Nadaje się do zgłoszenia do aros-development-team/contrib.
+# Zapisane 2026-09-13.
+
+--- a/src/video/aros/SDL_arosframebuffer.c
++++ b/src/video/aros/SDL_arosframebuffer.c
+@@ -78,6 +78,19 @@
+     }
+ 
+ 	if (!data->win) {
++		/* The Intuition window is normally opened by AROS_ShowWindow_Internal(),
++		 * so a window created with SDL_WINDOW_HIDDEN has none yet. SDL allows
++		 * SDL_GetWindowSurface() on a hidden window, and applications do exactly
++		 * that: OpenLoco creates its window hidden, builds the software renderer,
++		 * and only then calls SDL_ShowWindow(). Failing here made that sequence
++		 * impossible on AROS. Open the system window on demand instead; the
++		 * later SDL_ShowWindow() then only activates it. */
++		D(bug("[SDL3:arosfb] %s: no window ptr yet, opening it on demand\n", __func__));
++		AROS_ShowWindow_Internal(_this, window);
++		data = (SDL_WindowData *) window->internal;
++	}
++
++	if (!data->win) {
+ 		D(bug("[SDL3:arosfb] %s: ERROR: no window ptr\n", __func__));
+         return SDL_SetError("No system window");
+     }

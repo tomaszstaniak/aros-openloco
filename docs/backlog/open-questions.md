@@ -8,6 +8,24 @@ Binarka **nie była jeszcze uruchomiona** — to następna pozycja.
 Wcześniejszy stan opisano na 2026-09-12. Kolejność mniej więcej według wpływu na decyzję o porcie.
 Każda pozycja mówi, co dokładnie jest niewiadome i co by ją zamknęło.
 
+## 0. ZAMKNIĘTE — okno gry i renderer działają na ABIv11
+
+2026-09-13: okno powstaje, silnik OpenLoco rysuje w nim własną treść.
+Blokadą było `SDL_WINDOW_HIDDEN`: backend AROS otwiera okno Intuition dopiero
+przy `ShowWindow`, a gra żąda renderera wcześniej. Łatka do SDL3 otwiera okno
+systemowe na żądanie. Dowody: `../evidence/g1-run-abiv11/RESULTS.md`.
+
+**Otwarte dalej:** menu i mapa — brakuje zasobów oryginalnej gry, patrz §16.
+
+## 16. Potrzebny cały katalog zainstalowanego Locomotion
+
+Mamy tylko `g1.DAT`. Start zatrzymuje się teraz na `Data/title.dat`;
+`ObjData/` i `Scenarios/` muszą mieć zawartość, nie być pustymi katalogami.
+Pełna lista w `../evidence/g1-run-abiv11/RESULTS.md`.
+
+**Zamknie to:** skopiowanie całej instalacji gry do
+`~/Work/AROS/shared/Locomotion/` **przed** startem QEMU.
+
 ## 1. Renderer programowy nigdy nie został uruchomiony
 
 SDL3 wybrał `opengl` i `setenv SDL_RENDER_DRIVER software` w Shellu tego nie

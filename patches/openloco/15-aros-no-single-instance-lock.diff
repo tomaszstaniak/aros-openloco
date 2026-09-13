@@ -1,0 +1,34 @@
+# aros-no-single-instance-lock
+#
+# fcntl(F_SETLK) nie istnieje na AROS, wiec wykrywanie drugiej instancji zawsze zglaszalo 'Another instance of OpenLoco is already running' i gra nie startowala. Na AROS ochrona jest wylaczona swiadomie: odpowiednik z AmigaDOS (semafor publiczny albo Lock EXCLUSIVE) trzeba by zdejmowac przy wyjsciu, a zostawiony po awarii blokowalby kazde kolejne uruchomienie. Skutek: dwie instancje moga sobie nadpisac zapisy.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Platform/src/Platform.Posix.cpp b/src/Platform/src/Platform.Posix.cpp
+index f3859c8..3b4b4ff 100644
+--- a/src/Platform/src/Platform.Posix.cpp
++++ b/src/Platform/src/Platform.Posix.cpp
+@@ -299,6 +299,22 @@ namespace OpenLoco::Platform
+ 
+     bool lockSingleInstance()
+     {
++#ifdef __AROS__
++        // AROS has no POSIX advisory record locks: fcntl(F_SETLK) fails, and
++        // the generic path below then reports "another instance is running"
++        // when none is. The game refused to start because of it.
++        //
++        // Not replaced with an AmigaDOS equivalent on purpose. A public
++        // semaphore or an exclusive Lock() would have to be removed on exit,
++        // and anything left behind by a crash would block every later run -
++        // strictly worse than not guarding at all, for a guard that only
++        // protects against the user starting the game twice.
++        //
++        // Consequence, stated plainly: on AROS nothing stops two instances
++        // from running and writing over each other's saves.
++        return true;
++#endif
++
+         // We will never close this file manually. The operating system will
+         // take care of that, because flock keeps the lock as long as the
+         // file is open and closes it automatically on file close.

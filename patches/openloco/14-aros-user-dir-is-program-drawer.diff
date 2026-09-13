@@ -1,0 +1,26 @@
+# aros-user-dir-is-program-drawer
+#
+# PROGDIR:OpenLoco kolidowalo z plikiem wykonywalnym o tej samej nazwie - create_directories konczylo sie 'Not a directory'. Katalogiem uzytkownika jest sam katalog programu, co jest zwyklym ukladem na Amidze i nie koliduje z data/.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Platform/src/Platform.Posix.cpp b/src/Platform/src/Platform.Posix.cpp
+index 1226585..f3859c8 100644
+--- a/src/Platform/src/Platform.Posix.cpp
++++ b/src/Platform/src/Platform.Posix.cpp
+@@ -110,7 +110,13 @@ namespace OpenLoco::Platform
+         // because ':' is a volume separator to AmigaDOS but an ordinary
+         // character to a POSIX path. Resolve it to a real path first -
+         // getCurrentExecutablePath() already does exactly that.
+-        return getCurrentExecutablePath() / fs::path("OpenLoco");
++        //
++        // The program's own drawer IS the user directory here, without an
++        // "OpenLoco" subdirectory: that name is taken by the executable itself,
++        // so creating it fails with "Not a directory". Keeping saves, logs and
++        // custom objects in the program's drawer is the usual Amiga layout
++        // anyway, and it cannot collide with the game's own data/ subdirectory.
++        return getCurrentExecutablePath();
+ #else
+         auto path = fs::path(getEnvironmentVariable("XDG_CONFIG_HOME"));
+         if (path.empty())

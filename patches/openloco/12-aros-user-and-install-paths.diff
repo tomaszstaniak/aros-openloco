@@ -1,0 +1,55 @@
+# aros-user-and-install-paths
+#
+# Dwa problemy ze sciezkami na AROS. (1) getUserDirectory szlo przez XDG i getpwuid, ktore na AROS daje /home - konfiguracja i obiekty ladowaly w nieistniejacym /home/.config/OpenLoco. Konwencja Amigi to PROGDIR:. (2) fs::canonical traktowalo 'RAM:Locomotion' jako sciezke wzgledna, bo POSIX uznaje za absolutna tylko te z wiodacym '/', i powstawalo 'RAM Disk:loco/RAM:Locomotion'. Sciezki z wolumenem/assignem przed pierwszym ukosnikiem przepuszczamy bez zmian - AmigaDOS rozwiazuje je sam.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Platform/src/Platform.Posix.cpp b/src/Platform/src/Platform.Posix.cpp
+index 0eea3b5..cc42d67 100644
+--- a/src/Platform/src/Platform.Posix.cpp
++++ b/src/Platform/src/Platform.Posix.cpp
+@@ -98,6 +98,15 @@ namespace OpenLoco::Platform
+ 
+     fs::path getUserDirectory()
+     {
++#ifdef __AROS__
++        // AROS has no XDG layout and no per-user home in the POSIX sense:
++        // getpwuid() yields "/home", so the settings ended up in a
++        // "/home/.config/OpenLoco" that does not exist and cannot be created.
++        // The Amiga convention is for a program to keep its own files next to
++        // itself, which PROGDIR: names; that directory is writable whenever the
++        // program was started from a writable volume.
++        return fs::path("PROGDIR:OpenLoco");
++#else
+         auto path = fs::path(getEnvironmentVariable("XDG_CONFIG_HOME"));
+         if (path.empty())
+         {
+@@ -112,6 +121,7 @@ namespace OpenLoco::Platform
+             }
+         }
+         return path / fs::path("OpenLoco");
++#endif // __AROS__
+     }
+ #endif
+ 
+@@ -169,6 +179,19 @@ namespace OpenLoco::Platform
+         std::cout << "Type your Locomotion path: ";
+         std::getline(std::cin, input);
+ 
++#ifdef __AROS__
++        // An AmigaDOS path is absolute when it carries a volume or assign name
++        // before the first slash - "RAM:Locomotion", "Work:Games/Loco". POSIX
++        // std::filesystem only recognises a leading '/', so canonical() treated
++        // such a path as relative and produced "RAM Disk:loco/RAM:Locomotion".
++        // AmigaDOS resolves these itself, so hand it through untouched.
++        const auto colon = input.find(':');
++        const auto slash = input.find('/');
++        if (colon != std::string::npos && (slash == std::string::npos || colon < slash))
++        {
++            return fs::path(input);
++        }
++#endif
+         auto path = fs::canonical(input);
+         return path;
+     }
