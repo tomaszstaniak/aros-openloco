@@ -63,6 +63,27 @@ RAM:loco
 - **Dźwięku.** `OpenALBase` jest w wymaganiach binarki, ale nic nie zagrało.
 - **Sieci.** Niedotknięta.
 
+## Jak podejść do kroków 2–4 (menu, mapa, zapis)
+
+Dwie rzeczy trzeba zrobić **przed** startem maszyny, inaczej próba zacznie się
+od diagnozowania niewłaściwych objawów:
+
+1. **Udostępnić cały katalog zainstalowanej gry, nie samo `Data/`.**
+   `Data/g1.DAT` zdejmuje tylko pierwszą bramkę; scenariusze i obiekty sięgają
+   dalej, a brakujące pliki wyglądałyby potem jak błędy portu.
+   Miejsce: `~/Work/AROS/shared/Locomotion/` (osobny katalog — uwaga poniżej).
+2. **Skopiować je zanim QEMU wystartuje.** Dysk vvfat to **migawka robiona przy
+   starcie maszyny**: pliki dorzucone do `shared/` przy działającym AROS-ie są
+   dla gościa niewidoczne i nie pomaga czekanie, tylko restart
+   (`../../../../docs/platform/testbench.md`). „Maszyna nadal chodzi" **nie**
+   znaczy, że można podjąć test od ręki.
+
+**Nie kładź zasobów Locomotion obok `data/` OpenLoco w jednym katalogu.**
+Host jest case-insensitive: `Data/` gry i `data/` OpenLoco zlałyby się w jeden
+katalog po stronie macOS. To ta sama własność, przez którą `<graphics/gfx.h>`
+trafiał wcześniej w `OpenLoco/Graphics/Gfx.h`. Stąd osobne
+`shared/Locomotion/` obok `shared/loco/`.
+
 ## Jak powtórzyć
 
 **Nie kopiuj `data/` przez CD** — 168 plików w jednym katalogu wiesza `copy`
@@ -71,6 +92,7 @@ Użyj dysku vvfat:
 
 ```sh
 cp -R build/abiv11/openloco/OpenLoco build/abiv11/openloco/data ~/Work/AROS/shared/loco/
+cp -R "<instalacja Locomotion>"/* ~/Work/AROS/shared/Locomotion/   # PRZED startem
 ~/Work/AROS/vm.sh start one          # FAT powstaje przy starcie QEMU
 # w gościu:
 #   makedir RAM:loco

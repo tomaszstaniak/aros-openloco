@@ -147,6 +147,13 @@ i pierwsza klatka pozostają niesprawdzone.
 
 **Zamknie to:** podłożenie zasobów oryginału i przejście kroków: menu →
 scenariusz → mapa → czynności myszą → zapis → ponowne wczytanie → wyjście.
+Następny kamień milowy to **menu i pierwsza wyrenderowana mapa** — dopiero to
+odpowie, czy główna ścieżka graficzna gry działa.
+
+Dwa warunki przygotowania, oba sprawdzone bólem: udostępnić **cały** katalog
+instalacyjny gry (nie samo `Data/`), i zrobić to **przed** startem QEMU, bo
+vvfat jest migawką z momentu startu. Szczegóły w
+`../evidence/first-run-abiv11/RESULTS.md`.
 
 ## 13a. Stara treść: binarka nie była uruchomiona
 
