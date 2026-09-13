@@ -47,26 +47,38 @@ def deps_dir(abi):
 
 
 def include_dirs():
-    """Mirror cmake/OpenLocoUtility.cmake: each module exposes include/, src/,
-    include/OpenLoco and include/OpenLoco/<Module>."""
-    dirs = []
+    """Mirror cmake/OpenLocoUtility.cmake and src/OpenLoco/CMakeLists.txt:791.
+
+    Returns (public, private_by_module). Only a module's OWN files get its
+    include/OpenLoco and include/OpenLoco/<Module> directories, because upstream
+    adds those PRIVATE. Handing them to every translation unit is not just
+    inaccurate, it actively breaks the probe: include/OpenLoco/Graphics matches
+    a system <graphics/...> include on a case-insensitive filesystem, so
+    <graphics/gfx.h> resolved to OpenLoco's own Gfx.h and produced errors deep
+    inside AROS SDK headers that the real build never sees.
+    """
+    public, private = [], {}
     for mod in sorted((WORK / 'src').iterdir()):
         if not mod.is_dir():
             continue
-        for cand in (mod / 'include', mod / 'src',
-                     mod / 'include' / 'OpenLoco',
-                     mod / 'include' / 'OpenLoco' / mod.name):
+        for cand in (mod / 'include', mod / 'src'):
             if cand.is_dir():
-                dirs.append(cand)
-    return dirs
+                public.append(cand)
+        priv = [d for d in (mod / 'include' / 'OpenLoco',
+                            mod / 'include' / 'OpenLoco' / mod.name) if d.is_dir()]
+        if priv:
+            private[mod.name] = priv
+    return public, private
 
 
 def flags(abi, sysroot, src, include_all):
     # The file's own module comes first: several modules ship a Types.hpp and a
     # plain #include "Types.hpp" must resolve inside its own module.
+    public, private = include_all
     own = src.relative_to(WORK / 'src').parts[0]
-    mine = [d for d in include_all if d.relative_to(WORK / 'src').parts[0] == own]
-    rest = [d for d in include_all if d not in mine]
+    mine = private.get(own, []) + [d for d in public
+                                   if d.relative_to(WORK / 'src').parts[0] == own]
+    rest = [d for d in public if d not in mine]
     deps = deps_dir(abi)
     inc = [f'-I{d}' for d in mine + rest]
     inc += [f'-I{src.parent}',

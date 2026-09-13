@@ -37,6 +37,11 @@ SDL3_VER=3.4.12
     git -C fmt apply "$PORT_ROOT/patches/dependencies/fmt-11.1.4-aros-nowstring.diff"
 }
 [ -d sfl ]  || git clone -q --depth 1 -b 2.2.0          https://github.com/slavenf/sfl-library.git sfl
-[ -d yaml ] || git clone -q --depth 1 -b yaml-cpp-0.9.0 https://github.com/jbeder/yaml-cpp.git yaml
+[ -d yaml ] || {
+    git clone -q --depth 1 -b yaml-cpp-0.9.0 https://github.com/jbeder/yaml-cpp.git yaml
+    # Bundled dragonbox takes the least/fast integer types from std; AROS has
+    # them only in the global namespace. See the patch header.
+    git -C yaml apply "$PORT_ROOT/patches/dependencies/yaml-cpp-0.9.0-aros-stdint.diff"
+}
 
 echo "deps for $ABI ready in $SRC"

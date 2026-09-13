@@ -1,0 +1,29 @@
+# openal-hrtf-optional
+#
+# ALC_HRTF_SOFT to token rozszerzenia ALC_SOFT_HRTF; openal-soft 1.19.1 w SDK AROS jest bez niego. Strażnik na tokenie, nie na wersji.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Audio/src/AudioEngine.cpp b/src/Audio/src/AudioEngine.cpp
+index a2fb22a..f5f8ae0 100644
+--- a/src/Audio/src/AudioEngine.cpp
++++ b/src/Audio/src/AudioEngine.cpp
+@@ -123,9 +123,17 @@ namespace OpenLoco::Audio
+             return false;
+         }
+ 
++        // ALC_HRTF_SOFT is an ALC_SOFT_HRTF extension token. openal-soft has
++        // had it since 1.16, but AROS ships 1.19.1 headers built without the
++        // extension, so guard on the token rather than on a version. Leaving it
++        // out only means HRTF keeps whatever default the implementation has;
++        // the game asks for it to be off, and an implementation without the
++        // extension has it off anyway.
+         // clang-format off
+         constexpr ALCint attrs[] = {
++#ifdef ALC_HRTF_SOFT
+             ALC_HRTF_SOFT, ALC_FALSE,
++#endif
+             ALC_MONO_SOURCES, 1024,
+             ALC_STEREO_SOURCES, 32,
+             0

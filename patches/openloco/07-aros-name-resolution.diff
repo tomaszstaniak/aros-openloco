@@ -1,0 +1,276 @@
+# aros-name-resolution
+#
+# AROS ma BSD 4.3 sockets, ale nie ma RFC 3493: getaddrinfo/freeaddrinfo/gai_strerror/getnameinfo/inet_ntop nie istnieja (arpa/inet.h deklaruje je tylko pod #if !defined(__AROS__)). ArosNetCompat.hpp implementuje je dla IPv4 przez gethostbyname/inet_addr; IPv6 zwraca EAI_FAMILY zamiast udawac. Plus setsockopt na AROS bierze niestaly wskaznik. NIESPRAWDZONE wobec zywej sieci.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/OpenLoco/src/Network/ArosNetCompat.hpp b/src/OpenLoco/src/Network/ArosNetCompat.hpp
+new file mode 100644
+index 0000000..212e93d
+--- /dev/null
++++ b/src/OpenLoco/src/Network/ArosNetCompat.hpp
+@@ -0,0 +1,218 @@
++#pragma once
++
++// RFC 3493 name resolution for AROS.
++//
++// AROS's bsdsocket.library provides the BSD 4.3 API — socket(), bind(),
++// gethostbyname(), inet_addr(), inet_ntoa() — but not getaddrinfo(),
++// freeaddrinfo(), gai_strerror(), getnameinfo() or inet_ntop(). Its
++// <arpa/inet.h> declares those only under `#if !defined(__AROS__)`, so on AROS
++// they do not exist at all rather than being present and failing.
++//
++// What is implemented here, and nothing beyond it:
++//   * inet_ntop   AF_INET and AF_INET6 (no "::" compression for v6, the
++//                 output is a valid if verbose address).
++//   * getaddrinfo AF_INET / AF_UNSPEC only, resolving through inet_addr() for
++//                 numeric hosts and gethostbyname() otherwise; the service may
++//                 be numeric or null. AI_PASSIVE is honoured.
++//   * getnameinfo NI_NUMERICHOST / numeric service only — which is exactly how
++//                 OpenLoco calls it.
++//
++// **AF_INET6 resolution returns EAI_FAMILY**: bsdsocket's gethostbyname() has
++// no v6 path here, and inventing one that is never exercised would be worse
++// than saying no. IPv6 multiplayer on AROS therefore does not work; IPv4 does,
++// as far as compilation and the API contract go.
++//
++// NOT verified against a live network. It compiles and it is honest about its
++// limits; nothing here has connected to a real host yet. See the port backlog.
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
++#include <arpa/inet.h>
++#include <netdb.h>
++#include <netinet/in.h>
++#include <sys/socket.h>
++
++#ifndef NI_NUMERICHOST
++#define NI_NUMERICHOST 0x01
++#endif
++#ifndef NI_NUMERICSERV
++#define NI_NUMERICSERV 0x02
++#endif
++#ifndef AI_PASSIVE
++#define AI_PASSIVE 0x01
++#endif
++#ifndef EAI_FAMILY
++#define EAI_FAMILY -6
++#endif
++#ifndef EAI_NONAME
++#define EAI_NONAME -2
++#endif
++#ifndef EAI_MEMORY
++#define EAI_MEMORY -10
++#endif
++#ifndef EAI_FAIL
++#define EAI_FAIL -4
++#endif
++
++namespace OpenLoco::Network::ArosCompat
++{
++    inline const char* inetNtop(int af, const void* src, char* dst, socklen_t size)
++    {
++        if (af == AF_INET)
++        {
++            const auto* b = static_cast<const unsigned char*>(src);
++            const int n = std::snprintf(dst, size, "%u.%u.%u.%u", b[0], b[1], b[2], b[3]);
++            return (n > 0 && static_cast<socklen_t>(n) < size) ? dst : nullptr;
++        }
++        if (af == AF_INET6)
++        {
++            const auto* b = static_cast<const unsigned char*>(src);
++            char tmp[46];
++            int off = 0;
++            for (int i = 0; i < 8; ++i)
++            {
++                off += std::snprintf(tmp + off, sizeof(tmp) - off, "%s%x",
++                                     i ? ":" : "",
++                                     (b[i * 2] << 8) | b[i * 2 + 1]);
++            }
++            if (static_cast<socklen_t>(off) >= size)
++            {
++                return nullptr;
++            }
++            std::memcpy(dst, tmp, off + 1);
++            return dst;
++        }
++        return nullptr;
++    }
++
++    inline int servicePort(const char* service)
++    {
++        if (service == nullptr || *service == '\0')
++        {
++            return 0;
++        }
++        // Numeric only: AROS has no getservbyname worth relying on here, and
++        // OpenLoco always passes a port number.
++        return std::atoi(service);
++    }
++
++    inline int getAddrInfo(const char* node, const char* service,
++                           const struct addrinfo* hints, struct addrinfo** res)
++    {
++        if (hints != nullptr && hints->ai_family == AF_INET6)
++        {
++            return EAI_FAMILY;
++        }
++
++        in_addr_t addr = INADDR_ANY;
++        if (node != nullptr && *node != '\0')
++        {
++            addr = inet_addr(node);
++            if (addr == INADDR_NONE)
++            {
++                struct hostent* he = gethostbyname(node);
++                if (he == nullptr || he->h_addrtype != AF_INET || he->h_addr_list[0] == nullptr)
++                {
++                    return EAI_NONAME;
++                }
++                std::memcpy(&addr, he->h_addr_list[0], sizeof(addr));
++            }
++        }
++        else if (hints == nullptr || (hints->ai_flags & AI_PASSIVE) == 0)
++        {
++            // No node and not a listening socket: loopback, as POSIX says.
++            addr = inet_addr("127.0.0.1");
++        }
++
++        auto* sa = static_cast<struct sockaddr_in*>(std::calloc(1, sizeof(struct sockaddr_in)));
++        auto* ai = static_cast<struct addrinfo*>(std::calloc(1, sizeof(struct addrinfo)));
++        if (sa == nullptr || ai == nullptr)
++        {
++            std::free(sa);
++            std::free(ai);
++            return EAI_MEMORY;
++        }
++
++        sa->sin_family = AF_INET;
++        sa->sin_addr.s_addr = addr;
++        sa->sin_port = htons(static_cast<uint16_t>(servicePort(service)));
++
++        ai->ai_family = AF_INET;
++        ai->ai_socktype = (hints != nullptr && hints->ai_socktype != 0) ? hints->ai_socktype : SOCK_STREAM;
++        ai->ai_protocol = (hints != nullptr) ? hints->ai_protocol : 0;
++        ai->ai_addrlen = sizeof(struct sockaddr_in);
++        ai->ai_addr = reinterpret_cast<struct sockaddr*>(sa);
++        ai->ai_next = nullptr;
++
++        *res = ai;
++        return 0;
++    }
++
++    inline void freeAddrInfo(struct addrinfo* ai)
++    {
++        while (ai != nullptr)
++        {
++            struct addrinfo* next = ai->ai_next;
++            std::free(ai->ai_addr);
++            std::free(ai);
++            ai = next;
++        }
++    }
++
++    inline const char* gaiStrError(int code)
++    {
++        switch (code)
++        {
++            case 0: return "no error";
++            case EAI_FAMILY: return "address family not supported on AROS";
++            case EAI_NONAME: return "name could not be resolved";
++            case EAI_MEMORY: return "out of memory";
++            default: return "name resolution failed";
++        }
++    }
++
++    inline int getNameInfo(const struct sockaddr* sa, socklen_t salen,
++                           char* host, socklen_t hostlen,
++                           char* serv, socklen_t servlen, int flags)
++    {
++        (void)salen;
++        (void)flags; // numeric is all we do; callers ask for NI_NUMERICHOST.
++        if (host != nullptr && hostlen > 0)
++        {
++            const void* addr = nullptr;
++            if (sa->sa_family == AF_INET)
++            {
++                addr = &reinterpret_cast<const struct sockaddr_in*>(sa)->sin_addr;
++            }
++            else if (sa->sa_family == AF_INET6)
++            {
++                addr = &reinterpret_cast<const struct sockaddr_in6*>(sa)->sin6_addr;
++            }
++            else
++            {
++                return EAI_FAMILY;
++            }
++            if (inetNtop(sa->sa_family, addr, host, hostlen) == nullptr)
++            {
++                return EAI_FAIL;
++            }
++        }
++        if (serv != nullptr && servlen > 0)
++        {
++            const uint16_t port = (sa->sa_family == AF_INET)
++                ? ntohs(reinterpret_cast<const struct sockaddr_in*>(sa)->sin_port)
++                : ntohs(reinterpret_cast<const struct sockaddr_in6*>(sa)->sin6_port);
++            std::snprintf(serv, servlen, "%u", port);
++        }
++        return 0;
++    }
++}
++
++// The call sites stay as they are; these names simply resolve to the shim.
++#define inet_ntop    ::OpenLoco::Network::ArosCompat::inetNtop
++#define getaddrinfo  ::OpenLoco::Network::ArosCompat::getAddrInfo
++#define freeaddrinfo ::OpenLoco::Network::ArosCompat::freeAddrInfo
++#define gai_strerror ::OpenLoco::Network::ArosCompat::gaiStrError
++#define getnameinfo  ::OpenLoco::Network::ArosCompat::getNameInfo
+diff --git a/src/OpenLoco/src/Network/Socket.cpp b/src/OpenLoco/src/Network/Socket.cpp
+index f5dda7b..b866902 100644
+--- a/src/OpenLoco/src/Network/Socket.cpp
++++ b/src/OpenLoco/src/Network/Socket.cpp
+@@ -47,6 +47,11 @@
+     #include <sys/ioctl.h>
+     #include <sys/socket.h>
+     #include <unistd.h>
++    #ifdef __AROS__
++        // AROS has the BSD 4.3 socket API but not RFC 3493 name resolution;
++        // see the header for exactly what is and is not provided.
++        #include "ArosNetCompat.hpp"
++    #endif
+     using SOCKET = int32_t;
+     #define SOCKET_ERROR -1
+     #define INVALID_SOCKET -1
+@@ -304,7 +309,12 @@ namespace OpenLoco::Network
+         static bool setOption(SOCKET socket, int32_t a, int32_t b, bool value)
+         {
+             int32_t ivalue = value ? 1 : 0;
++#ifdef __AROS__
++            // AROS's setsockopt() takes a non-const value pointer.
++            return setsockopt(socket, a, b, reinterpret_cast<char*>(&ivalue), sizeof(ivalue)) == 0;
++#else
+             return setsockopt(socket, a, b, reinterpret_cast<const char*>(&ivalue), sizeof(ivalue)) == 0;
++#endif
+         }
+ 
+         static int protocolToFamily(Protocol protocol)
+diff --git a/src/Platform/src/Platform.Posix.cpp b/src/Platform/src/Platform.Posix.cpp
+index e8d5067..e9bc54b 100644
+--- a/src/Platform/src/Platform.Posix.cpp
++++ b/src/Platform/src/Platform.Posix.cpp
+@@ -17,11 +17,6 @@
+ 
+ #ifdef __AROS__
+ // GetProgramDir()/NameFromLock() for the executable path; AROS has no /proc.
+-// <graphics/gfx.h> first: <proto/dos.h> reaches <graphics/clip.h> through
+-// <intuition/intuition.h>, and clip.h uses struct Rectangle without declaring
+-// it. Without this the failure is reported inside an SDK header and looks like
+-// a broken SDK rather than an include order problem.
+-#include <graphics/gfx.h>
+ #include <proto/dos.h>
+ #endif
+ 

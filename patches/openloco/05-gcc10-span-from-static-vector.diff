@@ -1,0 +1,128 @@
+# gcc10-span-from-static-vector
+#
+# std::span w GCC 10 nie przyjmuje sfl::static_vector przez konstruktor zakresowy - jego wykrywanie contiguous_range jest sprzed finalnego brzmienia. Konstruktor wskaźnik+rozmiar znaczy to samo i działa zawsze.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/OpenLoco/src/Map/MapSelection.cpp b/src/OpenLoco/src/Map/MapSelection.cpp
+index b8539c6..ef79b84 100644
+--- a/src/OpenLoco/src/Map/MapSelection.cpp
++++ b/src/OpenLoco/src/Map/MapSelection.cpp
+@@ -163,7 +163,10 @@ namespace OpenLoco::World
+ 
+     std::span<const Pos2> getMapSelectionFreeFormTiles()
+     {
+-        return _mapSelectedFreeFormTiles;
++        // GCC 10's std::span does not accept sfl::static_vector through its range
++        // constructor: its contiguous_range detection predates the final wording.
++        // The pointer+size constructor is unconditional and means the same thing.
++        return { _mapSelectedFreeFormTiles.data(), _mapSelectedFreeFormTiles.size() };
+     }
+ 
+     // 0x0046112C
+diff --git a/src/OpenLoco/src/Paint/PaintRoadStation.cpp b/src/OpenLoco/src/Paint/PaintRoadStation.cpp
+index 5e09480..07c8b6b 100644
+--- a/src/OpenLoco/src/Paint/PaintRoadStation.cpp
++++ b/src/OpenLoco/src/Paint/PaintRoadStation.cpp
+@@ -1,3 +1,4 @@
++#include <span>
+ #include "Paint/PaintRoadStation.h"
+ #include "Map/RoadElement.h"
+ #include "Map/StationElement.h"
+@@ -89,6 +90,13 @@ namespace OpenLoco::Paint
+         // This was part of paintStationCargo
+         const auto unkPosHash = (session.getUnkPosition().x + session.getUnkPosition().y) / 32;
+         const auto cargoOffsets = stationObj->getCargoOffsets(rotation, unkPosHash & 0x3);
++        // GCC 10's std::span does not accept sfl::static_vector through its range
++        // constructor: its contiguous_range detection predates the final wording.
++        // Binding the pointer and size once here keeps every call site below
++        // unchanged and means exactly the same thing.
++        const std::span<const std::decay_t<decltype(cargoOffsets)>::value_type> cargoOffsetsSpan{
++            cargoOffsets.data(), cargoOffsets.size()
++        };
+ 
+         constexpr std::array<std::array<uint8_t, 4>, 4> cargoRotationFlags = {
+             std::array<uint8_t, 4>{ 0x9, 0x5, 0x6, 0xA },
+@@ -116,8 +124,8 @@ namespace OpenLoco::Paint
+         {
+             World::Pos3 bbOffset = platformImages.back.bbOffset + heightOffset;
+             session.addToPlotList4FD150(imageBase.withIndexOffset(platformImages.back.imageId), heightOffset, bbOffset, platformImages.back.bbSize);
+-            paintStationCargo(session, elStation, cargoFlags[0], cargoTypeFlags, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
+-            paintStationCargo(session, elStation, cargoFlags[1], cargoTypeFlags, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[0], cargoTypeFlags, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[1], cargoTypeFlags, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
+         }
+ 
+         // Paint Front part of platform
+@@ -125,8 +133,8 @@ namespace OpenLoco::Paint
+             World::Pos3 bbOffset = platformImages.front.bbOffset + heightOffset;
+             session.addToPlotList4FD150(imageBase.withIndexOffset(platformImages.front.imageId), heightOffset, bbOffset, platformImages.front.bbSize);
+ 
+-            paintStationCargo(session, elStation, cargoFlags[2], cargoTypeFlags, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
+-            paintStationCargo(session, elStation, cargoFlags[3], cargoTypeFlags, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[2], cargoTypeFlags, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[3], cargoTypeFlags, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
+         }
+ 
+         // Paint Canopy of platform
+diff --git a/src/OpenLoco/src/Paint/PaintTrainStation.cpp b/src/OpenLoco/src/Paint/PaintTrainStation.cpp
+index 2220be7..a26a68b 100644
+--- a/src/OpenLoco/src/Paint/PaintTrainStation.cpp
++++ b/src/OpenLoco/src/Paint/PaintTrainStation.cpp
+@@ -1,3 +1,4 @@
++#include <span>
+ #include "Paint/PaintTrainStation.h"
+ #include "Map/StationElement.h"
+ #include "Map/TileElement.h"
+@@ -21,6 +22,13 @@ namespace OpenLoco::Paint
+         // This was part of paintStationCargo
+         const auto unkPosHash = (session.getUnkPosition().x + session.getUnkPosition().y) / 32;
+         const auto cargoOffsets = stationObj->getCargoOffsets(rotation, unkPosHash & 0x3);
++        // GCC 10's std::span does not accept sfl::static_vector through its range
++        // constructor: its contiguous_range detection predates the final wording.
++        // Binding the pointer and size once here keeps every call site below
++        // unchanged and means exactly the same thing.
++        const std::span<const std::decay_t<decltype(cargoOffsets)>::value_type> cargoOffsetsSpan{
++            cargoOffsets.data(), cargoOffsets.size()
++        };
+ 
+         constexpr std::array<std::array<uint8_t, 4>, 4> cargoRotationFlags = {
+             std::array<uint8_t, 4>{ 0x9, 0x5, 0x6, 0xA },
+@@ -105,16 +113,16 @@ namespace OpenLoco::Paint
+             World::Pos3 bbOffset = platformImages.back.bbOffset + heightOffset;
+             session.addToPlotList4FD150(imageBase.withIndexOffset(platformImages.back.imageId), heightOffset, bbOffset, platformImages.back.bbSize);
+ 
+-            paintStationCargo(session, elStation, cargoFlags[0], 0xFFFFFFFF, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
+-            paintStationCargo(session, elStation, cargoFlags[1], 0xFFFFFFFF, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[0], 0xFFFFFFFF, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[1], 0xFFFFFFFF, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.back.bbSize);
+         }
+         // Paint Front part of platform
+         {
+             World::Pos3 bbOffset = platformImages.front.bbOffset + heightOffset;
+             session.addToPlotList4FD150(imageBase.withIndexOffset(platformImages.front.imageId), heightOffset, bbOffset, platformImages.front.bbSize);
+ 
+-            paintStationCargo(session, elStation, cargoFlags[2], 0xFFFFFFFF, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
+-            paintStationCargo(session, elStation, cargoFlags[3], 0xFFFFFFFF, cargoOffsets, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[2], 0xFFFFFFFF, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
++            paintStationCargo(session, elStation, cargoFlags[3], 0xFFFFFFFF, cargoOffsetsSpan, elStation.baseHeight(), bbOffset, platformImages.front.bbSize);
+         }
+ 
+         // Paint Canopy of platform
+diff --git a/src/OpenLoco/src/Vehicles/OrderManager.cpp b/src/OpenLoco/src/Vehicles/OrderManager.cpp
+index 9593096..6f02955 100644
+--- a/src/OpenLoco/src/Vehicles/OrderManager.cpp
++++ b/src/OpenLoco/src/Vehicles/OrderManager.cpp
+@@ -106,7 +106,10 @@ namespace OpenLoco::Vehicles::OrderManager
+ 
+     std::span<const NumDisplayFrame> displayFrames()
+     {
+-        return _displayFrames;
++        // GCC 10's std::span does not accept sfl::static_vector through its range
++        // constructor: its contiguous_range detection predates the final wording.
++        // The pointer+size constructor is unconditional and means the same thing.
++        return { _displayFrames.data(), _displayFrames.size() };
+     }
+ 
+     Order* orders() { return reinterpret_cast<Order*>(getGameState().orders); }

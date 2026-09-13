@@ -1,0 +1,25 @@
+# respect-user-ipo-setting
+#
+# Niektore toolchainy cross zglaszaja IPO jako wspierane i wywracaja sie w lto1, gdy obiekty LTO spotykaja nie-LTO-we biblioteki systemowe (GCC 10.5.0 na AROS: internal compiler error in add_symbol_to_partition_1). Musi byc sposob wylaczenia tego z linii polecen. Nadaje sie do zgloszenia upstream.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 3946b99..021cdf9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -62,8 +62,11 @@ project(${PROJECT} LANGUAGES CXX VERSION 26.08)
+ include(CheckIPOSupported)
+ check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+ 
+-if(ipo_supported)
+-    # Enable IPO globally for all Release builds
++if(ipo_supported AND NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE)
++    # Enable IPO globally for all Release builds, unless the user already said
++    # otherwise: some cross toolchains report IPO as supported and then fail in
++    # lto1 when LTO objects meet non-LTO system libraries, and there has to be
++    # a way to turn it off from the command line.
+     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+     message(STATUS "IPO/LTO enabled for all Release targets.")
+ else()

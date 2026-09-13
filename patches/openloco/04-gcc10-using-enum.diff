@@ -1,0 +1,318 @@
+# gcc10-using-enum
+#
+# using enum to C++20, ale GCC ma je dopiero od 11; AROS ma 10.5.0. Aliasy constexpr w tym samym zakresie robią to samo w każdym standardzie. W TownManager musiały wyjść poza switch: deklaracja między { a pierwszym case jest przeskakiwana przez każdy case i jest źle sformułowana.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/OpenLoco/src/World/CompanyAi/CompanyAi.cpp b/src/OpenLoco/src/World/CompanyAi/CompanyAi.cpp
+index 8b0361b..3bd84b6 100644
+--- a/src/OpenLoco/src/World/CompanyAi/CompanyAi.cpp
++++ b/src/OpenLoco/src/World/CompanyAi/CompanyAi.cpp
+@@ -3493,7 +3493,23 @@ namespace OpenLoco
+     static bool chooseTrackObject(CompanyId companyId, AiThought& thought)
+     {
+         const auto destinations = getDestinationPositions(thought);
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = World::Track::TrackTraitFlags::none;
++        constexpr auto diagonal = World::Track::TrackTraitFlags::diagonal;
++        constexpr auto largeCurve = World::Track::TrackTraitFlags::largeCurve;
++        constexpr auto normalCurve = World::Track::TrackTraitFlags::normalCurve;
++        constexpr auto smallCurve = World::Track::TrackTraitFlags::smallCurve;
++        constexpr auto verySmallCurve = World::Track::TrackTraitFlags::verySmallCurve;
++        constexpr auto slope = World::Track::TrackTraitFlags::slope;
++        constexpr auto steepSlope = World::Track::TrackTraitFlags::steepSlope;
++        constexpr auto oneSided = World::Track::TrackTraitFlags::oneSided;
++        constexpr auto slopedCurve = World::Track::TrackTraitFlags::slopedCurve;
++        constexpr auto sBend = World::Track::TrackTraitFlags::sBend;
++        constexpr auto junction = World::Track::TrackTraitFlags::junction;
++        #else
+         using enum World::Track::TrackTraitFlags;
++        #endif
+         auto requiredTraits = smallCurve | slope | junction;
+         if (destinations.posB.has_value())
+         {
+@@ -3559,7 +3575,21 @@ namespace OpenLoco
+             }
+ 
+             auto* roadObj = ObjectManager::get<RoadObject>(roadObjId & ~(1U << 7));
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = RoadObjectFlags::none;
++            constexpr auto isOneWay = RoadObjectFlags::isOneWay;
++            constexpr auto isRail = RoadObjectFlags::isRail;
++            constexpr auto allowsJunctions = RoadObjectFlags::allowsJunctions;
++            constexpr auto anyRoadTypeCompatible = RoadObjectFlags::anyRoadTypeCompatible;
++            constexpr auto noSlipSurface = RoadObjectFlags::noSlipSurface;
++            constexpr auto hasRackRail = RoadObjectFlags::hasRackRail;
++            constexpr auto isRoad = RoadObjectFlags::isRoad;
++            constexpr auto allowUseByAllCompanies = RoadObjectFlags::allowUseByAllCompanies;
++            constexpr auto canHaveStreetLights = RoadObjectFlags::canHaveStreetLights;
++            #else
+             using enum RoadObjectFlags;
++            #endif
+             if ((roadObj->flags & (allowUseByAllCompanies | isRoad | anyRoadTypeCompatible | allowsJunctions)) != (allowUseByAllCompanies | isRoad | anyRoadTypeCompatible | allowsJunctions))
+             {
+                 continue;
+@@ -3601,7 +3631,21 @@ namespace OpenLoco
+             }
+ 
+             auto* roadObj = ObjectManager::get<RoadObject>(roadObjId & ~(1U << 7));
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = RoadObjectFlags::none;
++            constexpr auto isOneWay = RoadObjectFlags::isOneWay;
++            constexpr auto isRail = RoadObjectFlags::isRail;
++            constexpr auto allowsJunctions = RoadObjectFlags::allowsJunctions;
++            constexpr auto anyRoadTypeCompatible = RoadObjectFlags::anyRoadTypeCompatible;
++            constexpr auto noSlipSurface = RoadObjectFlags::noSlipSurface;
++            constexpr auto hasRackRail = RoadObjectFlags::hasRackRail;
++            constexpr auto isRoad = RoadObjectFlags::isRoad;
++            constexpr auto allowUseByAllCompanies = RoadObjectFlags::allowUseByAllCompanies;
++            constexpr auto canHaveStreetLights = RoadObjectFlags::canHaveStreetLights;
++            #else
+             using enum RoadObjectFlags;
++            #endif
+             if (roadObj->hasFlags(allowUseByAllCompanies | isRoad | anyRoadTypeCompatible | isOneWay))
+             {
+                 continue;
+@@ -6483,7 +6527,16 @@ namespace OpenLoco
+     // 0x0046C1E0
+     static TrackRoadRemoveQueryFlags queryRoadForRemoval(World::Pos3 pos, uint16_t tad, uint8_t roadObjId, CompanyId companyId)
+     {
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = TrackRoadRemoveQueryFlags::none;
++        constexpr auto roadTypeShouldNotBeRemoved = TrackRoadRemoveQueryFlags::roadTypeShouldNotBeRemoved;
++        constexpr auto malformed = TrackRoadRemoveQueryFlags::malformed;
++        constexpr auto hasStation = TrackRoadRemoveQueryFlags::hasStation;
++        constexpr auto isRoadJunction = TrackRoadRemoveQueryFlags::isRoadJunction;
++        #else
+         using enum TrackRoadRemoveQueryFlags;
++        #endif
+         auto* roadObj = ObjectManager::get<RoadObject>(roadObjId);
+         if (roadObj->hasFlags(RoadObjectFlags::anyRoadTypeCompatible))
+         {
+@@ -6573,7 +6626,16 @@ namespace OpenLoco
+     // 0x004A83C0
+     static TrackRoadRemoveQueryFlags queryTrackForRemoval(World::Pos3 pos, uint16_t tad, uint8_t trackObjId, CompanyId companyId)
+     {
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = TrackRoadRemoveQueryFlags::none;
++        constexpr auto roadTypeShouldNotBeRemoved = TrackRoadRemoveQueryFlags::roadTypeShouldNotBeRemoved;
++        constexpr auto malformed = TrackRoadRemoveQueryFlags::malformed;
++        constexpr auto hasStation = TrackRoadRemoveQueryFlags::hasStation;
++        constexpr auto isRoadJunction = TrackRoadRemoveQueryFlags::isRoadJunction;
++        #else
+         using enum TrackRoadRemoveQueryFlags;
++        #endif
+ 
+         auto trackStart = pos;
+         if (tad & (1U << 2))
+@@ -6675,7 +6737,16 @@ namespace OpenLoco
+         auto* roadObj = ObjectManager::get<RoadObject>(roadObjId);
+         if (!roadObj->hasFlags(RoadObjectFlags::anyRoadTypeCompatible))
+         {
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = TrackRoadRemoveQueryFlags::none;
++            constexpr auto roadTypeShouldNotBeRemoved = TrackRoadRemoveQueryFlags::roadTypeShouldNotBeRemoved;
++            constexpr auto malformed = TrackRoadRemoveQueryFlags::malformed;
++            constexpr auto hasStation = TrackRoadRemoveQueryFlags::hasStation;
++            constexpr auto isRoadJunction = TrackRoadRemoveQueryFlags::isRoadJunction;
++            #else
+             using enum TrackRoadRemoveQueryFlags;
++            #endif
+             if ((queryRoadForRemoval(pos, (0 << 3) | rotation, roadObjId, companyId) & (malformed | roadTypeShouldNotBeRemoved)) == none)
+             {
+                 auto roadArgs = GameCommands::RoadRemovalArgs{};
+@@ -6766,7 +6837,16 @@ namespace OpenLoco
+             company.aiStationFlags |= (1U << 2);
+             return false;
+         }
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = TrackRoadRemoveQueryFlags::none;
++        constexpr auto roadTypeShouldNotBeRemoved = TrackRoadRemoveQueryFlags::roadTypeShouldNotBeRemoved;
++        constexpr auto malformed = TrackRoadRemoveQueryFlags::malformed;
++        constexpr auto hasStation = TrackRoadRemoveQueryFlags::hasStation;
++        constexpr auto isRoadJunction = TrackRoadRemoveQueryFlags::isRoadJunction;
++        #else
+         using enum TrackRoadRemoveQueryFlags;
++        #endif
+         if (thought.trackObjId & (1U << 7))
+         {
+             const auto roadObjId = thought.trackObjId & ~(1U << 7);
+diff --git a/src/OpenLoco/src/World/CompanyAi/CompanyAiPathfinding.cpp b/src/OpenLoco/src/World/CompanyAi/CompanyAiPathfinding.cpp
+index 78e1582..bf51a7a 100644
+--- a/src/OpenLoco/src/World/CompanyAi/CompanyAiPathfinding.cpp
++++ b/src/OpenLoco/src/World/CompanyAi/CompanyAiPathfinding.cpp
+@@ -169,7 +169,19 @@ namespace OpenLoco::CompanyAi
+ 
+             result.validIds.push_back(0U); // straight
+ 
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = World::Track::RoadTraitFlags::none;
++            constexpr auto smallCurve = World::Track::RoadTraitFlags::smallCurve;
++            constexpr auto verySmallCurve = World::Track::RoadTraitFlags::verySmallCurve;
++            constexpr auto slope = World::Track::RoadTraitFlags::slope;
++            constexpr auto steepSlope = World::Track::RoadTraitFlags::steepSlope;
++            constexpr auto unk4 = World::Track::RoadTraitFlags::unk4;
++            constexpr auto turnaround = World::Track::RoadTraitFlags::turnaround;
++            constexpr auto junction = World::Track::RoadTraitFlags::junction;
++            #else
+             using enum World::Track::RoadTraitFlags;
++            #endif
+ 
+             if (roadObj->hasTraitFlags(turnaround))
+             {
+@@ -204,7 +216,23 @@ namespace OpenLoco::CompanyAi
+ 
+             result.validIds.push_back(0U); // straight
+ 
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = World::Track::TrackTraitFlags::none;
++            constexpr auto diagonal = World::Track::TrackTraitFlags::diagonal;
++            constexpr auto largeCurve = World::Track::TrackTraitFlags::largeCurve;
++            constexpr auto normalCurve = World::Track::TrackTraitFlags::normalCurve;
++            constexpr auto smallCurve = World::Track::TrackTraitFlags::smallCurve;
++            constexpr auto verySmallCurve = World::Track::TrackTraitFlags::verySmallCurve;
++            constexpr auto slope = World::Track::TrackTraitFlags::slope;
++            constexpr auto steepSlope = World::Track::TrackTraitFlags::steepSlope;
++            constexpr auto oneSided = World::Track::TrackTraitFlags::oneSided;
++            constexpr auto slopedCurve = World::Track::TrackTraitFlags::slopedCurve;
++            constexpr auto sBend = World::Track::TrackTraitFlags::sBend;
++            constexpr auto junction = World::Track::TrackTraitFlags::junction;
++            #else
+             using enum World::Track::TrackTraitFlags;
++            #endif
+             if (trackObj->hasTraitFlags(diagonal))
+             {
+                 result.validIds.push_back(1U); // diagonal
+@@ -384,7 +412,25 @@ namespace OpenLoco::CompanyAi
+         }
+         // 0x004855F9
+         {
++            #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`; same names, same scope.
++            constexpr auto none = World::Track::CommonTraitFlags::none;
++            constexpr auto slope = World::Track::CommonTraitFlags::slope;
++            constexpr auto steepSlope = World::Track::CommonTraitFlags::steepSlope;
++            constexpr auto curveSlope = World::Track::CommonTraitFlags::curveSlope;
++            constexpr auto diagonal = World::Track::CommonTraitFlags::diagonal;
++            constexpr auto verySmallCurve = World::Track::CommonTraitFlags::verySmallCurve;
++            constexpr auto smallCurve = World::Track::CommonTraitFlags::smallCurve;
++            constexpr auto curve = World::Track::CommonTraitFlags::curve;
++            constexpr auto largeCurve = World::Track::CommonTraitFlags::largeCurve;
++            constexpr auto sBendCurve = World::Track::CommonTraitFlags::sBendCurve;
++            constexpr auto oneSided = World::Track::CommonTraitFlags::oneSided;
++            constexpr auto startsAtHalfHeight = World::Track::CommonTraitFlags::startsAtHalfHeight;
++            constexpr auto junction = World::Track::CommonTraitFlags::junction;
++            constexpr auto unk12 = World::Track::CommonTraitFlags::unk12;
++            #else
+             using enum World::Track::CommonTraitFlags;
++            #endif
+             if (!(pathState.createTrackRoadCommandAiUnkFlags & (1U << 22))
+                 && (World::TrackData::getTrackMiscData(trackId).flags & (slope | steepSlope)) != none)
+             {
+@@ -1432,7 +1478,25 @@ namespace OpenLoco::CompanyAi
+     static bool roadBridgeIncursPenalty(World::Pos3 pos, uint8_t rotation, uint8_t sequenceIndex, uint8_t roadId, CompanyId companyId)
+     {
+         const auto traitFlags = World::TrackData::getRoadMiscData(roadId).flags;
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = World::Track::CommonTraitFlags::none;
++        constexpr auto slope = World::Track::CommonTraitFlags::slope;
++        constexpr auto steepSlope = World::Track::CommonTraitFlags::steepSlope;
++        constexpr auto curveSlope = World::Track::CommonTraitFlags::curveSlope;
++        constexpr auto diagonal = World::Track::CommonTraitFlags::diagonal;
++        constexpr auto verySmallCurve = World::Track::CommonTraitFlags::verySmallCurve;
++        constexpr auto smallCurve = World::Track::CommonTraitFlags::smallCurve;
++        constexpr auto curve = World::Track::CommonTraitFlags::curve;
++        constexpr auto largeCurve = World::Track::CommonTraitFlags::largeCurve;
++        constexpr auto sBendCurve = World::Track::CommonTraitFlags::sBendCurve;
++        constexpr auto oneSided = World::Track::CommonTraitFlags::oneSided;
++        constexpr auto startsAtHalfHeight = World::Track::CommonTraitFlags::startsAtHalfHeight;
++        constexpr auto junction = World::Track::CommonTraitFlags::junction;
++        constexpr auto unk12 = World::Track::CommonTraitFlags::unk12;
++        #else
+         using enum World::Track::CommonTraitFlags;
++        #endif
+         // 0x1136088
+         const bool allowWaterBridge = (traitFlags & (slope | steepSlope | verySmallCurve)) != none;
+         {
+@@ -1653,7 +1717,25 @@ namespace OpenLoco::CompanyAi
+     static bool trackBridgeIncursPenalty(World::Pos3 pos, uint8_t rotation, uint8_t sequenceIndex, uint8_t trackId, uint8_t trackObjId)
+     {
+         const auto traitFlags = World::TrackData::getTrackMiscData(trackId).flags;
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto none = World::Track::CommonTraitFlags::none;
++        constexpr auto slope = World::Track::CommonTraitFlags::slope;
++        constexpr auto steepSlope = World::Track::CommonTraitFlags::steepSlope;
++        constexpr auto curveSlope = World::Track::CommonTraitFlags::curveSlope;
++        constexpr auto diagonal = World::Track::CommonTraitFlags::diagonal;
++        constexpr auto verySmallCurve = World::Track::CommonTraitFlags::verySmallCurve;
++        constexpr auto smallCurve = World::Track::CommonTraitFlags::smallCurve;
++        constexpr auto curve = World::Track::CommonTraitFlags::curve;
++        constexpr auto largeCurve = World::Track::CommonTraitFlags::largeCurve;
++        constexpr auto sBendCurve = World::Track::CommonTraitFlags::sBendCurve;
++        constexpr auto oneSided = World::Track::CommonTraitFlags::oneSided;
++        constexpr auto startsAtHalfHeight = World::Track::CommonTraitFlags::startsAtHalfHeight;
++        constexpr auto junction = World::Track::CommonTraitFlags::junction;
++        constexpr auto unk12 = World::Track::CommonTraitFlags::unk12;
++        #else
+         using enum World::Track::CommonTraitFlags;
++        #endif
+         // 0x1136088
+         const bool allowWaterBridge = (traitFlags & (slope | steepSlope | verySmallCurve)) != none;
+         {
+diff --git a/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp b/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp
+index f8a8d9c..dd29914 100644
+--- a/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp
++++ b/src/OpenLoco/src/World/CompanyAi/CompanyAiPlaceVehicle.cpp
+@@ -636,7 +636,15 @@ namespace OpenLoco::CompanyAi
+         // TODO: In the future we could cut
+         // this FSM down into just two states
+         // a reset and a placement state
++        #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++        // GCC < 11 has no `using enum`; same names, same scope.
++        constexpr auto begin = AiPlaceVehicleState::begin;
++        constexpr auto resetList = AiPlaceVehicleState::resetList;
++        constexpr auto place = AiPlaceVehicleState::place;
++        constexpr auto restart = AiPlaceVehicleState::restart;
++        #else
+         using enum AiPlaceVehicleState;
++        #endif
+         switch (company.aiPlaceVehicleState)
+         {
+             case begin:
+diff --git a/src/OpenLoco/src/World/TownManager.cpp b/src/OpenLoco/src/World/TownManager.cpp
+index 54560f3..935f09a 100644
+--- a/src/OpenLoco/src/World/TownManager.cpp
++++ b/src/OpenLoco/src/World/TownManager.cpp
+@@ -34,9 +34,19 @@ namespace OpenLoco::TownManager
+         for (auto i = 0U; i < regionObj->numCargoInflunceObjects; ++i)
+         {
+             bool hasInfluence = false;
++#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 11
++            // GCC < 11 has no `using enum`. The aliases have to sit OUTSIDE the
++            // switch: a declaration between the switch body's opening brace and
++            // the first case label is jumped over by every case, which is
++            // ill-formed. `using enum` was exempt because it declares no object.
++            constexpr auto allTowns = CargoInfluenceTownFilterType::allTowns;
++            constexpr auto maySnow = CargoInfluenceTownFilterType::maySnow;
++            constexpr auto inDesert = CargoInfluenceTownFilterType::inDesert;
++#else
++            using enum CargoInfluenceTownFilterType;
++#endif
+             switch (regionObj->cargoInfluenceTownFilter[i])
+             {
+-                using enum CargoInfluenceTownFilterType;
+                 case allTowns:
+                 {
+ 

@@ -1,0 +1,76 @@
+# openal-efx-via-getprocaddress
+#
+# openal-soft 1.19.1 w SDK AROS nie eksportuje wejsc EFX, choc <AL/efx.h> je deklaruje - kompiluje sie, nie linkuje. Spec OpenAL i tak kaze pobierac rozszerzenia przez alGetProcAddress; degraduje sie uczciwie: brak wskaznika = brak pogłosu, nie crash.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Audio/src/AudioEngine.cpp b/src/Audio/src/AudioEngine.cpp
+index f5f8ae0..df0dbcf 100644
+--- a/src/Audio/src/AudioEngine.cpp
++++ b/src/Audio/src/AudioEngine.cpp
+@@ -18,6 +18,50 @@
+ #include <string>
+ #include <vector>
+ 
++#ifdef __AROS__
++namespace
++{
++    // AROS ships openal-soft 1.19.1 whose static library does not export the
++    // EFX entry points, although <AL/efx.h> declares them — so the program
++    // compiles and then fails to link on alGenEffects and friends.
++    //
++    // The OpenAL spec says extension entry points are to be fetched with
++    // alGetProcAddress() rather than linked against, so doing that here is the
++    // correct form regardless, and it degrades honestly: if any pointer is
++    // missing the engine reports no reverb instead of crashing.
++    LPALGENEFFECTS efxGenEffects{};
++    LPALDELETEEFFECTS efxDeleteEffects{};
++    LPALEFFECTI efxEffecti{};
++    LPALEFFECTF efxEffectf{};
++    LPALGENAUXILIARYEFFECTSLOTS efxGenAuxiliaryEffectSlots{};
++    LPALDELETEAUXILIARYEFFECTSLOTS efxDeleteAuxiliaryEffectSlots{};
++    LPALAUXILIARYEFFECTSLOTI efxAuxiliaryEffectSloti{};
++
++    bool loadEfxEntryPoints()
++    {
++        efxGenEffects = reinterpret_cast<LPALGENEFFECTS>(alGetProcAddress("alGenEffects"));
++        efxDeleteEffects = reinterpret_cast<LPALDELETEEFFECTS>(alGetProcAddress("alDeleteEffects"));
++        efxEffecti = reinterpret_cast<LPALEFFECTI>(alGetProcAddress("alEffecti"));
++        efxEffectf = reinterpret_cast<LPALEFFECTF>(alGetProcAddress("alEffectf"));
++        efxGenAuxiliaryEffectSlots = reinterpret_cast<LPALGENAUXILIARYEFFECTSLOTS>(alGetProcAddress("alGenAuxiliaryEffectSlots"));
++        efxDeleteAuxiliaryEffectSlots = reinterpret_cast<LPALDELETEAUXILIARYEFFECTSLOTS>(alGetProcAddress("alDeleteAuxiliaryEffectSlots"));
++        efxAuxiliaryEffectSloti = reinterpret_cast<LPALAUXILIARYEFFECTSLOTI>(alGetProcAddress("alAuxiliaryEffectSloti"));
++        return efxGenEffects && efxDeleteEffects && efxEffecti && efxEffectf
++            && efxGenAuxiliaryEffectSlots && efxDeleteAuxiliaryEffectSlots
++            && efxAuxiliaryEffectSloti;
++    }
++}
++
++#define alGenEffects                  efxGenEffects
++#define alDeleteEffects               efxDeleteEffects
++#define alEffecti                     efxEffecti
++#define alEffectf                     efxEffectf
++#define alGenAuxiliaryEffectSlots     efxGenAuxiliaryEffectSlots
++#define alDeleteAuxiliaryEffectSlots  efxDeleteAuxiliaryEffectSlots
++#define alAuxiliaryEffectSloti        efxAuxiliaryEffectSloti
++#endif // __AROS__
++
++
+ namespace OpenLoco::Audio
+ {
+     using namespace Diagnostics;
+@@ -168,6 +212,13 @@ namespace OpenLoco::Audio
+         _reverbAvailable = alcIsExtensionPresent(_alcDevice, "ALC_EXT_EFX") == ALC_TRUE;
+ #else
+         _reverbAvailable = false;
++#endif
++#ifdef __AROS__
++        if (_reverbAvailable && !loadEfxEntryPoints())
++        {
++            Logging::info("OpenAL reports EFX but does not provide its entry points; reverb disabled.");
++            _reverbAvailable = false;
++        }
+ #endif
+         if (_reverbAvailable)
+         {

@@ -1,0 +1,41 @@
+# bsdsocket-header-clashes
+#
+# AROS: <defines/bsdsocket.h> definiuje listen() jako makro 2-argumentowe, co psuje 3-argumentową metodę ISocket::listen; <net/if.h> używa struct sockaddr bez deklaracji, więc <sys/socket.h> musi iść pierwszy.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/OpenLoco/include/OpenLoco/Network/Socket.h b/src/OpenLoco/include/OpenLoco/Network/Socket.h
+index 439c979..dd2c7bc 100644
+--- a/src/OpenLoco/include/OpenLoco/Network/Socket.h
++++ b/src/OpenLoco/include/OpenLoco/Network/Socket.h
+@@ -1,5 +1,14 @@
+ #pragma once
+ 
++#ifdef __AROS__
++// AROS's <defines/bsdsocket.h> defines listen() as a two-argument function-like
++// macro, which mangles the three-argument ISocket::listen() declared below.
++// Nothing in OpenLoco calls the BSD listen() itself, so dropping the macro is
++// safe; if that ever changes, __listen_WB(SocketBase, s, backlog) is the entry
++// point the AROS headers keep for exactly this situation.
++#undef listen
++#endif
++
+ #include <memory>
+ #include <string>
+ #include <vector>
+diff --git a/src/OpenLoco/src/Network/Socket.cpp b/src/OpenLoco/src/Network/Socket.cpp
+index 019b5f7..f5dda7b 100644
+--- a/src/OpenLoco/src/Network/Socket.cpp
++++ b/src/OpenLoco/src/Network/Socket.cpp
+@@ -36,6 +36,10 @@
+     #include <arpa/inet.h>
+     #include <cerrno>
+     #include <fcntl.h>
++    // AROS's <net/if.h> uses struct sockaddr without declaring it, so
++    // <sys/socket.h> has to come first. On glibc the order does not matter;
++    // sorted-include tooling will want to undo this, hence the comment.
++    #include <sys/socket.h>
+     #include <net/if.h>
+     #include <netdb.h>
+     #include <netinet/in.h>

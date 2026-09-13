@@ -1,0 +1,136 @@
+# aros-socket-macro-wrappers
+#
+# AROS definiuje bind/socket/listen/sendto/recvfrom/setsockopt jako makra funkcyjne; bind koliduje ze std::bind z <functional>, wciaganego pozniej przez fmt/std.h, a blad jest raportowany wewnatrz libstdc++. Przechwytujemy makra w funkcje inline, potem je usuwamy; wywolania ida przez aros* pod #ifdef. Zadnych makr o tych nazwach - obiektowe makro bind psuje std::bind tak samo.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/OpenLoco/src/Network/ArosNetCompat.hpp b/src/OpenLoco/src/Network/ArosNetCompat.hpp
+index 212e93d..3fa6631 100644
+--- a/src/OpenLoco/src/Network/ArosNetCompat.hpp
++++ b/src/OpenLoco/src/Network/ArosNetCompat.hpp
+@@ -210,6 +210,60 @@ namespace OpenLoco::Network::ArosCompat
+     }
+ }
+ 
++// ---------------------------------------------------------------------------
++// bsdsocket's function-like macros vs C++ headers
++//
++// <defines/bsdsocket.h> defines socket(), bind(), listen(), sendto(),
++// recvfrom(), setsockopt() and three dozen more as function-like macros that
++// pass SocketBase implicitly. That is fine for C, but `bind` collides with
++// std::bind the moment <functional> is included — which happens later here
++// through fmt/std.h — and the failure is reported inside libstdc++, where it
++// looks like a broken standard library.
++//
++// So: capture each macro we use in an inline function while it is still
++// defined, then undefine it. The call sites below switch to these names.
++namespace OpenLoco::Network::ArosCompat
++{
++    inline int arosSocket(int domain, int type, int protocol)
++    {
++        return socket(domain, type, protocol);
++    }
++    inline int arosBind(int s, struct sockaddr* addr, socklen_t len)
++    {
++        return bind(s, addr, len);
++    }
++    inline int arosListen(int s, int backlog)
++    {
++        return listen(s, backlog);
++    }
++    inline int arosSetSockOpt(int s, int level, int name, char* val, socklen_t len)
++    {
++        return setsockopt(s, level, name, val, len);
++    }
++    inline int arosSendTo(int s, const void* buf, size_t len, int flags,
++                          const struct sockaddr* to, socklen_t tolen)
++    {
++        return sendto(s, const_cast<void*>(buf), len, flags,
++                      const_cast<struct sockaddr*>(to), tolen);
++    }
++    inline int arosRecvFrom(int s, void* buf, size_t len, int flags,
++                            struct sockaddr* from, socklen_t* fromlen)
++    {
++        return recvfrom(s, buf, len, flags, from, fromlen);
++    }
++}
++
++#undef socket
++#undef bind
++#undef listen
++#undef setsockopt
++#undef sendto
++#undef recvfrom
++
++// Deliberately NOT re-#defined under the original names: an object-like macro
++// called `bind` breaks std::bind just as thoroughly as the function-like one
++// did. The call sites use the aros* names directly, under #ifdef __AROS__.
++
+ // The call sites stay as they are; these names simply resolve to the shim.
+ #define inet_ntop    ::OpenLoco::Network::ArosCompat::inetNtop
+ #define getaddrinfo  ::OpenLoco::Network::ArosCompat::getAddrInfo
+diff --git a/src/OpenLoco/src/Network/Socket.cpp b/src/OpenLoco/src/Network/Socket.cpp
+index b866902..0ce135c 100644
+--- a/src/OpenLoco/src/Network/Socket.cpp
++++ b/src/OpenLoco/src/Network/Socket.cpp
+@@ -310,8 +310,9 @@ namespace OpenLoco::Network
+         {
+             int32_t ivalue = value ? 1 : 0;
+ #ifdef __AROS__
+-            // AROS's setsockopt() takes a non-const value pointer.
+-            return setsockopt(socket, a, b, reinterpret_cast<char*>(&ivalue), sizeof(ivalue)) == 0;
++            // AROS's setsockopt() is a macro taking a non-const value pointer;
++            // ArosCompat wraps it so the macro can be undefined - see there.
++            return ArosCompat::arosSetSockOpt(socket, a, b, reinterpret_cast<char*>(&ivalue), sizeof(ivalue)) == 0;
+ #else
+             return setsockopt(socket, a, b, reinterpret_cast<const char*>(&ivalue), sizeof(ivalue)) == 0;
+ #endif
+@@ -445,7 +446,11 @@ namespace OpenLoco::Network
+             try
+             {
+                 // Bind to address:port and listen
++#ifdef __AROS__
++                if (ArosCompat::arosBind(_socket, reinterpret_cast<sockaddr*>(&ss), ssLen) != 0)
++#else
+                 if (bind(_socket, reinterpret_cast<sockaddr*>(&ss), ssLen) != 0)
++#endif
+                 {
+                     throw SocketException("Unable to bind to socket.");
+                 }
+@@ -496,7 +501,11 @@ namespace OpenLoco::Network
+             {
+                 const char* bufferStart = static_cast<const char*>(buffer) + totalSent;
+                 size_t remainingSize = size - totalSent;
++#ifdef __AROS__
++                int32_t sentBytes = ArosCompat::arosSendTo(
++#else
+                 int32_t sentBytes = sendto(
++#endif
+                     _socket, bufferStart, static_cast<int32_t>(remainingSize), FLAG_NO_PIPE, ss, ss_len);
+                 if (sentBytes == SOCKET_ERROR)
+                 {
+@@ -517,7 +526,11 @@ namespace OpenLoco::Network
+                 senderAddrLen = _endpoint.getAddressLen();
+                 std::memcpy(&senderAddr, &_endpoint.getAddress(), senderAddrLen);
+             }
++#ifdef __AROS__
++            auto readBytes = ArosCompat::arosRecvFrom(
++#else
+             auto readBytes = recvfrom(
++#endif
+                 _socket, static_cast<char*>(buffer), static_cast<int32_t>(size), 0, reinterpret_cast<sockaddr*>(&senderAddr), &senderAddrLen);
+             if (readBytes <= 0)
+             {
+@@ -571,7 +584,11 @@ namespace OpenLoco::Network
+                 family = AF_INET6;
+             }
+ 
++#ifdef __AROS__
++            auto sock = ArosCompat::arosSocket(family, SOCK_DGRAM, IPPROTO_UDP);
++#else
+             auto sock = socket(family, SOCK_DGRAM, IPPROTO_UDP);
++#endif
+             if (sock == INVALID_SOCKET)
+             {
+                 throw SocketException("Unable to create socket.");

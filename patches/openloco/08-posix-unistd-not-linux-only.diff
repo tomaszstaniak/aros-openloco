@@ -1,0 +1,28 @@
+# posix-unistd-not-linux-only
+#
+# getuid()/readlink() sa w <unistd.h> na kazdym POSIX-owym targecie, nie tylko na Linuksie; tylko <linux/limits.h> jest Linux-specyficzny. AROS ma i naglowek, i funkcje. Nadaje sie do zgloszenia upstream.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Platform/src/Platform.Posix.cpp b/src/Platform/src/Platform.Posix.cpp
+index e9bc54b..0eea3b5 100644
+--- a/src/Platform/src/Platform.Posix.cpp
++++ b/src/Platform/src/Platform.Posix.cpp
+@@ -9,10 +9,14 @@
+ #include <pwd.h>
+ #include <time.h>
+ 
+-#ifdef __linux__
+-#include <linux/limits.h>
++// getuid()/readlink() live in <unistd.h> on every POSIX-ish target, not just
++// Linux; only <linux/limits.h> is actually Linux-specific. AROS has <unistd.h>
++// and getuid(), it just was not being included.
+ #include <sys/types.h>
+ #include <unistd.h>
++
++#ifdef __linux__
++#include <linux/limits.h>
+ #endif
+ 
+ #ifdef __AROS__

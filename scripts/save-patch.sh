@@ -1,7 +1,7 @@
 #!/bin/sh
 # Turn the current changes in work/OpenLoco into a versioned patch.
 #
-#   scripts/save-patch.sh <short-name> ["why this patch exists"]
+#   scripts/save-patch.sh <short-name> ["why this patch exists"] [path...]
 #
 # Writes patches/openloco/NN-<short-name>.diff, where NN keeps the apply order,
 # and folds the change into work/'s baseline so `git status` there goes quiet
@@ -15,6 +15,10 @@ set -e
 
 NAME=$1
 WHY=$2
+shift 2 2>/dev/null || shift $#
+# Remaining arguments limit the patch to those paths, so one concern makes one
+# patch instead of an afternoon's work landing as a single unreviewable blob.
+PATHS="$@"
 [ -n "$NAME" ] || { echo "usage: scripts/save-patch.sh <short-name> [\"why\"]" >&2; exit 2; }
 case "$NAME" in
     *[!a-zA-Z0-9._-]*) echo "short-name: letters, digits, . _ - only" >&2; exit 2 ;;
@@ -46,12 +50,21 @@ OUT=$DEST/$NN-$NAME.diff
 } > "$OUT"
 
 # Include new files too, hence the intent-to-add.
-git -C "$WORK_DIR" add -A -N
-git -C "$WORK_DIR" diff >> "$OUT"
+if [ -n "$PATHS" ]; then
+    git -C "$WORK_DIR" add -N -- $PATHS
+    git -C "$WORK_DIR" diff -- $PATHS >> "$OUT"
+else
+    git -C "$WORK_DIR" add -A -N
+    git -C "$WORK_DIR" diff >> "$OUT"
+fi
 
 # Fold into the baseline so the next `git status` in work/ is clean and only
 # shows what came after this patch.
-git -C "$WORK_DIR" add -A
+if [ -n "$PATHS" ]; then
+    git -C "$WORK_DIR" add -- $PATHS
+else
+    git -C "$WORK_DIR" add -A
+fi
 git -C "$WORK_DIR" -c user.name=save-patch -c user.email=save-patch@local \
     commit -q -m "$NN-$NAME"
 

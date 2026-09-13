@@ -1,6 +1,11 @@
 # Backlog — otwarte pozycje
 
-Stan na 2026-09-12. Kolejność mniej więcej według wpływu na decyzję o porcie.
+Stan na 2026-09-13. **Kompilacja i pełne linkowanie na ABIv11 są zamknięte:**
+394/394 jednostek translacji, 442/442 celów ninja, `OpenLoco` 14.2 MB, zero
+nierozwiązanych symboli. Odtwarzalne z czystego upstreamu 11 łatkami.
+Binarka **nie była jeszcze uruchomiona** — to następna pozycja.
+
+Wcześniejszy stan opisano na 2026-09-12. Kolejność mniej więcej według wpływu na decyzję o porcie.
 Każda pozycja mówi, co dokładnie jest niewiadome i co by ją zamknęło.
 
 ## 1. Renderer programowy nigdy nie został uruchomiony
@@ -126,3 +131,30 @@ zanim ktoś zoptymalizuje rozmiar 4 MB binarki.
 W żadnym przebiegu nie było `quit_event`, a ESC w przebiegu 1 nie dał zdarzenia
 (program skończył 300 klatek w tej samej chwili). Gadżet zamknięcia okna
 nietestowany.
+
+
+## 13. Binarka nie była uruchomiona
+
+`build/abiv11/openloco/OpenLoco` linkuje się i nie ma nierozwiązanych symboli,
+ale nikt jej nie odpalił. Wymaga bibliotek: `SysBase`, `DOSBase`,
+`IntuitionBase`, `GfxBase`, `CyberGfxBase`, `GLBase`, `OpenALBase`,
+`MUIMasterBase`, `GadToolsBase`, `IconBase`, `IFFParseBase`, `KeymapBase`,
+`LowLevelBase`, `TimerBase`, `WorkbenchBase`, `CxBase`, `CrtBase`,
+`StdlibBase`, `MBase`.
+
+**Zamknie to:** uruchomienie na AROS One z zasobami oryginalnej gry.
+Uwaga: 14 MB, a pełny strip psuje relokacje — patrz §11.
+
+## 14. Warstwa sieciowa niesprawdzona wobec sieci
+
+`ArosNetCompat.hpp` implementuje getaddrinfo/getnameinfo/inet_ntop dla IPv4
+przez gethostbyname/inet_addr. Kompiluje się i linkuje, ale nic tym jeszcze
+nigdzie nie połączyło. IPv6 zwraca `EAI_FAMILY` świadomie.
+
+**Zamknie to:** test łączący się z realnym hostem na AROS.
+
+## 15. EFX: pogłos wyłączy się sam, ale to niesprawdzone
+
+`alGetProcAddress` na AROS może zwrócić wskaźniki mimo braku symboli w
+archiwum. Kod degraduje się do „brak pogłosu"; czy tak się faktycznie dzieje —
+niesprawdzone, bo dźwięku nie uruchamialiśmy.

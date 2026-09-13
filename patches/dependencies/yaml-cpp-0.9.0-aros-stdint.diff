@@ -1,0 +1,49 @@
+# yaml-cpp 0.9.0: dragonbox i typy least/fast na AROS
+#
+# AROS deklaruje uint_least*_t / uint_fast*_t tylko w globalnej przestrzeni
+# nazw (C <stdint.h>), a <cstdint> nie wnosi ich do std. Bundlowany dragonbox
+# bierze je przez JKJ_STD_REPLACEMENT_NAMESPACE, czyli std, i się nie kompiluje.
+# Na AROS bierzemy je z globalnej przestrzeni. To luka po stronie AROS, nie
+# yaml-cpp — patrz docs/platform/toolchains.md.
+#
+# Nakładane przez scripts/fetch-deps.sh na sklonowane yaml-cpp-0.9.0.
+# Zapisane 2026-09-13.
+
+diff --git a/src/contrib/dragonbox.h b/src/contrib/dragonbox.h
+index de5a79f..d3f3eb2 100644
+--- a/src/contrib/dragonbox.h
++++ b/src/contrib/dragonbox.h
+@@ -214,6 +214,25 @@ namespace jkj {
+                 // We need assert() macro, but it is not namespaced anyway, so nothing to do here.
+ 
+                 // <cstdint>
++#if defined(__AROS__)
++                // AROS's <cstdint> declares the exact-width types in namespace
++                // std but leaves the least/fast families only in the global
++                // namespace, where the C <stdint.h> put them. Take them from
++                // there rather than from std, which does not have them.
++                using ::int_least8_t;
++                using ::int_least16_t;
++                using ::int_least32_t;
++                using ::int_fast8_t;
++                using ::int_fast16_t;
++                using ::int_fast32_t;
++                using ::uint_least8_t;
++                using ::uint_least16_t;
++                using ::uint_least32_t;
++                using ::uint_least64_t;
++                using ::uint_fast8_t;
++                using ::uint_fast16_t;
++                using ::uint_fast32_t;
++#else
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::int_least8_t;
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::int_least16_t;
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::int_least32_t;
+@@ -227,6 +246,7 @@ namespace jkj {
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast8_t;
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
+                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
++#endif
+                 // We need INT32_C, UINT32_C and UINT64_C macros too, but again there is nothing to do
+                 // here.
+ 

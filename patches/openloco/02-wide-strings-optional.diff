@@ -1,0 +1,54 @@
+# wide-strings-optional
+#
+# Niektóre buildy libstdc++ (AROS ABIv11) nie mają _GLIBCXX_USE_WCHAR_T, więc std::wstring/wstring_view nie istnieją. toUtf8/toUtf16 używa wyłącznie backend Windows, więc na takich targetach można je pominąć zamiast wywracać każdy plik włączający ten nagłówek.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-13.
+
+diff --git a/src/Utility/include/OpenLoco/Utility/String.hpp b/src/Utility/include/OpenLoco/Utility/String.hpp
+index 69607dc..cedacd9 100644
+--- a/src/Utility/include/OpenLoco/Utility/String.hpp
++++ b/src/Utility/include/OpenLoco/Utility/String.hpp
+@@ -8,11 +8,23 @@
+ #include <string_view>
+ #include <vector>
+ 
++// Some libstdc++ builds are configured without _GLIBCXX_USE_WCHAR_T, and then
++// std::wstring and std::wstring_view simply do not exist. AROS ABIv11 is one
++// such target. The two conversion helpers below are used only by the Windows
++// backend (Platform.Windows.cpp, Crash.cpp), so on those targets they can be
++// left out entirely rather than failing to compile in every file that includes
++// this header.
++#if !defined(__GLIBCXX__) || defined(_GLIBCXX_USE_WCHAR_T)
++#define OPENLOCO_HAS_WIDE_STRINGS 1
++#endif
++
+ namespace OpenLoco::Utility
+ {
+     int32_t strlogicalcmp(std::string_view s1, std::string_view s2);
++#ifdef OPENLOCO_HAS_WIDE_STRINGS
+     std::string toUtf8(const std::wstring_view& src);
+     std::wstring toUtf16(const std::string_view& src);
++#endif
+ 
+     inline bool iequals(const std::string_view& a, const std::string_view& b)
+     {
+diff --git a/src/Utility/src/String.cpp b/src/Utility/src/String.cpp
+index 22fa785..98f2bb4 100644
+--- a/src/Utility/src/String.cpp
++++ b/src/Utility/src/String.cpp
+@@ -100,6 +100,7 @@ namespace OpenLoco::Utility
+         }
+     }
+ 
++#ifdef OPENLOCO_HAS_WIDE_STRINGS
+     std::string toUtf8(const std::wstring_view& src)
+     {
+ #ifdef _WIN32
+@@ -131,4 +132,6 @@ namespace OpenLoco::Utility
+         return std::to_wstring(0);
+ #endif
+     }
++#endif // OPENLOCO_HAS_WIDE_STRINGS
++
+ }
