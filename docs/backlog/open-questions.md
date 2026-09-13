@@ -133,7 +133,22 @@ W żadnym przebiegu nie było `quit_event`, a ESC w przebiegu 1 nie dał zdarzen
 nietestowany.
 
 
-## 13. Binarka nie była uruchomiona
+## 13. CZĘŚCIOWO ZAMKNIĘTE — binarka startuje, ale bez zasobów gry
+
+Uruchomiona 2026-09-13 na AROS One (ABIv11): program się ładuje, otwiera
+biblioteki, loguje `[INF] AROS (x86-64)`, pokazuje **dwa natywne okna SDL3**,
+czyta stdin, sprawdza ścieżkę przez `std::filesystem` i czysto wychodzi.
+Dowody i zrzuty: `../evidence/first-run-abiv11/RESULTS.md`.
+
+**Zostaje otwarte:** menu, mapa, rozgrywka, zapis/odczyt — wszystko to wymaga
+`Data/g1.DAT` z oryginalnego Chris Sawyer's Locomotion, którego nie ma na tej
+maszynie. Bez tego gra nie dochodzi do inicjalizacji wideo, więc renderer gry
+i pierwsza klatka pozostają niesprawdzone.
+
+**Zamknie to:** podłożenie zasobów oryginału i przejście kroków: menu →
+scenariusz → mapa → czynności myszą → zapis → ponowne wczytanie → wyjście.
+
+## 13a. Stara treść: binarka nie była uruchomiona
 
 `build/abiv11/openloco/OpenLoco` linkuje się i nie ma nierozwiązanych symboli,
 ale nikt jej nie odpalił. Wymaga bibliotek: `SysBase`, `DOSBase`,
