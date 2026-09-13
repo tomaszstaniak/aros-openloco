@@ -71,9 +71,11 @@ buildem**, nie po. Trzy z nich trafiają w ten port wprost:
   który AROS One ładuje bez relokacji `.text` i który umiera w pierwszym
   `OpenLibrary()` — wygląda jak błąd programu. Używaj
   `--strip-unneeded --remove-section .comment`.
-- **`libpng.a` i `libz.a` w SDK to stuby** do `png.library` i `z1.library`, a
-  `z1.library` nie ma na AROS One. Linkuj `-lz.static -lpng_nostdio` — oba SDK
-  je mają. Sprawdzone u nas, nie odziedziczone; szczegóły w backlogu §9.
+- **`libpng.a` i `libz.a` w SDK to stuby** do `png.library` i `z1.library`.
+  Linkuj `-lpng_nostdio -lz.static` (w tej kolejności — png woła zlib); oba SDK
+  je mają. Powód to **niezależność od wersji biblioteki na maszynie
+  użytkownika**, a nie jej brak: na naszym AROS One 1.3 obie biblioteki są.
+  Sprawdzone i uruchomione u nas; szczegóły w backlogu §9.
 - **Współrzędne myszy ze zdarzeń SDL2 dawały na AROS (0,0).** Nasz test SDL3
   liczył zdarzenia, a nie współrzędne, więc dla SDL3 to jest **niesprawdzone**.
   Zanim uznasz mysz za działającą, sprawdź współrzędne.

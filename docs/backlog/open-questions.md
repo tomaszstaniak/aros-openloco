@@ -78,20 +78,32 @@ Wątki C++ w runtime: sprawdzone **tylko na ABIv11**. Mainline niepotwierdzony.
 `hardware_concurrency()` zwraca tam 0 — OpenLoco jej nie używa, ale kolejny
 projekt może.
 
-## 9. Linkować `-lz.static -lpng_nostdio`, nie `-lz -lpng`
+## 9. ZAMKNIĘTE — PNG i zlib linkują się statycznie i działają na AROS One
 
 `libz.a` i `libpng.a` w SDK to link stuby do `z1.library` i `png.library`
-(sprawdzone `ar t` na obu SDK, 2026-09-12: `z1_*_stub.o`, ~1.1 KB, `U Z1Base`).
-`z1.library` nie ma na AROS One, więc program zlinkuje się i padnie przy
-starcie.
+(`ar t` na obu SDK, 2026-09-12: `z1_*_stub.o`, ~1.1 KB, `U Z1Base`).
 
-Nie trzeba niczego budować ze źródeł: oba SDK mają `libz.static.a` i
-`libpng_nostdio.a` z prawdziwymi obiektami. Brak `png_init_io` w wariancie
-nostdio nie przeszkadza — OpenLoco używa własnych callbacków
-(`PngImage.cpp:73`, `Screenshot.cpp:96`).
+Rozwiązanie: **`-lpng_nostdio -lz.static`**, w tej kolejności. Oba SDK mają te
+archiwa; nic nie trzeba budować ze źródeł.
 
-**Zamknie to:** ustawienie tych bibliotek w konfiguracji linkowania portu i
-potwierdzenie przy pierwszym pełnym linku.
+**Kryterium zamknięcia spełnione (2026-09-13, AROS One / ABIv11):**
+`tests/png-smoke/` zapisuje PNG przez `png_set_write_fn` i odczytuje przez
+`png_set_read_fn` — tak jak robi to gra — round-trip 64x48 RGB piksel w piksel,
+kompresja 9216 B → 243 B, libpng 1.6.48, zlib 1.3.1, `RESULT: PASS`.
+`nm` na binarce: żadnego `Z1Base` ani `PNGBase`; wymagane bazy to tylko
+`SysBase`, `DOSBase`, `IntuitionBase`, `CrtBase`, `StdlibBase`, `MBase`.
+Sprawdzenie jest wpięte w `scripts/build-png-smoke.sh` i przerywa build, jeśli
+stub kiedykolwiek wróci. Toolchainy CMake wskazują te archiwa wprost, żeby
+`find_package(PNG)`/`find_package(ZLIB)` nie wybrało stubów.
+
+**Korekta odziedziczonej notatki:** `z1.library` **jest** obecna na naszym
+AROS One 1.3 (`LIBS:z1.library`, 123672 B). Wariant statyczny wybieramy więc
+dla niezależności od wersji na maszynie użytkownika, nie dlatego, że biblioteki
+brakuje.
+
+**Co zostaje otwarte:** sprawdzono jeden format (RGB8) i jedną ścieżkę we/wy.
+Paleta, tRNS, interlace, 16-bit i prawdziwe pliki gry — niesprawdzone. Pełny
+link OpenLoco to nadal osobna pozycja.
 
 ## 10. Współrzędne myszy w SDL3 niesprawdzone
 

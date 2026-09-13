@@ -21,3 +21,16 @@ set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 set(CMAKE_CXX_COMPILE_OPTIONS_PIC "")
 set(CMAKE_C_COMPILE_OPTIONS_PIC "")
 set(AROS ON)
+
+# --- PNG / zlib: wskaż archiwa statyczne, nie stuby ------------------------
+# libpng.a i libz.a w SDK to link stuby do png.library i z1.library.
+# Wariant statyczny daje niezależność od obecności i wersji tych bibliotek na
+# maszynie użytkownika. find_package(PNG)/find_package(ZLIB) znajdą stuby, więc podajemy
+# ścieżki wprost jako CACHE, zanim ktokolwiek je zawoła.
+# Kolejność linkowania: libpng woła zlib, więc png musi poprzedzać z.
+set(ZLIB_LIBRARY "${CMAKE_SYSROOT}/lib/libz.static.a" CACHE FILEPATH "AROS: statyczna zlib, nie stub z1.library")
+set(ZLIB_INCLUDE_DIR "${CMAKE_SYSROOT}/include" CACHE PATH "")
+set(PNG_LIBRARY "${CMAKE_SYSROOT}/lib/libpng_nostdio.a" CACHE FILEPATH "AROS: statyczna libpng bez stdio, nie stub png.library")
+set(PNG_PNG_INCLUDE_DIR "${CMAKE_SYSROOT}/include" CACHE PATH "")
+# libpng_nostdio nie ma png_init_io(); OpenLoco go nie używa (własne callbacki
+# w Gfx/src/PngImage.cpp i Ui/Screenshot.cpp).

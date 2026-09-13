@@ -34,10 +34,12 @@ Z `thirdparty/CMakeLists.txt`, nie z README:
 - **OpenAL** — cały dźwięk, `src/Audio/src/AudioEngine.cpp` używa `AL/al.h`,
   `AL/alc.h`, `AL/alext.h`.
 - **libpng + zlib** — są w obu SDK, **ale `libpng.a` i `libz.a` to link stuby**
-  do `png.library` i `z1.library`, a `z1.library` nie ma na AROS One. Linkować
-  trzeba `-lz.static -lpng_nostdio`, które oba SDK mają. Wcześniejsza wersja
-  tej oceny mówiła po prostu, że oba SDK je mają — to było za mocne.
-  Sprawdzone `ar t` 2026-09-12; szczegóły w `../../docs/platform/libraries.md`.
+  do `png.library` i `z1.library`. Linkować trzeba `-lpng_nostdio -lz.static`
+  (png przed z), które oba SDK mają. **Sprawdzone na maszynie 2026-09-13:**
+  zapis i odczyt PNG przez własne callbacki, round-trip piksel w piksel, bez
+  odwołania do `Z1Base`/`PNGBase` w binarce — `tests/png-smoke/`.
+  Wcześniejsza wersja tej oceny mówiła po prostu, że oba SDK je mają — to było
+  za mocne. Szczegóły: `../../docs/platform/libraries.md`.
 - **fmt 11.1.4, sfl 2.2.0, yaml-cpp 0.9.0** — pobierane przez CMake, czysty C++.
 - **TBB** — przez `<execution>`. Szerzej niżej; to nie jest zmiana jednej linii.
 - **libzip** — **nie jest używane.** README je wymienia, ale w całym drzewie nie
