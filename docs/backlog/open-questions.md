@@ -17,14 +17,19 @@ systemowe na żądanie. Dowody: `../evidence/g1-run-abiv11/RESULTS.md`.
 
 **Otwarte dalej:** menu i mapa — brakuje zasobów oryginalnej gry, patrz §16.
 
-## 16. Potrzebny cały katalog zainstalowanego Locomotion
+## 16. ZAMKNIĘTE — menu i mapa działają
 
-Mamy tylko `g1.DAT`. Start zatrzymuje się teraz na `Data/title.dat`;
-`ObjData/` i `Scenarios/` muszą mieć zawartość, nie być pustymi katalogami.
-Pełna lista w `../evidence/g1-run-abiv11/RESULTS.md`.
+2026-09-13: pełne zasoby dostarczone, gra doszła do ekranu tytułowego i do
+wczytanego scenariusza z interfejsem i zegarem.
+Dowody: `../evidence/menu-abiv11/RESULTS.md`.
 
-**Zamknie to:** skopiowanie całej instalacji gry do
-`~/Work/AROS/shared/Locomotion/` **przed** startem QEMU.
+Transfer 513 MB rozwiązany obrazem dysku **FAT32 z MBR** podpiętym jako
+czwarty dysk IDE — vvfat ma limit FAT16 516 MB, którego nie da się obejść
+przez `fat:32:`.
+
+**Pozostały szum:** pliki `._*` z macOS na obrazie są wczytywane jako obiekty
+i zaśmiecają log. Poprawka: `dot_clean` na woluminie przed odpięciem;
+niezweryfikowana.
 
 ## 1. Renderer programowy nigdy nie został uruchomiony
 
