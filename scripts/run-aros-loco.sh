@@ -1,5 +1,7 @@
 #!/bin/zsh
-# Launch AROS One 64-bit (ABIv11) in QEMU on Apple Silicon (TCG emulation).
+# Launch AROS One 64-bit (ABIv11) in QEMU, plus loco-assets.img as a 4th IDE disk
+# (FAT32, the original Locomotion assets - vvfat caps at 516 MB FAT16).
+# Copy of the shared run-aros.sh; only ADDS the drive at index=3.
 #
 # Usage:
 #   ./run-aros.sh            boot from hard disk (after install)
@@ -11,7 +13,13 @@
 # cross-compiled binaries; reboot or re-read the drive to pick up changes).
 
 set -e
-cd "$(dirname "$0")"
+# This copy lives in the port repo, but QEMU's disk, ISO and shared/ live in the
+# shared testbench. Resolve them there - a bare `cd "$(dirname "$0")"` pointed at
+# scripts/, where none of them exist, so the launcher silently could not start.
+AROS_TESTBENCH=${AROS_TESTBENCH:-$HOME/Work/AROS}
+cd "$AROS_TESTBENCH"
+[ -f aros-one-hd.qcow2 ] || { echo "no aros-one-hd.qcow2 in $AROS_TESTBENCH" >&2; exit 1; }
+[ -f loco-assets.img ] || { echo "no loco-assets.img in $AROS_TESTBENCH - see docs/backlog, 'Powrot po przerwie'" >&2; exit 1; }
 
 ISO=AROS-One-64bit-v1.3.iso
 DISK=aros-one-hd.qcow2

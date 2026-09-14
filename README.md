@@ -46,16 +46,52 @@ Commitujemy tylko do tego repozytorium. Wysłanie czegokolwiek do upstreamu
 OpenLoco byłoby osobnym, świadomym krokiem (PR z obsługą AROS) — lokalny
 commit nigdy niczego tam nie wysyła.
 
-## Od zera
+## Od zera — pełna ścieżka do działającej gry
+
+Po dłuższej przerwie **zacznij od `docs/backlog/open-questions.md` §„Powrót po
+przerwie"** — tam jest lista rzeczy spoza tego repozytorium, bez których poniższe
+kroki nie zadziałają.
 
 ```sh
-scripts/bootstrap.sh                 # upstream/ na przypiętym commicie + work/
-scripts/bootstrap.sh --reset         # odbuduj work/ (odmówi, jeśli są tam zmiany)
+# 0. warunki wstępne (poza repo) — patrz backlog, "Powrót po przerwie"
+hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage   # collect-aros tego wymaga
+
+# 1. źródła i zależności
+scripts/bootstrap.sh                 # upstream/ na przypiętym commicie + work/ z łatkami
 scripts/fetch-deps.sh abiv11         # SDL3 (contrib + nasze łatki), fmt, sfl, yaml
+
+# 2. biblioteki i pakiety CMake, których SDK nie ma
+scripts/build-sdl3.sh abiv11         # libSDL3_static.a + SDL3Config.cmake -> deps/abiv11
+scripts/make-cmake-packages.sh abiv11  # OpenALConfig.cmake -> deps/abiv11
+
+# 3. gra
+scripts/build-openloco.sh abiv11     # -> build/abiv11/openloco/OpenLoco (~14 MB, NIE stripować)
+
+# opcjonalnie: testy platformy
 scripts/compile-probe.py             # próba kompilacji, oba ABI -> docs/evidence/
-scripts/build-sdl3.sh abiv11         # libSDL3_static.a -> deps/abiv11/lib
-scripts/build-smoke.sh abiv11        # test SDL3 + std::thread -> build/abiv11/
+scripts/build-smoke.sh abiv11        # SDL3 + std::thread
+scripts/build-png-smoke.sh abiv11    # PNG/zlib bez stubów
 ```
+
+### Uruchomienie na AROS One
+
+```sh
+cp build/abiv11/openloco/OpenLoco ~/Work/AROS/shared/loco/    # przed startem QEMU
+cp -R build/abiv11/openloco/data  ~/Work/AROS/shared/loco/
+GFX=std scripts/run-aros-loco.sh     # dokłada loco-assets.img jako 4. dysk IDE
+```
+
+W gościu:
+
+```
+makedir RAM:loco
+copy "Qemu Vvfat:loco" RAM:loco ALL QUIET
+cd RAM:loco
+run >RAM:run.log OpenLoco
+```
+
+`RAM:loco/openloco.yml` musi zawierać `loco_install_path: Locodata:Locomotion`
+(kopia z `shared/loco/`). Szczegóły i dowody: `docs/evidence/menu-abiv11/RESULTS.md`.
 
 Nazwy ABI (`abiv11`, `mainline-v1`), ścieżki toolchainów i SDK są w jednym
 miejscu: `scripts/env.sh`. Można je nadpisać zmiennymi środowiskowymi.

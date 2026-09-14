@@ -1,12 +1,88 @@
 # Backlog — otwarte pozycje
 
-Stan na 2026-09-13. **Kompilacja i pełne linkowanie na ABIv11 są zamknięte:**
-394/394 jednostek translacji, 442/442 celów ninja, `OpenLoco` 14.2 MB, zero
-nierozwiązanych symboli. Odtwarzalne z czystego upstreamu 11 łatkami.
-Binarka **nie była jeszcze uruchomiona** — to następna pozycja.
+Stan na 2026-09-15. **OpenLoco działa na AROS One (ABIv11):** menu, ekran
+tytułowy z animowaną mapą i wczytany scenariusz z interfejsem i zegarem gry.
+Dowody: `../evidence/menu-abiv11/RESULTS.md`. 15 łatek gry + łatki zależności.
 
-Wcześniejszy stan opisano na 2026-09-12. Kolejność mniej więcej według wpływu na decyzję o porcie.
-Każda pozycja mówi, co dokładnie jest niewiadome i co by ją zamknęło.
+Kolejność pozycji mniej więcej według wpływu. Każda mówi, co jest niewiadome i
+co by ją zamknęło. Pozycje zamknięte zostają dla historii decyzji.
+
+Uwaga o standardzie: `~/Work/AROS-dev/.workspace.json` wskazuje centralny
+`project-standards` w wersji **`0.2-proposal`**. Ten projekt nie ma zapisanej
+decyzji o udziale (`project.json`), więc backlog zostaje w obecnym formacie.
+Migracja do formatu „jedna notatka na zmianę" to osobna, świadoma decyzja.
+
+## Powrót po przerwie — co jest w repo, a co nie
+
+Sprawdzone 2026-09-15. **Kod, łatki, skrypty, toolchainy CMake i dokumentacja
+są w tym repozytorium i zacommitowane.** Wszystko w `upstream/`, `work/`,
+`deps/`, `build/` odtwarza się skryptami — patrz README, „Od zera".
+
+**Poza repozytorium, a bez tego gra nie ruszy** — tego nie da się odtworzyć
+samym `git clone`:
+
+| Co | Gdzie | Dlaczego nie w repo | Jeśli zginie |
+|---|---|---|---|
+| zasoby oryginalnej gry, 510 MB | `~/Work/AROS/assets-staging/Locomotion/` | chronione prawem autorskim, Twoja kopia gry | skopiować ponownie z instalacji Locomotion |
+| obraz dysku z zasobami, 700 MB | `~/Work/AROS/loco-assets.img` | pochodna powyższego | odtworzyć procedurą z `../evidence/menu-abiv11/RESULTS.md` |
+| system gościa AROS One | `~/Work/AROS/aros-one-hd.qcow2` | wspólny testbench | poza tym projektem |
+| toolchain i SDK ABIv11 | `~/Work/AROS/toolchain`, `~/Work/AROS/sdk` | wspólny testbench; ścieżki w `scripts/env.sh` | poza tym projektem |
+| obraz `arosbuild`, 4.9 GB | `~/Work/AROS/aros-build.sparseimage` | wspólny testbench | poza tym projektem |
+
+**Trzy pułapki przy powrocie, każda już raz ugryzła:**
+
+1. **`/Volumes/arosbuild` musi być zamontowany przed konfiguracją CMake** —
+   `collect-aros` ma ścieżkę linkera na sztywno. Po restarcie Maca obraz jest
+   odmontowany. `hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage`.
+   Bez tego build pada **już na pierwszym teście kompilatora**, z komunikatem
+   `is not able to compile a simple test program` i w środku
+   `collect-aros: /Volumes/arosbuild/toolchain-core-x86_64/x86_64-aros-ld: No
+   such file or directory` — co wygląda na zepsuty toolchain, a jest brakiem
+   zamontowanego obrazu. `build-openloco.sh` sprawdza to teraz na starcie i
+   mówi wprost, co zamontować.
+2. **`shared/loco/openloco.yml` musi wskazywać `Locodata:Locomotion`**, nie
+   `RAM:Locomotion`. Plik na hoście był nieaktualny (poprawka wpisana tylko w
+   gościu); poprawione 2026-09-15.
+3. **vvfat to migawka ze startu QEMU** — pliki do `shared/` kopiuje się
+   *przed* `run-aros-loco.sh`, nie po.
+
+Poprawione przy tym audycie: `scripts/run-aros-loco.sh` robił `cd` do własnego
+katalogu, czyli do `scripts/`, gdzie nie ma dysku QEMU ani `shared/` — z repo
+nie dało się go uruchomić. Teraz rozwiązuje ścieżki w `$AROS_TESTBENCH`
+(domyślnie `~/Work/AROS`). README nie wymieniało `build-openloco.sh`,
+`make-cmake-packages.sh`, `build-png-smoke.sh` ani uruchomienia w QEMU —
+uzupełnione.
+
+### Test powrotu z czystego klona
+
+Wykonany 2026-09-15: `git clone` repozytorium do pustego katalogu i pełna
+ścieżka z README, bez korzystania z niczego z roboczego drzewa.
+
+| krok | wynik |
+|---|---|
+| `bootstrap.sh` | **15 łatek gry nałożonych** z czystego upstreamu |
+| `fetch-deps.sh abiv11` | SDL3 + łatki AROS, fmt, sfl, yaml pobrane i załatane |
+| `build-sdl3.sh`, `make-cmake-packages.sh` | przeszły |
+| `build-openloco.sh` — **pierwsza próba** | **padło na konfiguracji CMake**: `/Volumes/arosbuild` niezamontowany (pułapka 1) |
+| `build-openloco.sh` — po zamontowaniu | 442/442, `OpenLoco` 14 217 840 B, **0 nierozwiązanych symboli** |
+
+**Porównanie z roboczym drzewem:**
+
+- źródła gry (`work/`, bez `.git`): **0 różnic**;
+- załatane zależności — `SDL3-3.4.12`, `fmt`, `sfl`, `yaml`, `contrib-sdl3`:
+  **0 różnic** w każdej. Łatka SDL3 na ukryte okno, robiona najpierw ręcznie w
+  `deps/`, jest więc w pliku łatki odwzorowana wiernie;
+- binarki różnią się rozmiarem (14 217 840 vs 14 212 752 B) i sekcją `.text`.
+  **Zweryfikowane** źródła tej różnicy to zaszyte wejścia środowiska: napis
+  wersji (`1339e69` vs `12cdfa3 … on baseline`) i ścieżka projektu (62
+  wystąpienia). Że różnica `.text` to wyłącznie przesunięcie przemieszczeń po
+  zmianie długości napisów w `.rodata` — **wniosek, nie sprawdzony
+  deasemblacją**; przy identycznych źródłach, zależnościach i toolchainie innych
+  wejść nie ma.
+
+**Wniosek: do pracy da się wrócić z samego repozytorium** — pod warunkiem, że
+istnieją zasoby gry i obraz dysku z tabeli wyżej, a `arosbuild` jest zamontowany.
+Uruchomienia w QEMU w tym teście nie powtarzano (poprzednie: `../evidence/menu-abiv11/`).
 
 ## 0. ZAMKNIĘTE — okno gry i renderer działają na ABIv11
 
@@ -27,9 +103,25 @@ Transfer 513 MB rozwiązany obrazem dysku **FAT32 z MBR** podpiętym jako
 czwarty dysk IDE — vvfat ma limit FAT16 516 MB, którego nie da się obejść
 przez `fat:32:`.
 
-**Pozostały szum:** pliki `._*` z macOS na obrazie są wczytywane jako obiekty
-i zaśmiecają log. Poprawka: `dot_clean` na woluminie przed odpięciem;
-niezweryfikowana.
+**Pozostały szum — przyczyna potwierdzona 2026-09-15:** na obrazie
+`loco-assets.img` leży **647 plików `._*`, z tego 544 w `ObjData/`** (policzone
+po zamontowaniu obrazu tylko do odczytu). To pliki widełek zasobów, które macOS
+dopisał przy kopiowaniu na FAT32; OpenLoco próbuje je wczytać jako obiekty i
+stąd seria `[ERR] Unable to load the object '._...'`. Źródło w
+`assets-staging/` jest czyste (0 plików `._*`) — śmieci powstają dopiero przy
+zapisie na obraz. Poprawka: `dot_clean /Volumes/LOCODATA` przed odpięciem
+obrazu. **Samo usunięcie niezweryfikowane w grze.**
+
+## 17. Wersja widoczna w grze nie jest wersją upstreamu
+
+Ekran tytułowy pokazuje np. `OpenLoco, 1339e69 (1339e69 on baseline)`. To hash
+commita **prywatnego repozytorium `work/`**, tworzonego przez `bootstrap.sh` —
+inny przy każdym bootstrapie (w teście powrotu: `12cdfa3`). Nie mówi nic o
+upstreamie OpenLoco ani o stanie łatek, a wygląda jak identyfikator wersji.
+
+**Zamknie to:** przekazanie do CMake `OPENLOCO_VERSION_TAG`/commita upstreamu
+(`UPSTREAM_COMMIT` z `scripts/env.sh`) i liczby łatek, zamiast brania ich z
+gita w `work/`. Niska waga — nie wpływa na działanie, tylko na zgłoszenia błędów.
 
 ## 1. Renderer programowy nigdy nie został uruchomiony
 
@@ -63,7 +155,11 @@ powinien używać `sdl3.library` z contrib.
 **Zamknie to:** decyzja i wykonanie — wstawić mainline contrib do drzewa
 ABIv11, czy utrzymywać własny build. To jest osobny projekt, nie zadanie.
 
-## 4. `using enum` — 4 pliki, GCC 10.5 tego nie ma
+## 4. ZAMKNIĘTE — `using enum` pod GCC 10.5
+
+**Zamknięte łatką `04-gcc10-using-enum`** (aliasy `constexpr` w tym samym
+zakresie; w `TownManager.cpp` wyjęte przed `switch`). Poniżej pierwotny opis.
+
 
 `CompanyAi.cpp:3496`, `:3562`, `:3604` i sąsiedzi. To C++20 dodane w GCC 11.
 Flagą się tego nie obejdzie.
@@ -72,7 +168,11 @@ Flagą się tego nie obejdzie.
 albo podniesienie toolchaina (AROS ma w crosstools łatki do GCC 16.2.0).
 Druga droga jest szersza niż ten port i dotyczy wszystkich projektów C++.
 
-## 5. `std::wstring_view` w `Utility/String.hpp:14` — 13 plików na ABIv11
+## 5. ZAMKNIĘTE — `std::wstring_view` na ABIv11
+
+**Zamknięte łatką `02-wide-strings-optional`** (helpery Windows pod
+`OPENLOCO_HAS_WIDE_STRINGS`). Poniżej pierwotny opis.
+
 
 `toUtf8(const std::wstring_view&)` to helper Windows. libstdc++ ABIv11 nie ma
 `_GLIBCXX_USE_WCHAR_T`.
@@ -89,7 +189,13 @@ Na mainline biblioteki OpenAL nie ma wcale, tylko nagłówki.
 
 **Zamknie to:** test odtwarzający dźwięk przez SDL3/AHI, osobno od OpenAL-a.
 
-## 7. Pozostałe pozycje kompilacji
+## 7. ZAMKNIĘTE — pozostałe pozycje kompilacji
+
+**Zamknięte łatkami:** `01-aros-platform-identification` (OPENLOCO_PLATFORM,
+ścieżka programu), `03`/`09` (makra bsdsocket), `06`/`10` (OpenAL HRTF i EFX),
+`07` (RFC 3493), `08` (`unistd.h`), `11` (IPO/LTO). `iconv.h` dotyczy tylko
+mainline. `<execution>`/TBB: build ABIv11 przechodzi. Poniżej pierwotny opis.
+
 
 - `OPENLOCO_PLATFORM` — `Version.hpp:46` nie zna `__AROS__` (4 pliki, oba ABI).
 - `Platform.Posix.cpp` — brak ścieżki do własnego pliku wykonywalnego na AROS.
@@ -131,9 +237,16 @@ brakuje.
 
 **Co zostaje otwarte:** sprawdzono jeden format (RGB8) i jedną ścieżkę we/wy.
 Paleta, tRNS, interlace, 16-bit i prawdziwe pliki gry — niesprawdzone. Pełny
-link OpenLoco to nadal osobna pozycja.
+link OpenLoco — zamknięty (§16).
 
-## 10. Współrzędne myszy w SDL3 niesprawdzone
+## 10. CZĘŚCIOWO SPRAWDZONE — współrzędne myszy w SDL3
+
+**Dowód częściowy (2026-09-13, `../evidence/menu-abiv11/`):** w działającej
+grze kliknięcie wstrzyknięte w globus menu trafiło i uruchomiło scenariusz —
+czyli współrzędne kliknięć mapują się poprawnie w tym przypadku. To jedno
+kliknięcie, nie test systematyczny: przeciąganie, prawy przycisk, kółko i
+porównanie z `SDL_GetMouseState` nadal niesprawdzone. Poniżej pierwotny opis.
+
 
 W SDL2 na AROS `ev.button.x/y` dawało (0,0) i obejściem był polling
 `SDL_GetMouseState`. Nasz test SDL3 liczył zdarzenia myszy, a nie ich
@@ -147,7 +260,7 @@ z `SDL_GetMouseState`.
 `x86_64-aros-strip` bez flag psuje relokacje `.text`; program umiera w pierwszym
 `OpenLibrary()` i wygląda to jak błąd programu. Bezpieczna forma:
 `--strip-unneeded --remove-section .comment`. Do zapisania w skrypcie pakującym,
-zanim ktoś zoptymalizuje rozmiar 4 MB binarki.
+zanim ktoś zoptymalizuje rozmiar 14 MB binarki.
 
 ## 12. Ścieżka „zamknij na żądanie" niesprawdzona
 
@@ -156,7 +269,11 @@ W żadnym przebiegu nie było `quit_event`, a ESC w przebiegu 1 nie dał zdarzen
 nietestowany.
 
 
-## 13. CZĘŚCIOWO ZAMKNIĘTE — binarka startuje, ale bez zasobów gry
+## 13. ZAMKNIĘTE — binarka startuje (zastąpione przez §16)
+
+**Zamknięte:** gra doszła do menu i wczytanego scenariusza — §16. Poniżej
+historia pierwszego uruchomienia bez zasobów.
+
 
 Uruchomiona 2026-09-13 na AROS One (ABIv11): program się ładuje, otwiera
 biblioteki, loguje `[INF] AROS (x86-64)`, pokazuje **dwa natywne okna SDL3**,
@@ -178,7 +295,10 @@ instalacyjny gry (nie samo `Data/`), i zrobić to **przed** startem QEMU, bo
 vvfat jest migawką z momentu startu. Szczegóły w
 `../evidence/first-run-abiv11/RESULTS.md`.
 
-## 13a. Stara treść: binarka nie była uruchomiona
+## 13a. ZAMKNIĘTE — stara treść: binarka nie była uruchomiona
+
+**Nieaktualne**, zostawione dla historii. Stan bieżący: §16.
+
 
 `build/abiv11/openloco/OpenLoco` linkuje się i nie ma nierozwiązanych symboli,
 ale nikt jej nie odpalił. Wymaga bibliotek: `SysBase`, `DOSBase`,

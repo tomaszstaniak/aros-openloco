@@ -19,6 +19,17 @@ BUILD=$(abi_build "$ABI")/openloco
 TOOLCHAIN=$PORT_ROOT/toolchains/$ABI.cmake
 
 [ -f "$TOOLCHAIN" ] || { echo "no toolchain file $TOOLCHAIN" >&2; exit 1; }
+
+# collect-aros has the linker path hardcoded into /Volumes/arosbuild. Without
+# that image mounted, CMake's very first compiler check fails to link and
+# reports "is not able to compile a simple test program" - which reads like a
+# broken toolchain, not a missing mount. Say what it really is, up front.
+AROS_LD=/Volumes/arosbuild/toolchain-core-x86_64/x86_64-aros-ld
+if [ ! -x "$AROS_LD" ]; then
+    echo "$AROS_LD not found - /Volumes/arosbuild is not mounted." >&2
+    echo "Mount it first:  hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage" >&2
+    exit 1
+fi
 [ -d "$WORK_DIR/src" ] || { echo "no work tree - run scripts/bootstrap.sh" >&2; exit 1; }
 [ -f "$(abi_deps "$ABI")/lib/libSDL3_static.a" ] || {
     echo "no SDL3 for $ABI - run scripts/build-sdl3.sh $ABI" >&2; exit 1; }
