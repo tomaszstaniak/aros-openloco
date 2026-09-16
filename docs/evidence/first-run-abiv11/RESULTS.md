@@ -46,11 +46,11 @@ RAM:loco
 
 ### Zrzuty
 
-- `01-pierwsze-uruchomienie-messagebox.png` — pierwsze okno: „Unable to
+- `01-first-run-messagebox.png` — pierwsze okno: „Unable to
   automatically detect the Locomotion game folder."
-- `02-walidacja-sciezki-gry.png` — drugie okno po podaniu ścieżki: „The
+- `02-game-path-validation.png` — drugie okno po podaniu ścieżki: „The
   selected folder does not contain Data/g1.DAT…"
-- `03-log-i-czyste-wyjscie.png` — treść `RAM:ver.log` z `[INF] AROS (x86-64)`
+- `03-log-and-clean-exit.png` — treść `RAM:ver.log` z `[INF] AROS (x86-64)`
   i powrót do promptu.
 
 ## Czego ten test NIE pokazał

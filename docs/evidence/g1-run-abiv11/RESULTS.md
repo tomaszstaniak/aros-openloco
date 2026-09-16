@@ -57,8 +57,8 @@ nadpisać zapisy. Łatka 15.
 ### Co osiągnięto
 
 **Okno gry powstaje i silnik OpenLoco w nim rysuje.**
-`05-okno-gry-utworzone.png` — natywne okno Intuition o tytule „OpenLoco".
-`03-pierwsza-klatka-silnika.png` — gra rysuje własną treść przez swój
+`05-game-window-created.png` — natywne okno Intuition o tytule „OpenLoco".
+`03-first-engine-frame.png` — gra rysuje własną treść przez swój
 programowy renderer w teksturze SDL3. To pierwsza klatka wyrenderowana przez
 silnik gry na AROS.
 
@@ -75,7 +75,7 @@ Exception 'Failed to open 'RAM:Locomotion/Data/title.dat' for writing',
 thrown at 'FileStream' - src/Core/src/FileStream.cpp:84
 ```
 
-Dowód: `04-brak-title-dat.png`.
+Dowód: `04-missing-title-dat.png`.
 
 Uwaga do komunikatu: „for writing" jest mylące i pochodzi z upstreamu —
 `FileStream.cpp:83` rzuca ten sam tekst przy każdym nieudanym otwarciu, także

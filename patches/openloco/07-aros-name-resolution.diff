@@ -1,6 +1,13 @@
 # aros-name-resolution
 #
-# AROS ma BSD 4.3 sockets, ale nie ma RFC 3493: getaddrinfo/freeaddrinfo/gai_strerror/getnameinfo/inet_ntop nie istnieja (arpa/inet.h deklaruje je tylko pod #if !defined(__AROS__)). ArosNetCompat.hpp implementuje je dla IPv4 przez gethostbyname/inet_addr; IPv6 zwraca EAI_FAMILY zamiast udawac. Plus setsockopt na AROS bierze niestaly wskaznik. NIESPRAWDZONE wobec zywej sieci.
+# AROS has the BSD 4.3 socket API but not RFC 3493: getaddrinfo, freeaddrinfo,
+# gai_strerror, getnameinfo and inet_ntop do not exist (its <arpa/inet.h>
+# declares them only under #if !defined(__AROS__)). ArosNetCompat.hpp implements
+# them for IPv4 through gethostbyname/inet_addr; AF_INET6 returns EAI_FAMILY
+# rather than pretending. Also, AROS's setsockopt() takes a non-const value
+# pointer.
+#
+# NOT verified against a live network.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

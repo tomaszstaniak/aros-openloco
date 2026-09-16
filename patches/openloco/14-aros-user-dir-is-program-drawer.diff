@@ -1,6 +1,9 @@
 # aros-user-dir-is-program-drawer
 #
-# PROGDIR:OpenLoco kolidowalo z plikiem wykonywalnym o tej samej nazwie - create_directories konczylo sie 'Not a directory'. Katalogiem uzytkownika jest sam katalog programu, co jest zwyklym ukladem na Amidze i nie koliduje z data/.
+# PROGDIR:OpenLoco collided with the executable of the same name, so
+# create_directories() failed with "Not a directory". The user directory is the
+# program's own drawer, which is the usual Amiga layout and cannot collide with
+# the game's data/ subdirectory.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

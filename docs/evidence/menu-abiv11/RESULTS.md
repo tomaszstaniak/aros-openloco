@@ -8,9 +8,9 @@
 
 | dowód | co pokazuje |
 |---|---|
-| `01-menu-i-mapa-tytulowa.png` | ekran tytułowy Locomotion z wyrenderowaną mapą demonstracyjną, globusy menu, „AROS (x86-64)" w rogu |
-| `02-mapa-tytulowa-animacja.png` | ten sam ekran po chwili — **inny fragment mapy**, czyli pętla renderowania chodzi, a nie stoi na jednej klatce |
-| `03-wczytany-scenariusz-mapa-gry.png` | **wczytany scenariusz**: mapa Wielkiej Brytanii z nazwami miast, pasek narzędzi, okno „New Company" z właścicielem, £26 500, zegar gry „7th January 1930" z przyciskami tempa |
+| `01-menu-and-title-map.png` | ekran tytułowy Locomotion z wyrenderowaną mapą demonstracyjną, globusy menu, „AROS (x86-64)" w rogu |
+| `02-title-map-animating.png` | ten sam ekran po chwili — **inny fragment mapy**, czyli pętla renderowania chodzi, a nie stoi na jednej klatce |
+| `03-scenario-loaded-game-map.png` | **wczytany scenariusz**: mapa Wielkiej Brytanii z nazwami miast, pasek narzędzi, okno „New Company" z właścicielem, £26 500, zegar gry „7th January 1930" z przyciskami tempa |
 
 Trzeci zrzut jest właściwym kamieniem milowym: to nie ekran tytułowy, tylko
 uruchomiona rozgrywka z interfejsem i zegarem.

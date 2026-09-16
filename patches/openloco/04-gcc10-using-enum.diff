@@ -1,6 +1,10 @@
 # gcc10-using-enum
 #
-# using enum to C++20, ale GCC ma je dopiero od 11; AROS ma 10.5.0. Aliasy constexpr w tym samym zakresie robią to samo w każdym standardzie. W TownManager musiały wyjść poza switch: deklaracja między { a pierwszym case jest przeskakiwana przez każdy case i jest źle sformułowana.
+# `using enum` is C++20, but GCC only implements it from 11; AROS ships 10.5.0.
+# constexpr aliases in the same scope do the same job in any standard. In
+# TownManager they had to go OUTSIDE the switch: a declaration between the
+# opening brace and the first case label is jumped over by every case, which is
+# ill-formed.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

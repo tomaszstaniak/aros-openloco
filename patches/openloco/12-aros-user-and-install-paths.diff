@@ -1,6 +1,16 @@
 # aros-user-and-install-paths
 #
-# Dwa problemy ze sciezkami na AROS. (1) getUserDirectory szlo przez XDG i getpwuid, ktore na AROS daje /home - konfiguracja i obiekty ladowaly w nieistniejacym /home/.config/OpenLoco. Konwencja Amigi to PROGDIR:. (2) fs::canonical traktowalo 'RAM:Locomotion' jako sciezke wzgledna, bo POSIX uznaje za absolutna tylko te z wiodacym '/', i powstawalo 'RAM Disk:loco/RAM:Locomotion'. Sciezki z wolumenem/assignem przed pierwszym ukosnikiem przepuszczamy bez zmian - AmigaDOS rozwiazuje je sam.
+# Two path problems on AROS.
+#
+# (1) getUserDirectory() went through XDG and getpwuid(), which on AROS yields
+# "/home" - configuration and objects ended up in a "/home/.config/OpenLoco"
+# that does not exist and cannot be created.
+#
+# (2) fs::canonical() treated "RAM:Locomotion" as a relative path, because POSIX
+# only recognises a leading '/' as absolute, producing
+# "RAM Disk:loco/RAM:Locomotion". Paths carrying a volume or assign name before
+# the first slash are now passed through untouched - AmigaDOS resolves them
+# itself.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

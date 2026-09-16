@@ -1,6 +1,13 @@
 # aros-no-single-instance-lock
 #
-# fcntl(F_SETLK) nie istnieje na AROS, wiec wykrywanie drugiej instancji zawsze zglaszalo 'Another instance of OpenLoco is already running' i gra nie startowala. Na AROS ochrona jest wylaczona swiadomie: odpowiednik z AmigaDOS (semafor publiczny albo Lock EXCLUSIVE) trzeba by zdejmowac przy wyjsciu, a zostawiony po awarii blokowalby kazde kolejne uruchomienie. Skutek: dwie instancje moga sobie nadpisac zapisy.
+# fcntl(F_SETLK) does not exist on AROS, so the second-instance check always
+# reported "Another instance of OpenLoco is already running" and the game refused
+# to start. The guard is disabled on AROS deliberately: an AmigaDOS equivalent (a
+# public semaphore or an exclusive Lock) would have to be removed on exit, and
+# anything left behind by a crash would block every later run.
+#
+# Consequence, stated plainly: on AROS nothing stops two instances from running
+# and writing over each other's saves.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

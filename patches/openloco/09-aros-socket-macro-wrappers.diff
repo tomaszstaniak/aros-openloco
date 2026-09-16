@@ -1,6 +1,12 @@
 # aros-socket-macro-wrappers
 #
-# AROS definiuje bind/socket/listen/sendto/recvfrom/setsockopt jako makra funkcyjne; bind koliduje ze std::bind z <functional>, wciaganego pozniej przez fmt/std.h, a blad jest raportowany wewnatrz libstdc++. Przechwytujemy makra w funkcje inline, potem je usuwamy; wywolania ida przez aros* pod #ifdef. Zadnych makr o tych nazwach - obiektowe makro bind psuje std::bind tak samo.
+# AROS defines bind/socket/listen/sendto/recvfrom/setsockopt as function-like
+# macros. `bind` collides with std::bind from <functional>, pulled in later
+# through fmt/std.h, and the error is then reported inside libstdc++ where it
+# looks like a broken standard library. Capture the macros in inline functions
+# while they are still defined, then undefine them; call sites use the aros*
+# names under #ifdef. Deliberately no macros under the original names: an
+# object-like macro called `bind` breaks std::bind just as thoroughly.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

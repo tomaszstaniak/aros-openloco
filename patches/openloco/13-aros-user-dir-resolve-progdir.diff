@@ -1,6 +1,10 @@
 # aros-user-dir-resolve-progdir
 #
-# Poprzednia wersja zwracala literalne 'PROGDIR:OpenLoco'. std::filesystem traktuje ':' jak zwykly znak, wiec create_directories(PROGDIR:OpenLoco/logs) rzucalo filesystem_error i gra przerywala start. Rozwiazujemy PROGDIR: do prawdziwej sciezki przez GetProgramDir()+NameFromLock().
+# The previous version returned a literal "PROGDIR:OpenLoco". std::filesystem
+# treats ':' as an ordinary character, so create_directories() on
+# "PROGDIR:OpenLoco/logs" threw filesystem_error and the game aborted during
+# startup. Resolve PROGDIR: to a real path through GetProgramDir() +
+# NameFromLock() instead.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

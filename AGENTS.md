@@ -3,27 +3,24 @@
 Wspólne zasady są w `../AGENTS.md` i obowiązują tu w całości. Poniżej tylko to,
 co specyficzne dla tego portu.
 
-## Odstępstwo od wspólnej reguły zakresu — zapisane świadomie
+## Wybór ABI — zgodny ze wspólną regułą
 
-Wspólna decyzja brzmi: **rozwój śledzi mainline AROS**, a dystrybucja nie jest
-celem (`../docs/platform/porting-notes.md`, §Decyzje o zakresie; źródło:
-the testbench's shared rules, poprawione 2026-09-03).
+Wspólna reguła (the testbench's shared rules, §Scope decisions, doprecyzowana
+2026-09-15): **priorytet ABI ustala się per projekt**, a wybór ABIv11 jako
+pierwszego jest normalną konfiguracją, nie wyjątkiem. Wcześniejsza wersja tej
+sekcji opisywała to jako odstępstwo — było to zgodne z ówczesnym brzmieniem
+reguły („rozwój śledzi mainline"), które od tamtej pory zmieniono.
 
-**Ten port ma inaczej i jest to polecenie użytkownika z 2026-09-12:** ABIv11
-(AROS One) jest celem głównym, mainline v1 drugim. Powód jest praktyczny — to
-ABIv11 ma w SDK OpenAL, iconv i działający toolchain dla tej gry, i to na nim
-uruchomiono SDL3. Odstępstwo dotyczy **priorytetu, nie porzucenia mainline**:
-mainline zostaje drugim targetem i każda próba jest robiona na obu.
+**Ten port: ABIv11 (AROS One) pierwszy, mainline v1 drugi.** Polecenie
+użytkownika z 2026-09-12. Powód praktyczny: to ABIv11 ma w SDK OpenAL, iconv i
+działający toolchain dla tej gry, i na nim uruchomiono SDL3 oraz samą grę.
+Mainline v1 **nie jest porzucony** — pozostaje drugim celem, a każda próba
+kompilacji leci na obu. Mainline nie był jednak nigdy uruchamiany: wszystkie
+wyniki działania dotyczą wyłącznie ABIv11 i tak są oznaczone.
 
-Gdyby ktoś wrócił do tego za pół roku: to nie jest zapomniana reguła, tylko
-świadomy wyjątek.
-
-## Cel i priorytet
-
-**ABIv11 jest celem głównym, mainline v1 drugim.** Wynik z jednego ABI nie jest
-wynikiem z drugiego — te dwa systemy mają różne libstdc++, różne SDK i różną
-zawartość posixc, i już raz różniły się o 300 plików. Każdy raport musi mówić,
-z którego ABI pochodzi.
+Wynik z jednego ABI nie jest wynikiem z drugiego — te systemy mają różne
+libstdc++, różne SDK i różną zawartość posixc, i już raz różniły się o 300
+plików. Każdy raport musi mówić, z którego ABI pochodzi.
 
 ## Gdzie co leży
 
@@ -76,9 +73,10 @@ buildem**, nie po. Trzy z nich trafiają w ten port wprost:
   je mają. Powód to **niezależność od wersji biblioteki na maszynie
   użytkownika**, a nie jej brak: na naszym AROS One 1.3 obie biblioteki są.
   Sprawdzone i uruchomione u nas; szczegóły w backlogu §9.
-- **Współrzędne myszy ze zdarzeń SDL2 dawały na AROS (0,0).** Nasz test SDL3
-  liczył zdarzenia, a nie współrzędne, więc dla SDL3 to jest **niesprawdzone**.
-  Zanim uznasz mysz za działającą, sprawdź współrzędne.
+- **Współrzędne myszy ze zdarzeń SDL2 dawały na AROS (0,0).** Dla SDL3 jest to
+  sprawdzone tylko częściowo: w działającej grze kliknięcie trafiło w globus
+  menu i uruchomiło scenariusz. Przeciąganie, prawy przycisk i porównanie z
+  `SDL_GetMouseState` nadal niesprawdzone — backlog §10.
 
 ## Uruchamianie na maszynach
 

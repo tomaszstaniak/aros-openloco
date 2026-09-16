@@ -1,13 +1,13 @@
-# yaml-cpp 0.9.0: dragonbox i typy least/fast na AROS
+# yaml-cpp 0.9.0: dragonbox and the least/fast integer types on AROS
 #
-# AROS deklaruje uint_least*_t / uint_fast*_t tylko w globalnej przestrzeni
-# nazw (C <stdint.h>), a <cstdint> nie wnosi ich do std. Bundlowany dragonbox
-# bierze je przez JKJ_STD_REPLACEMENT_NAMESPACE, czyli std, i się nie kompiluje.
-# Na AROS bierzemy je z globalnej przestrzeni. To luka po stronie AROS, nie
-# yaml-cpp — patrz docs/platform/toolchains.md.
+# AROS declares uint_least*_t / uint_fast*_t only in the global namespace (the C
+# <stdint.h>); <cstdint> does not pull them into std. The bundled dragonbox takes
+# them through JKJ_STD_REPLACEMENT_NAMESPACE, i.e. std, and fails to compile.
+# On AROS we take them from the global namespace instead. This is a gap on the
+# AROS side, not in yaml-cpp - see docs/platform/toolchains.md.
 #
-# Nakładane przez scripts/fetch-deps.sh na sklonowane yaml-cpp-0.9.0.
-# Zapisane 2026-09-13.
+# Applied by scripts/fetch-deps.sh to the cloned yaml-cpp-0.9.0.
+# Saved 2026-09-13.
 
 diff --git a/src/contrib/dragonbox.h b/src/contrib/dragonbox.h
 index de5a79f..d3f3eb2 100644

@@ -1,6 +1,10 @@
 # wide-strings-optional
 #
-# Niektóre buildy libstdc++ (AROS ABIv11) nie mają _GLIBCXX_USE_WCHAR_T, więc std::wstring/wstring_view nie istnieją. toUtf8/toUtf16 używa wyłącznie backend Windows, więc na takich targetach można je pominąć zamiast wywracać każdy plik włączający ten nagłówek.
+# Some libstdc++ builds are configured without _GLIBCXX_USE_WCHAR_T, and then
+# std::wstring and std::wstring_view do not exist at all. AROS ABIv11 is one such
+# target. toUtf8()/toUtf16() are used only by the Windows backend, so on those
+# targets they can be left out instead of failing to compile in every file that
+# includes the header.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

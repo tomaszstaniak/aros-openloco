@@ -1,6 +1,8 @@
 # gcc10-span-from-static-vector
 #
-# std::span w GCC 10 nie przyjmuje sfl::static_vector przez konstruktor zakresowy - jego wykrywanie contiguous_range jest sprzed finalnego brzmienia. Konstruktor wskaźnik+rozmiar znaczy to samo i działa zawsze.
+# GCC 10's std::span does not accept sfl::static_vector through its range
+# constructor: its contiguous_range detection predates the final wording. The
+# pointer+size constructor means the same thing and always works.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

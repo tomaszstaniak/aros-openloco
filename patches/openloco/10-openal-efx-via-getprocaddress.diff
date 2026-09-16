@@ -1,6 +1,11 @@
 # openal-efx-via-getprocaddress
 #
-# openal-soft 1.19.1 w SDK AROS nie eksportuje wejsc EFX, choc <AL/efx.h> je deklaruje - kompiluje sie, nie linkuje. Spec OpenAL i tak kaze pobierac rozszerzenia przez alGetProcAddress; degraduje sie uczciwie: brak wskaznika = brak pogłosu, nie crash.
+# The AROS SDK ships openal-soft 1.19.1, whose static library does not export the
+# EFX entry points although <AL/efx.h> declares them - so the program compiles
+# and then fails to link. The OpenAL spec says extension entry points are fetched
+# with alGetProcAddress() rather than linked against, so doing that is the
+# correct form regardless, and it degrades honestly: a missing pointer means no
+# reverb instead of a crash.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

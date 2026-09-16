@@ -1,20 +1,20 @@
-# SDL3 3.4.12 na AROS: okno na żądanie dla okna ukrytego
+# SDL3 3.4.12 on AROS: open the system window on demand for a hidden window
 #
-# Backend AROS otwiera okno Intuition dopiero w AROS_ShowWindow_Internal(), więc
-# okno utworzone z SDL_WINDOW_HIDDEN nie ma jeszcze data->win i każda próba
-# zbudowania framebuffera kończy się "No system window".
+# The AROS backend only opens the Intuition window in AROS_ShowWindow_Internal(),
+# so a window created with SDL_WINDOW_HIDDEN has no data->win yet and every
+# attempt to build a framebuffer fails with "No system window".
 #
-# SDL pozwala wołać SDL_GetWindowSurface() na oknie ukrytym i aplikacje z tego
-# korzystają: OpenLoco tworzy okno ukryte, buduje programowy renderer i dopiero
-# potem woła SDL_ShowWindow(). Na AROS ta sekwencja była niewykonalna - gra
-# przerywała start komunikatem "Unable to create software renderer".
+# SDL allows SDL_GetWindowSurface() on a hidden window and applications rely on
+# it: OpenLoco creates its window hidden, builds the software renderer, and only
+# then calls SDL_ShowWindow(). On AROS that sequence was impossible - the game
+# aborted startup with "Unable to create software renderer".
 #
-# Otwieramy więc okno systemowe na żądanie; późniejsze SDL_ShowWindow() tylko je
-# aktywuje.
+# Open the system window on demand instead; the later SDL_ShowWindow() then only
+# activates it.
 #
-# Nakładane przez scripts/fetch-deps.sh po łatce AROS z contrib.
-# Nadaje się do zgłoszenia do aros-development-team/contrib.
-# Zapisane 2026-09-13.
+# Applied by scripts/fetch-deps.sh after the contrib AROS patch.
+# Worth sending to aros-development-team/contrib.
+# Saved 2026-09-13.
 
 --- a/src/video/aros/SDL_arosframebuffer.c
 +++ b/src/video/aros/SDL_arosframebuffer.c

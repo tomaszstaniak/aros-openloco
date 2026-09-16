@@ -1,6 +1,9 @@
 # respect-user-ipo-setting
 #
-# Niektore toolchainy cross zglaszaja IPO jako wspierane i wywracaja sie w lto1, gdy obiekty LTO spotykaja nie-LTO-we biblioteki systemowe (GCC 10.5.0 na AROS: internal compiler error in add_symbol_to_partition_1). Musi byc sposob wylaczenia tego z linii polecen. Nadaje sie do zgloszenia upstream.
+# Some cross toolchains report IPO as supported and then fail inside lto1 when
+# LTO objects meet non-LTO system libraries (GCC 10.5.0 on AROS: internal
+# compiler error in add_symbol_to_partition_1). There has to be a way to turn it
+# off from the command line. Worth sending upstream.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.
