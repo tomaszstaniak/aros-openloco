@@ -1,85 +1,86 @@
-# aros-openloco — reguły projektu
+# aros-openloco - project rules
 
-Wspólne zasady są w `../AGENTS.md` i obowiązują tu w całości. Poniżej tylko to,
-co specyficzne dla tego portu.
+The shared rules are in `../AGENTS.md` and apply here in full. Below is only
+what is specific to this port.
 
-## Wybór ABI — zgodny ze wspólną regułą
+## ABI choice - in line with the shared rule
 
-Wspólna reguła (the testbench's shared rules, §Scope decisions, doprecyzowana
-2026-09-15): **priorytet ABI ustala się per projekt**, a wybór ABIv11 jako
-pierwszego jest normalną konfiguracją, nie wyjątkiem. Wcześniejsza wersja tej
-sekcji opisywała to jako odstępstwo — było to zgodne z ówczesnym brzmieniem
-reguły („rozwój śledzi mainline"), które od tamtej pory zmieniono.
+The shared rule (the testbench's shared rules, §Scope decisions, clarified
+2026-09-15): **ABI priority is chosen per project**, and picking ABIv11 first is
+normal configuration, not an exception. An earlier version of this section
+described it as a deviation, which matched the rule's earlier wording
+("development tracks mainline"); that wording has since changed.
 
-**Ten port: ABIv11 (AROS One) pierwszy, mainline v1 drugi.** Polecenie
-użytkownika z 2026-09-12. Powód praktyczny: to ABIv11 ma w SDK OpenAL, iconv i
-działający toolchain dla tej gry, i na nim uruchomiono SDL3 oraz samą grę.
-Mainline v1 **nie jest porzucony** — pozostaje drugim celem, a każda próba
-kompilacji leci na obu. Mainline nie był jednak nigdy uruchamiany: wszystkie
-wyniki działania dotyczą wyłącznie ABIv11 i tak są oznaczone.
+**This port: ABIv11 (AROS One) first, mainline v1 second.** User instruction of
+2026-09-12. The practical reason: ABIv11 is the one whose SDK carries OpenAL and
+iconv and a working toolchain for this game, and it is where SDL3 and the game
+itself were run. Mainline v1 **is not dropped** - it stays the second target and
+every compile probe runs on both. Mainline has never been run, though: all
+runtime results are ABIv11 only and are labelled as such.
 
-Wynik z jednego ABI nie jest wynikiem z drugiego — te systemy mają różne
-libstdc++, różne SDK i różną zawartość posixc, i już raz różniły się o 300
-plików. Każdy raport musi mówić, z którego ABI pochodzi.
+A result from one ABI is not a result from the other - these systems have
+different libstdc++, different SDKs and different posixc contents, and they once
+differed by 300 files. Every report must say which ABI it came from.
 
-## Gdzie co leży
+## Where things live
 
-- `upstream/OpenLoco` — **nigdy nie edytuj.** Jeśli `git status` tam nie jest
-  czysty, to jest błąd, nie stan pracy. `scripts/bootstrap.sh` to sprawdza.
-- `work/OpenLoco` — tu się edytuje. Ma prywatne repo Git, ale to **nie jest
-  historia portu**: jego jedyne zadanie to odpowiadać, co jest zmienione i
-  jeszcze niezapisane. Nie commituj tam ręcznie.
-- Każda zmiana w kodzie gry, która ma zostać, ląduje jako łatka:
-  `scripts/save-patch.sh <nazwa> "po co"`. Zmiana żyjąca tylko w `work/` nie
-  jest zapisana — ale nie jest też cicho kasowana: `bootstrap.sh --reset`
-  odmawia, dopóki `git -C work/OpenLoco status` nie jest czysty.
-- Łatki zależności (`patches/dependencies/`) tak samo: w nagłówku musi być
-  powód i zakres, bo za pół roku nikt nie odtworzy, czemu fmt jest ruszony.
+- `upstream/OpenLoco` - **never edit.** If `git status` there is not clean, that
+  is a mistake, not a state of work. `scripts/bootstrap.sh` checks it.
+- `work/OpenLoco` - this is where you edit. It has a private Git repository, but
+  that is **not the port's history**: its only job is to answer what has been
+  changed and not yet saved. Do not commit there by hand.
+- Every change to the game's code that is meant to stay becomes a patch:
+  `scripts/save-patch.sh <name> "why"`. A change living only in `work/` is not
+  saved - but it is not silently deleted either: `bootstrap.sh --reset` refuses
+  until `git -C work/OpenLoco status` is clean.
+- Dependency patches (`patches/dependencies/`) likewise: the header must carry
+  the reason and the scope, because in six months nobody will reconstruct why
+  fmt was touched.
 
-## Próby kompilacji
+## Compile probes
 
-Flagi odwzorowują `cmake/OpenLocoCommon.cmake` z upstreamu. Odstępstwo musi być
-jawne i skomentowane w skrypcie. Probe z innymi flagami zmyśla błędy, których
-prawdziwy build nie widzi — zdarzyło się to z `-fno-char8_t` i zawyżyło liczbę
-„poprawek do zrobienia" o 15 plików.
+Flags mirror upstream's `cmake/OpenLocoCommon.cmake`. Any divergence must be
+explicit and commented in the script. A probe with different flags invents
+errors the real build never sees - that happened with `-fno-char8_t` and
+inflated the "fixes to make" count by 15 files.
 
-Liczba w stylu „366/394" jest zdaniem o jednostkach translacji. Nie jest
-procentem gotowości portu, nie jest dowodem na linkowanie i nie jest dowodem na
-działanie. Tak to opisuj.
+A number like "366/394" is a statement about translation units. It is not a
+percentage of the port's readiness, not evidence of linking, and not evidence of
+running. Describe it that way.
 
-## Kolejność dowodów w tym porcie
+## Order of evidence in this port
 
-1. źródła istnieją w contrib →
-2. biblioteka się kompiluje →
-3. jest zainstalowana w konkretnym SDK →
-4. program się linkuje →
-5. działa na wskazanej maszynie.
+1. sources exist in contrib ->
+2. the library builds ->
+3. it is installed in a specific SDK ->
+4. the program links ->
+5. it runs on the named machine.
 
-Nie przeskakuj stopni w opisie. SDL3 na ABIv11 jest dziś na stopniu 5, ale jako
-statyczny build obok systemu budowania AROS-a — nie jako `sdl3.library` z
-contrib, i to trzeba mówić za każdym razem.
+Do not skip degrees when describing something. SDL3 on ABIv11 is at degree 5
+today, but as a static build alongside the AROS build system - not as contrib's
+`sdl3.library`, and that has to be said every time.
 
-## Pułapki, które już raz kosztowały popołudnie
+## Traps that have already cost an afternoon
 
-Pełna lista: `../docs/platform/porting-notes.md` — **przeczytaj przed pierwszym
-buildem**, nie po. Trzy z nich trafiają w ten port wprost:
+Full list: `../docs/platform/porting-notes.md` - **read it before the first
+build**, not after. Three of them hit this port directly:
 
-- **Nie stripuj binarki na pełno.** `x86_64-aros-strip` bez flag daje plik,
-  który AROS One ładuje bez relokacji `.text` i który umiera w pierwszym
-  `OpenLibrary()` — wygląda jak błąd programu. Używaj
+- **Do not strip the binary fully.** `x86_64-aros-strip` without flags produces
+  a file that AROS One loads without `.text` relocations and that dies in the
+  first `OpenLibrary()` - it looks like a bug in the program. Use
   `--strip-unneeded --remove-section .comment`.
-- **`libpng.a` i `libz.a` w SDK to stuby** do `png.library` i `z1.library`.
-  Linkuj `-lpng_nostdio -lz.static` (w tej kolejności — png woła zlib); oba SDK
-  je mają. Powód to **niezależność od wersji biblioteki na maszynie
-  użytkownika**, a nie jej brak: na naszym AROS One 1.3 obie biblioteki są.
-  Sprawdzone i uruchomione u nas; szczegóły w backlogu §9.
-- **Współrzędne myszy ze zdarzeń SDL2 dawały na AROS (0,0).** Dla SDL3 jest to
-  sprawdzone tylko częściowo: w działającej grze kliknięcie trafiło w globus
-  menu i uruchomiło scenariusz. Przeciąganie, prawy przycisk i porównanie z
-  `SDL_GetMouseState` nadal niesprawdzone — backlog §10.
+- **`libpng.a` and `libz.a` in the SDK are stubs** into `png.library` and
+  `z1.library`. Link `-lpng_nostdio -lz.static` (in that order - png calls into
+  zlib); both SDKs have them. The reason is **independence from the library
+  version on the user's machine**, not its absence: on our AROS One 1.3 both
+  libraries are present. Checked and run here; details in backlog §9.
+- **Mouse coordinates from SDL2 events returned (0,0) on AROS.** For SDL3 this
+  is only partly checked: in the running game an injected click hit a menu globe
+  and started a scenario. Dragging, the right button and a comparison against
+  `SDL_GetMouseState` are still unchecked - backlog §10.
 
-## Uruchamianie na maszynach
+## Running on the machines
 
-Testbench jest wspólny — zasady w `../docs/platform/testbench.md`. ABIv11 to
-maszyna `one`. Programy testowe piszą wynik do pliku (`PROGDIR:*.log`), nie na
-konsolę, bo Shell może zawierać wyjście innej sesji.
+The testbench is shared - rules in `../docs/platform/testbench.md`. ABIv11 is
+machine `one`. Test programs write their result to a file (`PROGDIR:*.log`)
+rather than the console, because the Shell may contain another session's output.

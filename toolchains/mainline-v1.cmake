@@ -26,64 +26,65 @@ set(CMAKE_CXX_COMPILE_OPTIONS_PIC "")
 set(CMAKE_C_COMPILE_OPTIONS_PIC "")
 set(AROS ON)
 
-# --- PNG / zlib: wskaż archiwa statyczne, nie stuby ------------------------
-# libpng.a i libz.a w SDK to link stuby do png.library i z1.library.
-# Wariant statyczny daje niezależność od obecności i wersji tych bibliotek na
-# maszynie użytkownika. find_package(PNG)/find_package(ZLIB) znajdą stuby, więc podajemy
-# ścieżki wprost jako CACHE, zanim ktokolwiek je zawoła.
-# Kolejność linkowania: libpng woła zlib, więc png musi poprzedzać z.
-set(ZLIB_LIBRARY "${CMAKE_SYSROOT}/lib/libz.static.a" CACHE FILEPATH "AROS: statyczna zlib, nie stub z1.library")
+# --- PNG / zlib: point at the static archives, not the stubs ---------------
+# libpng.a and libz.a in the SDK are link stubs into png.library and z1.library.
+# The static variant makes us independent of whether those libraries are present
+# on the user's machine and of their version. find_package(PNG)/find_package(ZLIB)
+# would find the stubs, so we set the paths explicitly as CACHE entries before
+# anyone calls them.
+# Link order: libpng calls into zlib, so png must precede z.
+set(ZLIB_LIBRARY "${CMAKE_SYSROOT}/lib/libz.static.a" CACHE FILEPATH "AROS: static zlib, not the z1.library stub")
 set(ZLIB_INCLUDE_DIR "${CMAKE_SYSROOT}/include" CACHE PATH "")
-set(PNG_LIBRARY "${CMAKE_SYSROOT}/lib/libpng_nostdio.a" CACHE FILEPATH "AROS: statyczna libpng bez stdio, nie stub png.library")
+set(PNG_LIBRARY "${CMAKE_SYSROOT}/lib/libpng_nostdio.a" CACHE FILEPATH "AROS: static libpng without stdio, not the png.library stub")
 set(PNG_PNG_INCLUDE_DIR "${CMAKE_SYSROOT}/include" CACHE PATH "")
-# libpng_nostdio nie ma png_init_io(); OpenLoco go nie używa (własne callbacki
-# w Gfx/src/PngImage.cpp i Ui/Screenshot.cpp).
+# libpng_nostdio has no png_init_io(); OpenLoco does not use it (it installs its
+# own callbacks in Gfx/src/PngImage.cpp and Ui/Screenshot.cpp).
 
-# --- SDL3: nasz statyczny build, nie ma go w SDK --------------------------
-# scripts/build-sdl3.sh generuje tam SDL3Config.cmake, żeby
-# find_package(SDL3 REQUIRED CONFIG) z thirdparty/CMakeLists.txt miał co znaleźć.
+# --- SDL3: our own static build, the SDK has none --------------------------
+# scripts/build-sdl3.sh generates SDL3Config.cmake there so that
+# find_package(SDL3 REQUIRED CONFIG) from thirdparty/CMakeLists.txt finds something.
 set(SDL3_DIR "${CMAKE_CURRENT_LIST_DIR}/../deps/mainline-v1/lib/cmake/SDL3" CACHE PATH "")
 
-# --- OpenAL: SDK nie ma pakietu CMake ani .pc ------------------------------
-# scripts/make-cmake-packages.sh generuje go w deps/mainline-v1/lib/cmake/OpenAL.
+# --- OpenAL: the SDK ships neither a CMake package nor a .pc file ----------
+# scripts/make-cmake-packages.sh generates one in deps/mainline-v1/lib/cmake/OpenAL.
 set(OpenAL_DIR "${CMAKE_CURRENT_LIST_DIR}/../deps/mainline-v1/lib/cmake/OpenAL" CACHE PATH "")
 
-# --- fmt / sfl / yaml-cpp: nasze przypięte i załatane źródła ---------------
-# thirdparty/CMakeLists.txt ściąga je przez FetchContent. Bez tego build
-# pobiera czyste fmt i wraca problem std::wstring, którego nie ma w naszej
-# kopii (patches/dependencies/fmt-11.1.4-aros-nowstring.diff).
-# FETCHCONTENT_SOURCE_DIR_<NAZWA> każe CMake użyć katalogu zamiast pobierania.
+# --- fmt / sfl / yaml-cpp: our pinned and patched sources ------------------
+# thirdparty/CMakeLists.txt pulls them in through FetchContent. Without this the
+# build downloads a pristine fmt and the std::wstring problem comes back - the
+# one our copy does not have (patches/dependencies/fmt-11.1.4-aros-nowstring.diff).
+# FETCHCONTENT_SOURCE_DIR_<NAME> tells CMake to use a directory instead of downloading.
 set(FETCHCONTENT_SOURCE_DIR_FMT "${CMAKE_CURRENT_LIST_DIR}/../deps/mainline-v1/src/fmt" CACHE PATH "")
 set(FETCHCONTENT_SOURCE_DIR_SFL "${CMAKE_CURRENT_LIST_DIR}/../deps/mainline-v1/src/sfl" CACHE PATH "")
 set(FETCHCONTENT_SOURCE_DIR_YAML-CPP "${CMAKE_CURRENT_LIST_DIR}/../deps/mainline-v1/src/yaml" CACHE PATH "")
 
-# --- wątki: AROS GCC nie zna -pthread -------------------------------------
-# Ani gcc, ani g++ nie akceptują tej flagi (weryfikowane 2026-09-13), a
-# upstream ustawia THREADS_PREFER_PTHREAD_FLAG ON, więc FindThreads chciałby ją
-# dodać. Zaszczepiamy wynik testu na FALSE, żeby FindThreads poszedł ścieżką
-# biblioteki i zlinkował -lpthread, która w SDK jest.
-set(THREADS_HAVE_PTHREAD_ARG FALSE CACHE INTERNAL "AROS GCC nie zna -pthread")
+# --- threads: the AROS GCC does not know -pthread --------------------------
+# Neither gcc nor g++ accepts the flag (verified 2026-09-13), while upstream sets
+# THREADS_PREFER_PTHREAD_FLAG ON, so FindThreads would want to add it. Seed the
+# test result as FALSE so FindThreads takes the library path instead and links
+# -lpthread, which the SDK does have.
+set(THREADS_HAVE_PTHREAD_ARG FALSE CACHE INTERNAL "the AROS GCC does not know -pthread")
 
-# --- LTO wyłączone --------------------------------------------------------
-# GCC 10.5.0 wywraca się wewnętrznie przy linkowaniu:
+# --- LTO disabled ----------------------------------------------------------
+# GCC 10.5.0 fails internally while linking:
 #   lto1: internal compiler error: in add_symbol_to_partition_1
-# przy mieszaniu obiektów LTO z nie-LTO-wymi bibliotekami SDK i naszym
-# statycznym SDL3. To błąd kompilatora, nie kodu gry.
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF CACHE BOOL "GCC 10 LTO ICE na AROS")
+# when LTO objects meet the non-LTO SDK libraries and our static SDL3. That is a
+# compiler bug, not a defect in the game.
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF CACHE BOOL "GCC 10 LTO ICE on AROS")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "")
 
-# --- bsdsocket: SocketBase ------------------------------------------------
-# Wywołania bsdsocket.library odwołują się do globalnej SocketBase, którą
-# definiuje i otwiera autoinit z libnet.a. Bez tego link kończy się jednym
-# nierozwiązanym symbolem i wygląda na błąd w kodzie sieciowym.
-# Musi trafić na KONIEC linii linkowania, nie na początek: to archiwum
-# statyczne, a linker bierze z niego tylko to, czego brakuje w już widzianych
-# obiektach. CMAKE_*_STANDARD_LIBRARIES jest doklejane na końcu.
+# --- bsdsocket: SocketBase -------------------------------------------------
+# Calls into bsdsocket.library reference the global SocketBase, which the autoinit
+# in libnet.a defines and opens. Without it the link ends with a single
+# unresolved symbol and looks like a defect in the networking code.
+# It has to land at the END of the link line, not the start: it is a static
+# archive, and the linker takes from it only what is still missing in the objects
+# seen so far. CMAKE_*_STANDARD_LIBRARIES is appended last.
 set(CMAKE_CXX_STANDARD_LIBRARIES "-lnet" CACHE STRING "")
 set(CMAKE_C_STANDARD_LIBRARIES "-lnet" CACHE STRING "")
 
-# --- PIC wyłączony --------------------------------------------------------
-# AROS linkuje statycznie i nie ma GOT-u: obiekty z -fPIC zostawiają
-# nierozwiązane _GLOBAL_OFFSET_TABLE_. yaml-cpp włącza PIC własną opcją
-# YAML_ENABLE_PIC, więc samo CMAKE_POSITION_INDEPENDENT_CODE nie wystarcza.
-set(YAML_ENABLE_PIC OFF CACHE BOOL "AROS: brak GOT, PIC zostawia nierozwiazany symbol")
+# --- PIC disabled ----------------------------------------------------------
+# AROS links statically and has no GOT: objects built with -fPIC leave
+# _GLOBAL_OFFSET_TABLE_ unresolved. yaml-cpp turns PIC on through its own
+# YAML_ENABLE_PIC option, so CMAKE_POSITION_INDEPENDENT_CODE alone is not enough.
+set(YAML_ENABLE_PIC OFF CACHE BOOL "AROS: no GOT, PIC leaves an unresolved symbol")

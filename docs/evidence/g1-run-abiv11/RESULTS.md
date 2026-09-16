@@ -1,118 +1,119 @@
-# OpenLoco z dostarczonym g1.DAT — ABIv11
+# OpenLoco with the supplied g1.DAT - ABIv11
 
-Maszyna: AROS One x86_64 ABIv11, QEMU TCG, `one`. Binarka nieodchudzona,
-uruchamiana z `RAM:loco`, zasoby w `RAM:Locomotion`.
+Machine: AROS One x86_64 ABIv11, QEMU TCG, `one`. Unstripped binary, run from
+`RAM:loco`, assets in `RAM:Locomotion`.
 
 ---
 
-## Przebieg 1 (2026-09-13, sesja `codex-root-20260913T2031`)
+## Run 1 (2026-09-13, session `codex-root-20260913T2031`)
 
-Start przeszedł poza walidację brakującego `g1.DAT`, ale zakończył się:
+Startup got past the missing-g1 validation but ended with:
 
 ```
 [ERR] Warning: file /home/.config/OpenLoco/objects could not be found
 [ERR] Unable to create software renderer: No system window
 ```
 
-W logu widniała też podejrzana ścieżka `RAM Disk:loco/RAM:Locomotion`.
-Dowody: `01-renderer-failure.png`, `02-run-log.png`.
+The log also showed a suspicious path, `RAM Disk:loco/RAM:Locomotion`.
+Evidence: `01-renderer-failure.png`, `02-run-log.png`.
 
 ---
 
-## Przebieg 2 (2026-09-13, wieczór) — pięć blokerów zdjętych
+## Run 2 (2026-09-13, evening) - five blockers removed
 
-### Co naprawiono i dlaczego
+### What was fixed and why
 
-**1. „No system window" — to nie był brak akceleracji.**
-Backend AROS w SDL3 otwiera okno Intuition dopiero w `AROS_ShowWindow_Internal()`,
-więc okno utworzone z `SDL_WINDOW_HIDDEN` nie ma jeszcze `data->win`.
-OpenLoco tworzy okno **ukryte** (`SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN`,
-`Ui.cpp:224`), buduje renderer, i dopiero potem woła `SDL_ShowWindow()`
-(`Ui.cpp:286`). Na AROS ta kolejność była niewykonalna.
-Test `tests/sdl3-smoke/` tego nie wykrył, bo tworzy okno **widoczne** — stąd
-wcześniejsze „SDL3 działa" i jednoczesna awaria gry.
-Łatka: `patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff`
-(okno systemowe otwierane na żądanie). Nadaje się do zgłoszenia do contrib.
+**1. "No system window" - this was not about acceleration.**
+The AROS backend in SDL3 only opens the Intuition window in
+`AROS_ShowWindow_Internal()`, so a window created with `SDL_WINDOW_HIDDEN` has
+no `data->win` yet. OpenLoco creates its window **hidden**
+(`SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN`, `Ui.cpp:224`), builds the renderer,
+and only then calls `SDL_ShowWindow()` (`Ui.cpp:286`). On AROS that order was
+impossible.
+Our `tests/sdl3-smoke/` did not catch it because it creates a **visible**
+window - hence the earlier "SDL3 works" alongside the game failing.
+Patch: `patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff`
+(the system window is opened on demand). Worth sending to contrib.
 
-**2. `/home/.config/OpenLoco`.** `getpwuid()` na AROS zwraca `/home`, XDG nie
-istnieje. Łatka 12.
+**2. `/home/.config/OpenLoco`.** `getpwuid()` returns `/home` on AROS and XDG
+does not exist. Patch 12.
 
-**3. `RAM Disk:loco/RAM:Locomotion`.** `fs::canonical()` uznaje za absolutną
-tylko ścieżkę z wiodącym `/`, więc ścieżka AmigaDOS szła jako względna i była
-doklejana do katalogu roboczego. Ścieżki z wolumenem albo assignem przed
-pierwszym ukośnikiem przepuszczamy bez zmian. Łatka 12.
+**3. `RAM Disk:loco/RAM:Locomotion`.** `fs::canonical()` only treats a path with
+a leading `/` as absolute, so the AmigaDOS path was taken as relative and
+appended to the working directory. Paths with a volume or assign before the
+first slash now pass through untouched. Patch 12.
 
-**4. `cannot create directories`.** Dwa razy: najpierw literalne
-`PROGDIR:OpenLoco/logs` (dla `std::filesystem` `':'` to zwykły znak, nie
-separator wolumenu), potem kolizja katalogu `OpenLoco` z plikiem wykonywalnym o
-tej samej nazwie („Not a directory"). Katalogiem użytkownika jest teraz sam
-katalog programu. Łatki 13 i 14.
+**4. `cannot create directories`.** Twice: first a literal
+`PROGDIR:OpenLoco/logs` (to `std::filesystem` `':'` is an ordinary character,
+not a volume separator), then a collision between the `OpenLoco` directory and
+the executable of the same name ("Not a directory"). The user directory is now
+the program's own drawer. Patches 13 and 14.
 
-**5. „Another instance of OpenLoco is already running".** `fcntl(F_SETLK)` na
-AROS nie istnieje. Ochrona wyłączona **świadomie**: odpowiednik z AmigaDOS
-trzeba by zdejmować przy wyjściu, a zostawiony po awarii blokowałby każde
-kolejne uruchomienie. Skutek zapisany w łatce: dwie instancje mogą sobie
-nadpisać zapisy. Łatka 15.
+**5. "Another instance of OpenLoco is already running".** `fcntl(F_SETLK)` does
+not exist on AROS. The guard is disabled **deliberately**: an AmigaDOS
+equivalent would have to be removed on exit, and anything left behind by a crash
+would block every later run. The consequence is recorded in the patch: two
+instances can overwrite each other's saves. Patch 15.
 
-### Co osiągnięto
+### What was achieved
 
-**Okno gry powstaje i silnik OpenLoco w nim rysuje.**
-`05-game-window-created.png` — natywne okno Intuition o tytule „OpenLoco".
-`03-first-engine-frame.png` — gra rysuje własną treść przez swój
-programowy renderer w teksturze SDL3. To pierwsza klatka wyrenderowana przez
-silnik gry na AROS.
+**The game window is created and the OpenLoco engine draws into it.**
+`05-game-window-created.png` - a native Intuition window titled "OpenLoco".
+`03-first-engine-frame.png` - the game drawing its own content through its
+software renderer into an SDL3 texture. That is the first frame rendered by the
+game's engine on AROS.
 
-**Menu ani mapy nie osiągnięto.**
+**Neither menu nor map was reached.**
 
-### Bloker: brakujące zasoby oryginalnej gry
+### Blocker: missing original game assets
 
-W `~/Work/AROS/shared/Locomotion/` jest **wyłącznie `g1.DAT`** (2 526 360 B)
-i `README.txt`. Po utworzeniu pustych `Scenarios/` i `ObjData/` (co zdjęło
-wyjątek `directory iterator cannot open directory`) start zatrzymuje się na:
+`~/Work/AROS/shared/Locomotion/` held **only `g1.DAT`** (2 526 360 B) and
+`README.txt`. After creating empty `Scenarios/` and `ObjData/` (which cleared
+the `directory iterator cannot open directory` exception) startup stops at:
 
 ```
 Exception 'Failed to open 'RAM:Locomotion/Data/title.dat' for writing',
 thrown at 'FileStream' - src/Core/src/FileStream.cpp:84
 ```
 
-Dowód: `04-missing-title-dat.png`.
+Evidence: `04-missing-title-dat.png`.
 
-Uwaga do komunikatu: „for writing" jest mylące i pochodzi z upstreamu —
-`FileStream.cpp:83` rzuca ten sam tekst przy każdym nieudanym otwarciu, także
-do odczytu (jest tam `// TODO: Make this work like fstream`). Plik po prostu
-nie istnieje.
+A note on that message: "for writing" is misleading and comes from upstream -
+`FileStream.cpp:83` throws the same text for any failed open, including a read
+(there is a `// TODO: Make this work like fstream` right there). The file simply
+does not exist.
 
-**Czego brakuje, wprost z `Environment.cpp:310-400`:**
+**What is missing, straight from `Environment.cpp:310-400`:**
 
-| Zasób | Do czego |
+| Asset | Used for |
 |---|---|
-| `Data/title.dat` | sekwencja ekranu tytułowego — **blokuje teraz** |
-| `ObjData/` (zawartość) | obiekty bazowe gry; pusty katalog nie wystarcza |
-| `Scenarios/` (zawartość) | scenariusze do wczytania mapy |
-| `Data/CSS1.DAT`…`CSS5.DAT` | dźwięk |
-| `Data/20s1-6`, `40s1-3`, `50s1-3`, `60s1-3`, `70s1-3`, `80s1-4`, `90s1-2`.DAT | muzyka |
-| `Data/KANJI.DAT`, `Chrysanthemum.DAT`, `Eugenia.DAT`, `Rag1-3.DAT` | czcionki i muzyka |
-| `Data/TUT800_1-3.DAT`, `TUT1024_1-3.DAT` | samouczek |
+| `Data/title.dat` | the title-screen sequence - **the current blocker** |
+| `ObjData/` (contents) | the game's base objects; an empty directory is not enough |
+| `Scenarios/` (contents) | scenarios, for loading a map |
+| `Data/CSS1.DAT`…`CSS5.DAT` | sound |
+| `Data/20s1-6`, `40s1-3`, `50s1-3`, `60s1-3`, `70s1-3`, `80s1-4`, `90s1-2`.DAT | music |
+| `Data/KANJI.DAT`, `Chrysanthemum.DAT`, `Eugenia.DAT`, `Rag1-3.DAT` | fonts and music |
+| `Data/TUT800_1-3.DAT`, `TUT1024_1-3.DAT` | the tutorial |
 
-Czyli: **potrzebny jest cały katalog zainstalowanej gry**, nie pojedyncze
-pliki. Kolejne uruchomienia będą wskazywać następne braki po jednym, bo gra
-przerywa na pierwszym.
+In short: **the whole installed game directory is needed**, not individual
+files. Further runs will reveal the next missing item one at a time, because the
+game stops at the first.
 
-### Obserwacja uboczna, warta zapamiętania
+### A side observation worth keeping
 
-Gdy OpenLoco kończy się wyjątkiem, jego okno zostaje na ekranie i **blokuje
-wejście Intuition** — kliknięcia w Shell przestają działać, ekran nie odświeża
-się. Jedynym wyjściem było zatrzymanie maszyny. Przy kolejnych próbach
-uruchamiać grę przez `run >RAM:log OpenLoco`, żeby Shell pozostał wolny, i
-liczyć się z restartem po awarii.
+When OpenLoco ends with an exception, its window stays on screen and **blocks
+Intuition input** - clicks in the Shell stop working and the screen does not
+redraw. The only way out was stopping the machine. In later attempts run the
+game with `run >RAM:log OpenLoco` so the Shell stays usable, and expect a
+restart after a crash.
 
-### Jak powtórzyć
+### How to repeat this
 
-Ścieżkę instalacji można wstawić z góry, zamiast wpisywać ją ręcznie —
+The install path can be set up front instead of typed by hand -
 `RAM:loco/openloco.yml`:
 
 ```yaml
 loco_install_path: RAM:Locomotion
 ```
 
-Reszta procedury: `first-run-abiv11/RESULTS.md`.
+The rest of the procedure: `first-run-abiv11/RESULTS.md`.

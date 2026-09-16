@@ -1,87 +1,86 @@
 # aros-openloco
 
-Port OpenLoco (reimplementacja Chris Sawyer's Locomotion) na natywne AROS
-x86_64. **Cel główny: ABIv11** (AROS One). Drugi target: mainline v1.
+A port of OpenLoco (a reimplementation of Chris Sawyer's Locomotion) to native
+AROS x86_64. **Primary target: ABIv11** (AROS One). Second target: mainline v1.
 
-To repozytorium zawiera wyłącznie nasze rzeczy — dokumentację, skrypty,
-łatki i testy. Kod gry nie jest tu wersjonowany: pobiera go skrypt, na
-przypiętym commicie.
+This repository holds only our own material - documentation, scripts, patches
+and tests. The game's code is not versioned here: a script fetches it at a
+pinned commit.
 
-## Układ
+## Layout
 
 ```
-docs/          dokumentacja, dowody i backlog
-  AROS-ASSESSMENT.md   ocena wykonalności portu
-  evidence/            logi, wyniki i zrzuty, do których odwołuje się dokumentacja
-  backlog/             otwarte pytania i następne zadania
-  plans/               plany dłuższych zmian
-scripts/       bootstrap, zależności, próby, buildy
-toolchains/    pliki toolchainów CMake, jeden na ABI
+docs/          documentation, evidence and backlog
+  AROS-ASSESSMENT.md   feasibility assessment for the port
+  evidence/            logs, results and screenshots the documentation cites
+  backlog/             open questions and next tasks
+  plans/               plans for longer changes
+scripts/       bootstrap, dependencies, probes, builds
+toolchains/    CMake toolchain files, one per ABI
 patches/
-  openloco/            nasze zmiany w kodzie gry (nakładane na work/)
-  dependencies/        łatki zależności, z uzasadnieniem w nagłówku
-tests/         nasz kod testowy (nie kod gry)
-upstream/      czysty checkout przypiętego commita — read-only, poza Gitem
-work/          kopia robocza z nałożonymi łatkami — poza Gitem
-build/<abi>/   wyniki kompilacji — poza Gitem
-deps/<abi>/    zależności zewnętrzne — poza Gitem
+  openloco/            our changes to the game's code (applied onto work/)
+  dependencies/        dependency patches, each justified in its header
+tests/         our own test code (not the game's)
+upstream/      clean checkout of the pinned commit - read-only, outside Git
+work/          working copy with the patches applied - outside Git
+build/<abi>/   build output - outside Git
+deps/<abi>/    external dependencies - outside Git
 ```
 
-`upstream/` jest referencją i nigdy go nie edytujemy — dzięki temu w każdej
-chwili wiadomo, co jest nasze, a co gry. Zmiany w kodzie gry powstają w
-`work/`, a utrwalamy je jako łatki:
+`upstream/` is the reference and we never edit it - that way it is always clear
+what is ours and what is the game's. Changes to the game's code are made in
+`work/` and made permanent as patches:
 
 ```sh
-scripts/save-patch.sh <nazwa> "po co ta łatka"
+scripts/save-patch.sh <name> "why this patch exists"
 ```
 
-`work/` ma własne, prywatne repozytorium Git, którego pierwszy commit to
-upstream + wszystkie łatki. To nie jest historia portu — to mechanizm, dzięki
-któremu `git -C work/OpenLoco status` odpowiada dokładnie na jedno pytanie: co
-zmieniłem i jeszcze nie zapisałem jako łatki. **`bootstrap.sh --reset` odmówi
-skasowania `work/`, jeśli są tam niezapisane zmiany**; dopiero `--force` je
-wyrzuci.
+`work/` has its own private Git repository whose first commit is upstream plus
+all patches. That is not the port's history - it is the mechanism that lets
+`git -C work/OpenLoco status` answer exactly one question: what have I changed
+and not yet saved as a patch. **`bootstrap.sh --reset` refuses to delete `work/`
+if it holds unsaved changes**; only `--force` throws them away.
 
-Commitujemy tylko do tego repozytorium. Wysłanie czegokolwiek do upstreamu
-OpenLoco byłoby osobnym, świadomym krokiem (PR z obsługą AROS) — lokalny
-commit nigdy niczego tam nie wysyła.
+We commit only to this repository. Sending anything to OpenLoco upstream would
+be a separate, deliberate step (a pull request adding AROS support) - a local
+commit never sends anything there.
 
-## Od zera — pełna ścieżka do działającej gry
+## From scratch - the full path to a running game
 
-Po dłuższej przerwie **zacznij od `docs/backlog/open-questions.md` §„Powrót po
-przerwie"** — tam jest lista rzeczy spoza tego repozytorium, bez których poniższe
-kroki nie zadziałają.
+After a longer break, **start with `docs/backlog/open-questions.md`, section
+"Returning after a break"** - it lists the things outside this repository
+without which the steps below will not work.
 
 ```sh
-# 0. warunki wstępne (poza repo) — patrz backlog, "Powrót po przerwie"
-hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage   # collect-aros tego wymaga
+# 0. preconditions (outside the repo) - see the backlog, "Returning after a break"
+hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage   # collect-aros needs this
 
-# 1. źródła i zależności
-scripts/bootstrap.sh                 # upstream/ na przypiętym commicie + work/ z łatkami
-scripts/fetch-deps.sh abiv11         # SDL3 (contrib + nasze łatki), fmt, sfl, yaml
+# 1. sources and dependencies
+scripts/bootstrap.sh                 # upstream/ at the pinned commit + work/ with patches
+scripts/fetch-deps.sh abiv11         # SDL3 (contrib + our patches), fmt, sfl, yaml
 
-# 2. biblioteki i pakiety CMake, których SDK nie ma
+# 2. libraries and CMake packages the SDK does not have
 scripts/build-sdl3.sh abiv11         # libSDL3_static.a + SDL3Config.cmake -> deps/abiv11
 scripts/make-cmake-packages.sh abiv11  # OpenALConfig.cmake -> deps/abiv11
 
-# 3. gra
-scripts/build-openloco.sh abiv11     # -> build/abiv11/openloco/OpenLoco (~14 MB, NIE stripować)
+# 3. the game
+scripts/build-openloco.sh abiv11     # -> build/abiv11/openloco/OpenLoco (~14 MB, do NOT strip)
 
-# opcjonalnie: testy platformy
-scripts/compile-probe.py             # próba kompilacji, oba ABI -> docs/evidence/
+# optional: platform tests
+scripts/compile-probe.py             # compile probe, both ABIs -> docs/evidence/
 scripts/build-smoke.sh abiv11        # SDL3 + std::thread
-scripts/build-png-smoke.sh abiv11    # PNG/zlib bez stubów
+scripts/build-png-smoke.sh abiv11    # PNG/zlib without the stubs
 ```
 
-### Uruchomienie na AROS One
+### Running it on AROS One
 
 ```sh
-cp build/abiv11/openloco/OpenLoco ~/Work/AROS/shared/loco/    # przed startem QEMU
+cp build/abiv11/openloco/OpenLoco ~/Work/AROS/shared/loco/    # before starting QEMU
 cp -R build/abiv11/openloco/data  ~/Work/AROS/shared/loco/
-GFX=std scripts/run-aros-loco.sh     # dokłada loco-assets.img jako 4. dysk IDE
+GFX=std scripts/run-aros-loco.sh     # adds loco-assets.img as a 4th IDE disk
 ```
 
-W gościu:
+In the guest:
 
 ```
 makedir RAM:loco
@@ -90,14 +89,16 @@ cd RAM:loco
 run >RAM:run.log OpenLoco
 ```
 
-`RAM:loco/openloco.yml` musi zawierać `loco_install_path: Locodata:Locomotion`
-(kopia z `shared/loco/`). Szczegóły i dowody: `docs/evidence/menu-abiv11/RESULTS.md`.
+`RAM:loco/openloco.yml` must contain `loco_install_path: Locodata:Locomotion`
+(copied from `shared/loco/`). Details and evidence:
+`docs/evidence/menu-abiv11/RESULTS.md`.
 
-Nazwy ABI (`abiv11`, `mainline-v1`), ścieżki toolchainów i SDK są w jednym
-miejscu: `scripts/env.sh`. Można je nadpisać zmiennymi środowiskowymi.
+The ABI names (`abiv11`, `mainline-v1`) and the toolchain and SDK paths live in
+one place: `scripts/env.sh`. They can be overridden through environment
+variables.
 
-## Stan
+## State
 
-Patrz `docs/AROS-ASSESSMENT.md` (ocena, liczby, blokady) i
-`docs/evidence/sdl3-abiv11/RESULTS.md` (SDL3 i wątki uruchomione na AROS One).
-Otwarte pozycje: `docs/backlog/`.
+The game runs on ABIv11: menu, title screen and a loaded scenario -
+`docs/evidence/menu-abiv11/RESULTS.md`. Assessment, numbers and remaining
+blockers: `docs/AROS-ASSESSMENT.md`. Open items: `docs/backlog/`.

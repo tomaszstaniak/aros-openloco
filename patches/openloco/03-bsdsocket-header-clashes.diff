@@ -1,6 +1,8 @@
 # bsdsocket-header-clashes
 #
-# AROS: <defines/bsdsocket.h> definiuje listen() jako makro 2-argumentowe, co psuje 3-argumentową metodę ISocket::listen; <net/if.h> używa struct sockaddr bez deklaracji, więc <sys/socket.h> musi iść pierwszy.
+# AROS: <defines/bsdsocket.h> defines listen() as a two-argument macro, which
+# mangles the three-argument ISocket::listen(); <net/if.h> uses struct sockaddr
+# without declaring it, so <sys/socket.h> has to be included first.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

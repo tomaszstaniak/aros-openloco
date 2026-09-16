@@ -1,6 +1,8 @@
 # aros-platform-identification
 #
-# Version.hpp nie zna __AROS__ (#error), a Platform.Posix nie umie pobrać ścieżki programu bez /proc: na AROS robi to GetProgramDir()+NameFromLock(). Nadaje się do zgłoszenia upstream.
+# Version.hpp does not know __AROS__ and stops at an #error, and Platform.Posix
+# cannot obtain the program's own path without /proc: on AROS that is
+# GetProgramDir() + NameFromLock(). Worth sending upstream.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.

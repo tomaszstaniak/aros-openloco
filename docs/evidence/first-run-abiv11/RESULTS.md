@@ -1,18 +1,17 @@
-# Pierwsze uruchomienie OpenLoco na AROS — wynik
+# First run of OpenLoco on AROS - result
 
-2026-09-13. Maszyna: **AROS One 64-bit (ABIv11)**, QEMU (TCG), `vm.sh one`,
-uruchomiona przez tę sesję. Binarka: `build/abiv11/openloco/OpenLoco`,
-14 217 528 B, **nieodchudzona** (patrz backlog §11 — pełny strip psuje
-relokacje).
+2026-09-13. Machine: **AROS One 64-bit (ABIv11)**, QEMU (TCG), `vm.sh one`,
+started by this session. Binary: `build/abiv11/openloco/OpenLoco`, 14 217 528 B,
+**not stripped** (see backlog §11 - a full strip breaks relocations).
 
-## Wynik: program startuje i przechodzi całą ścieżkę wykrywania zasobów
+## Result: the program starts and walks the whole asset-detection path
 
-Zasobów oryginalnego Chris Sawyer's Locomotion nie ma na tej maszynie, więc
-test kończy się tam, gdzie musi — na braku `Data/g1.DAT`. **To nie jest awaria
-portu, tylko brak danych wejściowych**, i sama droga do tego miejsca jest
-właśnie tym, co miało zostać sprawdzone.
+The original Chris Sawyer's Locomotion assets are not on this machine, so the
+test ends where it must - at the missing `Data/g1.DAT`. **That is not a failure
+of the port but missing input data**, and the path leading up to it is exactly
+what was meant to be checked.
 
-Log gry (`RAM:ver.log`, zrzut 03):
+Game log (`RAM:ver.log`, screenshot 03):
 
 ```
 [INF] OpenLoco, 1138d80 (1138d80 on baseline)
@@ -21,7 +20,7 @@ Log gry (`RAM:ver.log`, zrzut 03):
 Type your Locomotion path:
 ```
 
-Konsola:
+Console:
 
 ```
 [ERR] Unable to automatically find the Locomotion game folder.
@@ -30,99 +29,102 @@ RAM:loco
 [ERR] The selected folder does not contain Data/g1.DAT
 ```
 
-### Co to potwierdza
+### What this confirms
 
-| | dowód |
+| | evidence |
 |---|---|
-| Program się ładuje i startuje | wraca prompt, żadnego „Illegal address access" |
-| 19 baz bibliotek otwiera się | `SysBase`, `DOSBase`, `IntuitionBase`, `GfxBase`, `CyberGfxBase`, `GLBase`, `OpenALBase`, `MUIMasterBase`, `GadToolsBase`, `IconBase`, `IFFParseBase`, `KeymapBase`, `LowLevelBase`, `TimerBase`, `WorkbenchBase`, `CxBase`, `CrtBase`, `StdlibBase`, `MBase` — program doszedł do własnego kodu, więc autoinit przeszedł |
-| Konstruktory statyczne C++ | logowanie i `Version::getVersionInfo()` działają przed czymkolwiek innym |
-| **Rozpoznanie platformy** | `[INF] AROS (x86-64)` — łatka `01-aros-platform-identification` |
-| Logowanie | i na konsolę, i przez przekierowanie do pliku |
-| **Okno SDL3 na AROS** | dwa różne komunikaty jako natywne okna Intuition (zrzuty 01 i 02) — backend `SDL_arosmessagebox` |
-| Odczyt stdin | `std::getline` przyjął wpisaną ścieżkę |
-| `std::filesystem` | poprawnie stwierdził brak `Data/g1.DAT` we wskazanym katalogu |
-| Czyste wyjście | powrót do Shella bez zawieszenia i bez śmieci na ekranie |
+| The program loads and starts | the prompt returns, no "Illegal address access" |
+| 19 library bases open | `SysBase`, `DOSBase`, `IntuitionBase`, `GfxBase`, `CyberGfxBase`, `GLBase`, `OpenALBase`, `MUIMasterBase`, `GadToolsBase`, `IconBase`, `IFFParseBase`, `KeymapBase`, `LowLevelBase`, `TimerBase`, `WorkbenchBase`, `CxBase`, `CrtBase`, `StdlibBase`, `MBase` - the program reached its own code, so autoinit succeeded |
+| C++ static constructors | logging and `Version::getVersionInfo()` work before anything else |
+| **Platform identification** | `[INF] AROS (x86-64)` - patch `01-aros-platform-identification` |
+| Logging | both to the console and through redirection to a file |
+| **An SDL3 window on AROS** | two different messages as native Intuition windows (screenshots 01 and 02) - the `SDL_arosmessagebox` backend |
+| Reading stdin | `std::getline` accepted the typed path |
+| `std::filesystem` | correctly determined that `Data/g1.DAT` is absent in the given directory |
+| Clean exit | back to the Shell without hanging and without leftovers on screen |
 
-### Zrzuty
+### Screenshots
 
-- `01-first-run-messagebox.png` — pierwsze okno: „Unable to
-  automatically detect the Locomotion game folder."
-- `02-game-path-validation.png` — drugie okno po podaniu ścieżki: „The
+- `01-first-run-messagebox.png` - the first window: "Unable to automatically
+  detect the Locomotion game folder."
+- `02-game-path-validation.png` - the second window after entering a path: "The
   selected folder does not contain Data/g1.DAT…"
-- `03-log-and-clean-exit.png` — treść `RAM:ver.log` z `[INF] AROS (x86-64)`
-  i powrót do promptu.
+- `03-log-and-clean-exit.png` - the contents of `RAM:ver.log` with
+  `[INF] AROS (x86-64)`, and the return to the prompt.
 
-## Czego ten test NIE pokazał
+## What this test did NOT show
 
-- **Menu, mapy, rozgrywki.** Bez `Data/g1.DAT` gra nie dochodzi do inicjalizacji
-  wideo — nie powstało okno gry, nie narysowano ani jednej klatki, nie ruszono
-  dźwięku. Kroki 2–4 planu (menu, scenariusz, zapis/odczyt) są **nietknięte**.
-- **Renderera.** To były okna komunikatów SDL3, nie `SDL_CreateRenderer` ani
-  tekstura ekranu gry. O wydajności ten test nie mówi nic.
-- **Dźwięku.** `OpenALBase` jest w wymaganiach binarki, ale nic nie zagrało.
-- **Sieci.** Niedotknięta.
+- **Menu, map, gameplay.** Without `Data/g1.DAT` the game never reaches video
+  initialisation - no game window was created, not a single frame was drawn, and
+  audio was never touched. Steps 2-4 of the plan (menu, scenario, save/load) are
+  **untouched**.
+- **The renderer.** These were SDL3 message boxes, not `SDL_CreateRenderer` or
+  the game's screen texture. The test says nothing about performance.
+- **Audio.** `OpenALBase` is among the binary's requirements, but nothing
+  played.
+- **Networking.** Untouched.
 
-## Jak podejść do kroków 2–4 (menu, mapa, zapis)
+## How to approach steps 2-4 (menu, map, save)
 
-Dwie rzeczy trzeba zrobić **przed** startem maszyny, inaczej próba zacznie się
-od diagnozowania niewłaściwych objawów:
+Two things have to happen **before** the machine starts, otherwise the attempt
+begins by diagnosing the wrong symptoms:
 
-1. **Udostępnić cały katalog zainstalowanej gry, nie samo `Data/`.**
-   `Data/g1.DAT` zdejmuje tylko pierwszą bramkę; scenariusze i obiekty sięgają
-   dalej, a brakujące pliki wyglądałyby potem jak błędy portu.
-   Miejsce: `~/Work/AROS/shared/Locomotion/` (osobny katalog — uwaga poniżej).
-2. **Skopiować je zanim QEMU wystartuje.** Dysk vvfat to **migawka robiona przy
-   starcie maszyny**: pliki dorzucone do `shared/` przy działającym AROS-ie są
-   dla gościa niewidoczne i nie pomaga czekanie, tylko restart
-   (`../../../../docs/platform/testbench.md`). „Maszyna nadal chodzi" **nie**
-   znaczy, że można podjąć test od ręki.
+1. **Share the whole installed game directory, not just `Data/`.**
+   `Data/g1.DAT` only clears the first gate; scenarios and objects reach
+   further, and missing files would then look like defects in the port.
+   Location: `~/Work/AROS/shared/Locomotion/` (a separate directory - see the
+   warning below).
+2. **Copy them before QEMU starts.** The vvfat drive is **a snapshot taken when
+   the machine starts**: files added to `shared/` while AROS is running are
+   invisible to the guest, and waiting does not help - only a restart does
+   (`../../../../docs/platform/testbench.md`). "The machine is still running"
+   does **not** mean the test can be picked up immediately.
 
-**Nie kładź zasobów Locomotion obok `data/` OpenLoco w jednym katalogu.**
-Host jest case-insensitive: `Data/` gry i `data/` OpenLoco zlałyby się w jeden
-katalog po stronie macOS. To ta sama własność, przez którą `<graphics/gfx.h>`
-trafiał wcześniej w `OpenLoco/Graphics/Gfx.h`. Stąd osobne
-`shared/Locomotion/` obok `shared/loco/`.
+**Do not put the Locomotion assets next to OpenLoco's `data/` in one
+directory.** The host is case-insensitive: the game's `Data/` and OpenLoco's
+`data/` would merge into a single directory on macOS. That is the same property
+that made `<graphics/gfx.h>` resolve to `OpenLoco/Graphics/Gfx.h` earlier. Hence
+a separate `shared/Locomotion/` alongside `shared/loco/`.
 
-## Jak powtórzyć
+## How to repeat this
 
-**Nie kopiuj `data/` przez CD** — 168 plików w jednym katalogu wiesza `copy`
-na zawsze przy 100% CPU (patrz `../../../../docs/platform/porting-notes.md`).
-Użyj dysku vvfat:
+**Do not copy `data/` over a CD** - 168 files in one directory hang `copy`
+forever at 100% CPU (see `../../../../docs/platform/porting-notes.md`). Use the
+vvfat drive.
 
-### Wariant, który testujemy: wszystko na RAM:
+### The variant we tested: everything in RAM:
 
-Zarówno gra, jak i zasoby lądują w RAM:, a vvfat służy wyłącznie do
-przeniesienia ich do gościa. Powód jest jeden i konkretny: **zapis z gościa na
-vvfat cicho psuje pliki po stronie hosta**, a nie wiemy z góry, czy OpenLoco
-niczego nie zapisze obok zasobów. RAM: nie ma tego problemu i jest szybszy.
-Miejsca starczy — RAM: pokazywał ~1 GB wolnego.
+Both the game and the assets end up in RAM:, with vvfat used only to move them
+into the guest. The reason is single and concrete: **a write from the guest onto
+vvfat silently corrupts files on the host side**, and we do not know in advance
+whether OpenLoco writes anything next to the assets. RAM: does not have that
+problem and is faster. There is room - RAM: showed about 1 GB free.
 
 ```sh
-# NA HOŚCIE, przed startem QEMU:
+# ON THE HOST, before starting QEMU:
 cp -R build/abiv11/openloco/OpenLoco build/abiv11/openloco/data ~/Work/AROS/shared/loco/
-cp -R "<instalacja Locomotion>"/* ~/Work/AROS/shared/Locomotion/
-~/Work/AROS/vm.sh start one          # FAT powstaje przy starcie QEMU
+cp -R "<Locomotion installation>"/* ~/Work/AROS/shared/Locomotion/
+~/Work/AROS/vm.sh start one          # the FAT is built when QEMU starts
 ```
 
 ```
-; W GOŚCIU:
+; IN THE GUEST:
 makedir RAM:loco
 copy "Qemu Vvfat:loco" RAM:loco ALL QUIET
 makedir RAM:Locomotion
 copy "Qemu Vvfat:Locomotion" RAM:Locomotion ALL QUIET
 cd RAM:loco
 OpenLoco >RAM:run.log
-; gdy zapyta o ścieżkę, podaj:
+; when it asks for the path, enter:
 RAM:Locomotion
 ```
 
-Program uruchamiany z `RAM:loco`, bo `PROGDIR:` musi być zapisywalny.
+The program runs from `RAM:loco` because `PROGDIR:` has to be writable.
 
-### Wariant alternatywny: zasoby zostają na vvfat
+### The alternative: assets stay on vvfat
 
-Wtedy do RAM: idzie **tylko** OpenLoco, a grze podaje się
-`Qemu Vvfat:Locomotion`. Oszczędza kopiowanie kilkudziesięciu MB, ale jest
-dobry tylko dopóki gra nic w tym katalogu nie zapisze — a tego jeszcze nie
-sprawdziliśmy. **Nie mieszać wariantów:** ścieżka podana grze musi wskazywać
-ten wolumin, na który zasoby faktycznie trafiły.
+Then **only** OpenLoco goes into RAM: and the game is given
+`Qemu Vvfat:Locomotion`. It saves copying tens of megabytes, but it is only good
+as long as the game writes nothing in that directory - which we have not
+checked. **Do not mix the variants:** the path given to the game must point at
+the volume the assets actually landed on.

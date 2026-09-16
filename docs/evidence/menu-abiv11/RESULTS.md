@@ -1,95 +1,98 @@
-# OpenLoco na AROS: menu i działająca mapa — ABIv11
+# OpenLoco on AROS: menu and a working map - ABIv11
 
-2026-09-13, 22:31. Maszyna: **AROS One 64-bit (ABIv11)**, QEMU TCG, `one`,
-`GFX=std`, uruchomiona przez tę sesję. Binarka nieodchudzona, 16 łatek,
-`RAM:loco`. Zasoby oryginalnej gry: dysk `Locodata:`.
+2026-09-13, 22:31. Machine: **AROS One 64-bit (ABIv11)**, QEMU TCG, `one`,
+`GFX=std`, started by this session. Unstripped binary, 15 game patches plus the
+dependency patches, in `RAM:loco`. Original game assets: the `Locodata:` disk.
 
-## Wynik: gra działa
+## Result: the game runs
 
-| dowód | co pokazuje |
+| evidence | what it shows |
 |---|---|
-| `01-menu-and-title-map.png` | ekran tytułowy Locomotion z wyrenderowaną mapą demonstracyjną, globusy menu, „AROS (x86-64)" w rogu |
-| `02-title-map-animating.png` | ten sam ekran po chwili — **inny fragment mapy**, czyli pętla renderowania chodzi, a nie stoi na jednej klatce |
-| `03-scenario-loaded-game-map.png` | **wczytany scenariusz**: mapa Wielkiej Brytanii z nazwami miast, pasek narzędzi, okno „New Company" z właścicielem, £26 500, zegar gry „7th January 1930" z przyciskami tempa |
+| `01-menu-and-title-map.png` | the Locomotion title screen with a rendered demo map, the menu globes, "AROS (x86-64)" in the corner |
+| `02-title-map-animating.png` | the same screen a moment later - **a different part of the map**, so the render loop is running rather than stuck on one frame |
+| `03-scenario-loaded-game-map.png` | **a loaded scenario**: the map of Great Britain with city names, the toolbar, the "New Company" window with its owner, £26 500, and the game clock at "7th January 1930" with speed buttons |
 
-Trzeci zrzut jest właściwym kamieniem milowym: to nie ekran tytułowy, tylko
-uruchomiona rozgrywka z interfejsem i zegarem.
+The third screenshot is the real milestone: not a title screen but running
+gameplay with its interface and clock.
 
-## Jak rozwiązano transfer 513 MB
+## How the 513 MB transfer was solved
 
-**Problem:** całe `shared/` przekraczało limit vvfat —
-`Directory does not fit in FAT16 (capacity 516.06 MB)`. `fat:32:` nie pomaga
-(QEMU i tak buduje FAT16), a drugi dysk `fat:` bez `rw:` kończył się
+**Problem:** the whole of `shared/` exceeded the vvfat limit -
+`Directory does not fit in FAT16 (capacity 516.06 MB)`. `fat:32:` does not help
+(QEMU builds FAT16 regardless), and a second `fat:` drive without `rw:` ended in
 `Block node is read-only`.
 
-**Rozwiązanie: prawdziwy obraz dysku zamiast vvfat.**
+**Solution: a real disk image instead of vvfat.**
 
 ```sh
 dd if=/dev/zero of=~/Work/AROS/loco-assets.img bs=1m count=700
 hdiutil attach -nomount -imagekey diskimage-class=CRawDiskImage loco-assets.img
 diskutil partitionDisk /dev/diskN MBR MS-DOS LOCODATA 100%
-cp -R <zasoby> /Volumes/LOCODATA/Locomotion
+cp -R <assets> /Volumes/LOCODATA/Locomotion
 hdiutil detach /dev/diskN
 ```
 
-Obraz ma tablicę MBR i jedną partycję **FAT32**, więc limit FAT16 nie
-obowiązuje. AROS montuje go jako wolumin `Locodata:` (`info`: 700.0M, 514.1M
-zajęte, FAT32).
+The image has an MBR partition table and a single **FAT32** partition, so the
+FAT16 limit does not apply. AROS mounts it as the volume `Locodata:` (`info`:
+700.0M, 514.1M used, FAT32).
 
-Podpięty jako **czwarty dysk IDE**, na wolnym `index=3`:
+Attached as a **fourth IDE disk**, on the free `index=3`:
 
 ```
 -drive file=loco-assets.img,format=raw,if=ide,index=3
 ```
 
-`index=2` należy do CD-ROM-u — tymczasowy skrypt `/tmp/openloco-one-fat32.sh`
-wstawiał tam drugi dysk vvfat i dlatego nie mógł zadziałać.
+`index=2` belongs to the CD-ROM - the temporary `/tmp/openloco-one-fat32.sh`
+script put a second vvfat drive there, which is why it could not work.
 
-**Wspólny `run-aros.sh` nie został zmieniony.** Powstała osobna kopia
-`~/Work/AROS/run-aros-loco.sh`, która tylko **dokłada** dysk.
+**The shared `run-aros.sh` was not modified.** A separate copy,
+`~/Work/AROS/run-aros-loco.sh`, only **adds** the drive.
 
-### Podział, zgodnie z założeniem
+### The split, as intended
 
-- `RAM:loco` — OpenLoco, jego `data/`, konfiguracja, logi i zapisy (zapisywalne)
-- `Locodata:Locomotion` — oryginalne `Data/`, `ObjData/`, `Scenarios/` (tylko czytane)
+- `RAM:loco` - OpenLoco, its `data/`, configuration, logs and saves (writable)
+- `Locodata:Locomotion` - the original `Data/`, `ObjData/`, `Scenarios/` (read
+  only)
 
-**Odstępstwo od „docelowo wszystko w RAM:", świadome:** zasoby zostają na
-dysku FAT32 zamiast lądować w RAM:. Powody: 513 MB w RAM-dysku o pojemności
-~1003 MB zostawiłoby grze mało miejsca na 2 GB maszynie, a kopiowanie tego pod
-TCG trwałoby wiele minut przy każdym uruchomieniu. Zakaz z instrukcji dotyczył
-**zapisu z gościa na vvfat** — tu nie ma ani vvfat, ani zapisu: gra tylko
-czyta z `Locodata:`, a wszystko co pisze idzie do `RAM:loco`.
+**A deliberate deviation from "everything in RAM: eventually":** the assets stay
+on the FAT32 disk rather than being copied into RAM:. Reasons: 513 MB in a
+RAM disk of about 1003 MB would leave the game little room on a 2 GB machine,
+and copying that under TCG would take many minutes on every start. The
+instruction's prohibition concerned **writing from the guest onto vvfat** - and
+here there is neither vvfat nor writing: the game only reads from `Locodata:`,
+and everything it writes goes to `RAM:loco`.
 
-Ścieżkę wskazuje `RAM:loco/openloco.yml`:
+The path comes from `RAM:loco/openloco.yml`:
 
 ```yaml
 loco_install_path: Locodata:Locomotion
 ```
 
-dzięki czemu gra nie pyta o nią interaktywnie.
+which stops the game asking for it interactively.
 
-## Znany szum w logu — spowodowany moim transferem
+## Known noise in the log - caused by my transfer
 
 ```
 [ERR] Unable to load the object '._Mac...', can't add to index
-[ERR] Data c... (wielokrotnie)
+[ERR] Data c... (repeatedly)
 ```
 
-macOS zapisał na FAT32 pliki widełek zasobów `._*` obok każdego obiektu, a
-OpenLoco próbuje je wczytać jako obiekty. **Nie blokuje to gry** — menu,
-scenariusz i mapa działają — ale zaśmieca log i indeks obiektów.
+macOS wrote resource-fork files `._*` onto the FAT32 volume next to every
+object, and OpenLoco tries to load them as objects. **It does not block the
+game** - menu, scenario and map all work - but it pollutes the log and the
+object index.
 
-Poprawka (host, przy odmontowanym obrazie): usunąć `._*` i `.DS_Store` z
-woluminu, np. `dot_clean /Volumes/LOCODATA` przed odpięciem.
-**Niezweryfikowane** — zrzuty powstały przed tą poprawką.
+Fix (on the host, with the image unmounted): remove `._*` and `.DS_Store` from
+the volume, e.g. `dot_clean /Volumes/LOCODATA` before detaching.
+**Unverified** - the screenshots were taken before that fix.
 
-## Czego ten wynik nie pokazuje
+## What this result does not show
 
-- **Wydajności.** Nie mierzona. Pod TCG gra reaguje, ekran tytułowy animuje
-  się, scenariusz się wczytuje — ale liczby fps nie ma i nie należy jej
-  zgadywać z opóźnień zrzutów.
-- **Rozgrywki dłuższej niż kilkadziesiąt sekund**, budowania, zapisu i
-  ponownego wczytania stanu.
-- **Dźwięku.** `OpenALBase` jest w wymaganiach binarki, ale nic nie grało i
-  QEMU startuje bez sterownika audio hosta.
-- **Mainline v1.** Wszystko powyższe dotyczy wyłącznie ABIv11.
+- **Performance.** Not measured. Under TCG the game responds, the title screen
+  animates and the scenario loads - but there is no fps figure and it must not
+  be guessed from screenshot delays.
+- **Gameplay longer than a few tens of seconds**, building, saving and reloading
+  state.
+- **Audio.** `OpenALBase` is among the binary's requirements, but nothing played
+  and QEMU starts without a host audio driver.
+- **Mainline v1.** Everything above applies to ABIv11 only.

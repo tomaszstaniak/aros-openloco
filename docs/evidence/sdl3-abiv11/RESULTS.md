@@ -1,26 +1,27 @@
-# SDL3 + std::thread na AROS ABIv11 — wynik uruchomienia
+# SDL3 + std::thread on AROS ABIv11 - run result
 
-2026-09-12. Maszyna: **AROS One 64-bit (ABIv11)**, QEMU (TCG), `vm.sh one`,
-uruchomiona przez tę sesję. Toolchain `~/Work/AROS/toolchain` (GCC 10.5.0),
-SDK `~/Work/AROS/sdk`. Nic nie było budowane ani uruchamiane na mainline.
+2026-09-12. Machine: **AROS One 64-bit (ABIv11)**, QEMU (TCG), `vm.sh one`,
+started by this session. Toolchain `~/Work/AROS/toolchain` (GCC 10.5.0), SDK
+`~/Work/AROS/sdk`. Nothing was built or run on mainline.
 
-## Co zbudowano
+## What was built
 
-SDL3 3.4.12 jako **statyczna biblioteka**, poza systemem budowania AROS-a:
-lista plików czytana wprost z `contrib/SDL3/main/mmakefile.src` (cel
-`SDL3-aros-staticlib`, `-DSDL3_AROS_STATIC`), źródła to upstreamowy tarball
-z nałożoną łatką `SDL3-3.4.12-aros.diff` z contrib.
+SDL3 3.4.12 as a **static library**, outside the AROS build system: the file
+list read straight out of `contrib/SDL3/main/mmakefile.src` (target
+`SDL3-aros-staticlib`, `-DSDL3_AROS_STATIC`), sources being the upstream tarball
+with contrib's `SDL3-3.4.12-aros.diff` applied.
 
-**187 / 187 obiektów skompilowało się**, `libSDL3_static.a` 2.6 MB.
-Jedna poprawka po drodze: `src/time/unix/SDL_systime.c` włącza `<langinfo.h>`
-bezwarunkowo, choć `nl_langinfo()` używa tylko pod `HAVE_NL_LANGINFO`.
-ABIv11 nie ma `langinfo.h` w posixc (mainline ma), więc na ABIv11 ten include
-jest jedyną rzeczą, która nie przechodzi. Łatka:
-`patches/dependencies/sdl3-3.4.12-langinfo-guard.diff`, nadaje się do zgłoszenia do contrib.
+**187 / 187 objects compiled**, `libSDL3_static.a` 2.6 MB. One fix along the
+way: `src/time/unix/SDL_systime.c` includes `<langinfo.h>` unconditionally
+although it only calls `nl_langinfo()` under `HAVE_NL_LANGINFO`. ABIv11 has no
+`langinfo.h` in posixc (mainline does), so on ABIv11 that include is the only
+thing that fails. Patch:
+`patches/dependencies/sdl3-3.4.12-langinfo-guard.diff`, worth sending to
+contrib.
 
-Test zlinkował się z `-lSDL3_static -lGL -liconv -lpthread -lm`, 4.3 MB.
+The test linked with `-lSDL3_static -lGL -liconv -lpthread -lm`, 4.3 MB.
 
-## Wynik — dwa przebiegi
+## Result - two runs
 
 ```
 sdl3-smoke on AROS ABIv11
@@ -30,7 +31,7 @@ video driver: aros
   available driver 0: aros
   available driver 1: dummy
 renderer: opengl
-key down: scancode=4 key=97      <- przebieg 2
+key down: scancode=4 key=97      <- run 2
 key down: scancode=5 key=98
 key down: scancode=6 key=99
 key down: scancode=7 key=100
@@ -40,72 +41,73 @@ VIDEO: PASS
 RESULT: PASS
 ```
 
-### Wątki C++ działają w runtime — to jest rozstrzygnięte
+### C++ threads work at runtime - this is settled
 
-To był otwarty punkt z poprzedniej oceny i teraz jest zamknięty dowodem, a nie
-przesłanką. `std::thread` startuje, `std::mutex` i `std::condition_variable`
-przenoszą wynik, `wait_for` budzi się przez predykat (nie przez timeout),
-worker ma inny `thread::id` niż główny wątek, a przekazana wartość jest
-poprawna. `join()` wraca. Sprawdzone przez libstdc++, nie przez wątki SDL —
-te ostatnie nic by o libstdc++ nie mówiły.
+This was the open point from the previous assessment and it is now closed by
+evidence rather than by inference. `std::thread` starts, `std::mutex` and
+`std::condition_variable` carry the result across, `wait_for` wakes through the
+predicate (not through the timeout), the worker has a different `thread::id`
+than the main thread, and the value passed is correct. `join()` returns. Checked
+through libstdc++, not through SDL's threads - those would say nothing about
+libstdc++.
 
-Jedyny drobiazg: `std::thread::hardware_concurrency()` zwraca **0**. To legalne
-(„nieokreślone"), ale kod, który dzieli przez tę wartość albo tworzy tyle
-wątków, dostanie zero. OpenLoco jej nie używa — sprawdzone grepem.
+One detail: `std::thread::hardware_concurrency()` returns **0**. That is legal
+("unspecified"), but code dividing by it or spawning that many threads gets
+zero. OpenLoco does not use it - checked by grep.
 
-### Okno, renderer i tekstura działają
+### Window, renderer and texture work
 
-Okno Intuition otwiera się na ekranie Workbencha, streaming texture
-`SDL_PIXELFORMAT_XRGB8888` aktualizuje się co klatkę i jest prezentowana.
-Widać animowany gradient (`shots/01-window-rendering.png`). 300 klatek bez
-błędu `SDL_UpdateTexture`, czyste zamknięcie, powrót do Shella.
+An Intuition window opens on the Workbench screen, an
+`SDL_PIXELFORMAT_XRGB8888` streaming texture is updated every frame and
+presented. An animated gradient is visible (`shots/01-window-rendering.png`).
+300 frames without an `SDL_UpdateTexture` error, a clean shutdown, and a return
+to the Shell.
 
-Sterowniki wideo, które SDL3 zgłasza: `aros` i `dummy`. Wybrany: `aros`.
+Video drivers SDL3 reports: `aros` and `dummy`. Selected: `aros`.
 
-### Klawiatura działa, mysz częściowo
+### Keyboard works, mouse partly
 
-Przebieg 2: cztery naciśnięcia (a/b/c/d) doszły z poprawnymi scancode'ami
-(SDL_SCANCODE_A=4) i keycode'ami (97='a'). `mouse_events=1` — kursor nie był
-ruszany celowo, więc to tylko tyle, że kanał myszy nie jest martwy; realnego
-testu przeciągania i przycisków nie było.
+Run 2: four key presses (a/b/c/d) arrived with correct scancodes
+(SDL_SCANCODE_A=4) and keycodes (97='a'). `mouse_events=1` - the cursor was not
+moved deliberately, so that only shows the mouse channel is not dead; there was
+no real test of dragging or buttons.
 
-W przebiegu 1 `key_events=0` mimo wysłanego ESC. Program skończył wtedy 300
-klatek w tej samej chwili, więc ESC najpewniej trafił po ostatnim
-`SDL_PollEvent`. **Nie traktuję tego jako dowodu, że ESC działa ani że nie
-działa** — ścieżka „zamknij na żądanie" pozostaje niesprawdzona, tak samo jak
-gadżet zamknięcia okna (`quit_event=0` w obu przebiegach).
+In run 1 `key_events=0` despite an ESC being sent. The program finished its 300
+frames at that very moment, so ESC most likely arrived after the last
+`SDL_PollEvent`. **I do not treat that as evidence either way** - the "close on
+request" path remains unchecked, as does the window close gadget
+(`quit_event=0` in both runs).
 
-## Czego ten test NIE pokazał
+## What this test did NOT show
 
-- **Renderera programowego.** Wybrany został `opengl` i `setenv
-  SDL_RENDER_DRIVER software` w Shellu tego nie zmienił — w drugim przebiegu
-  nadal `renderer: opengl`. Albo AROS-owy `setenv` nie dociera do `getenv()`
-  posixc, albo SDL3 czyta ten hint inaczej. Ścieżka programowa, czyli ta,
-  którą OpenLoco ma jako fallback, **nie została uruchomiona ani razu**.
-  Do wymuszenia przez `SDL_SetHint()` w kodzie przy następnym podejściu.
-- **Wydajności.** 6.1 fps przy 320x240. To pomiar **pod QEMU/TCG**, przy
-  OpenGL-owym rendererze idącym prawdopodobnie przez programową Mesę, i
-  zawiera mój własny narzut: test generuje 76 800 pikseli na klatkę w C++.
-  Nie jest to liczba o sprzęcie ani o samym SDL3. OpenLoco chodzi w wyższej
-  rozdzielczości i potrzebuje wielokrotnie więcej — **wydajność jest teraz
-  główną otwartą pozycją** i wymaga pomiaru na realnej maszynie oraz
-  porównania obu rendererów.
-- **Dźwięku.** `SDL_INIT_AUDIO` nie było w ogóle. Backend AHI niesprawdzony.
-- **Sposobu, w jaki port będzie linkowany naprawdę.** To jest statyczna
-  biblioteka zbudowana obok systemu budowania AROS-a. Docelowo powinna być
-  `sdl3.library` z contrib, zbudowana w drzewie ABIv11 — co nadal wymaga
-  rozwiązania sprawy braku contrib w drzewie deadwooda.
+- **The software renderer.** `opengl` was selected and `setenv
+  SDL_RENDER_DRIVER software` in the Shell did not change it - run 2 still
+  reported `renderer: opengl`. Either the AROS `setenv` does not reach posixc's
+  `getenv()`, or SDL3 reads the hint differently. The software path, the one
+  OpenLoco keeps as its fallback, **was never exercised**. Force it with
+  `SDL_SetHint()` in code next time.
+- **Performance.** 6.1 fps at 320x240. That is a measurement **under QEMU/TCG**,
+  with the OpenGL renderer probably going through software Mesa, and it includes
+  my own overhead: the test generates 76 800 pixels per frame in C++. It is not
+  a number about hardware or about SDL3 itself. OpenLoco runs at a higher
+  resolution and needs many times more - **performance is now the main open
+  item** and needs measuring on a real machine, comparing both renderers.
+- **Audio.** `SDL_INIT_AUDIO` was never requested. The AHI backend is unchecked.
+- **How the port will actually be linked.** This is a static library built
+  alongside the AROS build system. It should eventually be contrib's
+  `sdl3.library`, built in the ABIv11 tree - which still depends on resolving
+  the missing contrib in the deadwood tree.
 
-## Jak powtórzyć
+## How to repeat this
 
 ```sh
 scripts/bootstrap.sh && scripts/fetch-deps.sh abiv11
 scripts/build-sdl3.sh abiv11     # -> deps/abiv11/lib/libSDL3_static.a
 scripts/build-smoke.sh abiv11    # -> build/abiv11/sdl3-smoke
-# potem: vm.sh start one, push.sh z DEPLOY=, copy AMIDEV:sdl3smoke RAM:, uruchom
+# then: vm.sh start one, push.sh with DEPLOY=, copy AMIDEV:sdl3smoke RAM:, run it
 ```
 
-Program pisze wynik do `PROGDIR:sdl3-smoke.log`, nie na konsolę — na wspólnym
-testbenchu Shell może zawierać wyjście innej sesji, a screendump nie powie
-czyje. Log powyżej odczytany przez `type` w Shellu, który ta sesja sama
-otworzyła, na maszynie, którą ta sesja sama uruchomiła.
+The program writes its result to `PROGDIR:sdl3-smoke.log` rather than the
+console - on the shared testbench the Shell may hold another session's output,
+and a screendump cannot tell you whose. The log above was read with `type` in a
+Shell this session opened itself, on a machine this session started itself.

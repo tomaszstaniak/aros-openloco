@@ -1,6 +1,7 @@
 # openal-hrtf-optional
 #
-# ALC_HRTF_SOFT to token rozszerzenia ALC_SOFT_HRTF; openal-soft 1.19.1 w SDK AROS jest bez niego. Strażnik na tokenie, nie na wersji.
+# ALC_HRTF_SOFT is an ALC_SOFT_HRTF extension token, and the openal-soft 1.19.1
+# in the AROS SDK does not have it. Guard on the token, not on a version.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-13.
