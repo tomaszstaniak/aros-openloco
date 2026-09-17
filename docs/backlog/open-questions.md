@@ -344,11 +344,29 @@ dies in the first `OpenLibrary()` and it looks like a defect in the program. The
 safe form: `--strip-unneeded --remove-section .comment`. To be written into the
 packaging script before somebody optimises the 14 MB binary.
 
-## 12. The "close on request" path is unchecked
+## 12. ANSWERED - the close gadget quits, but leaks the window
 
-No run produced a `quit_event`, and the ESC in run 1 produced no event (the
-program finished its 300 frames at that very moment). The window close gadget is
-untested.
+Checked 2026-09-17. Clicking the Intuition close gadget **ends the program**;
+the quit request reaches the game. Two defects came with it:
+
+1. **The Intuition window is not closed on exit.** It stays on the Workbench
+   screen frozen on the last frame, and nothing can close it because its owner
+   is gone. For several minutes it read as a hung game - identical
+   screendumps - and only `status` in a fresh Shell settled it: no OpenLoco
+   process. The tell-apart signature is CPU: **6.8-11% and sleeping** here
+   versus **101% spinning** for the real freeze in item 18.
+2. **Five signal bits are leaked**: `*** 'OpenLoco' returned with unfreed
+   signal 0x20000 … 0x200000`.
+
+Evidence: `../evidence/gameplay-abiv11/RESULTS.md`.
+
+**What would close it:** find who should call `CloseWindow()` - SDL3's AROS
+backend on `SDL_Quit`, or the game on shutdown - and where the five signals are
+allocated. Untested guess, marked as such: SDL3 teardown on AROS, since the
+signals look like `AllocSignal()` from threads or the timer.
+
+**Also worth knowing:** a stale window like this is the reason to check CPU
+before calling anything frozen. That rule earned itself twice in one evening.
 
 ## 13. CLOSED - the binary starts (superseded by §16)
 

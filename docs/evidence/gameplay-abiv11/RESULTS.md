@@ -37,8 +37,9 @@ game stopped:
   was not redrawing at all, so this was not the simulation merely pausing;
 - the QEMU process sat at **101% CPU** - the guest was spinning in a loop, not
   waiting on I/O;
-- the target file was **not** updated: `Sandbox Settler.SV5` kept its earlier
-  size and timestamp;
+- the target file appeared **not** updated: `Sandbox Settler.SV5` kept its
+  earlier size and timestamp - **but this is weak evidence**, see the note on
+  FAT timestamps below;
 - the last autosave before it is 20:14:00 and the Replace click was at ~20:14.
 
 `fsck_msdos -n` on the image afterwards:
@@ -73,6 +74,13 @@ the volume.** Candidates, none tested: an earlier `Config::write()`; writing
 from AROS to FAT32 in general; or the kill of QEMU - but that came *after* the
 freeze, so it cannot explain the freeze itself, only possibly some of the
 damage found later.
+
+**A note on FAT timestamps, which weakens one line of the above.** `run2.log`
+was listed as 1842 bytes dated **20:25:42**, yet its contents run to the game's
+exit at about 20:41 - the directory entry was never updated for the later
+writes. So "the file kept its old size and timestamp" does not prove nothing
+was written to it. The evidence that stands is the byte-identical screendumps
+and the 101% CPU.
 
 The AROS FAT handler is not simply unable to overwrite: from the Shell, `copy`
 over an existing 307,200 B file with a 6 B one succeeded at 6.1% CPU, shrinking
@@ -116,6 +124,45 @@ inside SDL3 (`keyboard focus`, `text input active`) are satisfied. Patch:
 does. **Worth sending to contrib - it affects every SDL3 program on AROS.**
 
 Both patches are written and saved; **neither has been compiled or run.**
+
+## The window close gadget quits the game - and leaves its window behind
+
+This answers backlog item 12, which had never been exercised. Clicking the
+Intuition close gadget on the OpenLoco window **ends the program**. It looked
+at first like a second freeze - the window content stopped at 11th October
+1900 and consecutive screendumps were identical - but the signature was
+different from the earlier one: **CPU 6.8-11% and the process sleeping**, not
+spinning, and the injected pointer still moved on screen.
+
+`status` in a fresh Shell settled it: **there is no OpenLoco process**. It had
+exited, and the tail of `run3.log`'s predecessor `run2.log` shows how:
+
+```
+[INF] Deleting old autosave: Locohome:loco/save/autosave/autosave_...
+*** 'OpenLoco' returned with unfreed signal 0x20000
+*** 'OpenLoco' returned with unfreed signal 0x40000
+*** 'OpenLoco' returned with unfreed signal 0x80000
+*** 'OpenLoco' returned with unfreed signal 0x100000
+*** 'OpenLoco' returned with unfreed signal 0x200000
+```
+
+So two things, neither of them a hang:
+
+- **the quit path works** - the gadget request reaches the game and it shuts
+  down;
+- **it exits without closing its Intuition window and leaks five signal bits**.
+  The stale window stays on the Workbench screen, frozen on the last frame,
+  where it reads exactly like a hung program - which is how it was misread
+  here for several minutes. Nothing can close it afterwards, because the owner
+  is gone.
+
+AROS itself was unaffected throughout: `meta_r-w` opened Shell process 9 while
+the dead window was still on screen.
+
+The same log confirms the paths resolve as intended
+(`Using Locomotion install path: Locodata:Locomotion`, `Using save path:
+Locohome:loco/save/`, `Using landscape path: Locohome:loco/landscape/`) and
+that autosave rotation deletes old files without trouble.
 
 ## A new machine, `loco`, and why
 
@@ -167,8 +214,8 @@ has hung AROS before.
   second, and those numbers say nothing about hardware.
 - **Audio.** Never requested, never heard. OpenLoco uses OpenAL, so an SDL3/AHI
   test would not answer it.
-- **Mouse beyond single clicks.** Dragging, the right button, the wheel and the
-  window close gadget are still untested.
+- **Mouse beyond single clicks.** Dragging, the right button and the wheel are
+  still untested. The window close gadget is now tested - see above.
 - **Mainline v1.** Everything here is ABIv11.
 - The `._*` cleanup is confirmed only by the drop in error lines; the objects
   themselves were not counted in the game.

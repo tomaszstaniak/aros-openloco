@@ -1,0 +1,29 @@
+# fsck_msdos -n on loco-home.img, 2026-09-17 21:04
+#
+# History of this volume:
+#   19:47  created fresh (dd + diskutil partitionDisk MBR MS-DOS FAT32), game
+#          install copied in from the host, dot_clean run, cleanly detached
+#   19:51  OpenLoco session 1: manual save, 9 autosaves, one freeze during an
+#          overwrite; QEMU stopped while the guest was spinning
+#   20:21  fsck_msdos -y: repaired FAT[0] and truncated openloco.yml, then a
+#          verifying "fsck_msdos -n" reported NO warnings (227 files)
+#   20:22  OpenLoco session 2: save reloaded, an overwrite save that SUCCEEDED,
+#          more autosaves, the game quit via the window close gadget
+#   20:56  OpenLoco session 3: started, hung idle before the title screen, then
+#          the WHOLE GUEST froze (pointer stopped moving, CPU 3%)
+#   21:04  QEMU stopped after ~5 minutes of an idle, wedged guest
+#
+# So the volume was verified clean at 20:21 and only AROS wrote to it since.
+
+** /dev/rdisk12s1
+** Phase 1 - Preparing FAT
+Warning: FAT[0] is incorrect (is 0x0; should be 0xFFF8)
+Correct?
+: no
+** Phase 2 - Checking Directories
+** Phase 3 - Checking for Orphan Clusters
+Warning: Found orphan cluster(s)
+Fix?
+: no
+Warning: Found 112 orphaned clusters
+Warning: 236 files, 474544 KiB free (59318 clusters)

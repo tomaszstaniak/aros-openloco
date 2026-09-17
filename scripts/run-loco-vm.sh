@@ -24,6 +24,12 @@
 #                    A snapshot taken when QEMU starts: populate it BEFORE
 #                    launching, and restart to pick up later changes.
 # There is no CD-ROM: its IDE slot is where loco-home.img goes.
+#
+# LOCO_DISK3=<image> puts a different image in the assets slot. All four IDE
+# slots are taken, so a disk experiment that must not touch the assets or the
+# saved games gets its own throwaway image this way - which is how
+# tests/fat32-overwrite is meant to be run. The game will not start without the
+# assets, and that is fine: such a run is not about the game.
 
 set -e
 AROS_TESTBENCH=${AROS_TESTBENCH:-$HOME/Work/AROS}
@@ -32,7 +38,8 @@ cd "$AROS_TESTBENCH"
 DISK=aros-loco-hd.qcow2
 [ -f "$DISK" ] || { echo "no $DISK in $AROS_TESTBENCH - make it with:" >&2
                     echo "  cp aros-one-hd.qcow2 $DISK" >&2; exit 1; }
-for img in loco-assets.img loco-home.img; do
+DISK3=${LOCO_DISK3:-loco-assets.img}
+for img in "$DISK3" loco-home.img; do
     [ -f "$img" ] || { echo "no $img in $AROS_TESTBENCH - see docs/backlog/open-questions.md, 'Returning after a break'" >&2; exit 1; }
 done
 
@@ -71,6 +78,7 @@ fi
   echo "gfx      ${GFX:-vmware}"
   echo "disk     $DISK"
   echo "shared   shared-loco"
+  echo "disk3    $DISK3"
 } > /tmp/aros-vm-loco.info
 
 exec qemu-system-x86_64 \
@@ -81,7 +89,7 @@ exec qemu-system-x86_64 \
   -hda "$DISK" \
   -drive file=fat:rw:shared-loco,format=raw,if=ide,index=1 \
   -drive file=loco-home.img,format=raw,if=ide,index=2 \
-  -drive file=loco-assets.img,format=raw,if=ide,index=3 \
+  -drive file="$DISK3",format=raw,if=ide,index=3 \
   "${GFX_ARGS[@]}" \
   "${AUDIO_ARGS[@]}" \
   -netdev user,id=net0 -device e1000,netdev=net0 \
