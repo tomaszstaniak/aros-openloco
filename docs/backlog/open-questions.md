@@ -147,39 +147,69 @@ affects bug reports, not behaviour.
 
 ## 21. The second OpenLoco start in one guest boot wedges the whole guest
 
-Seen twice, 2026-09-17 at 20:56 and again at 23:44. The game opens its window,
-never reaches the title screen, and then the **entire guest** stops responding:
-the pointer does not move, keystrokes do not echo, and QEMU sits at **1-3% CPU**
-- waiting, not spinning.
+Reproduced four times, 2026-09-17 20:56 and 23:44, then twice deliberately on
+2026-09-18. The game opens its window, never reaches the title screen, and the
+**entire guest** stops responding - the pointer freezes, keystrokes do not
+echo, and QEMU sits at **4-6% CPU**: waiting, not spinning.
 
-**The pattern across six starts has no exception:**
+**The controlled comparison, each from a fresh boot:**
 
-| start | which one in its guest boot | outcome |
+| variant | how the first game was quit | second start |
 |---|---|---|
-| run1, run2, run4, run5 | **first** | reached the menu |
-| run3, run6 | **second, after the previous game quit via the window close gadget** | guest wedged |
+| A | the Intuition close gadget | **wedged**, CPU 5.1% |
+| B | the game's own "Exit Game" button | **wedged**, CPU 4.6% |
 
-**What this rules out.** The first wedge came with a damaged volume
-(`FAT[0]` = 0, orphaned clusters) and the obvious reading was that the game
-blocked on the damage. **That reading is wrong:** after the second wedge
-`fsck_msdos` found the volume **clean** - 242 files, no warnings. The second
-wedge also happened with patch 17 in place, so the broken `O_TRUNC` path was
-not involved either. Item 18 and this item are separate problems.
+**So the exit path does not matter, and the leak hypothesis is refuted.** Both
+exits leave the Intuition window on screen and both report the same five
+unfreed signal bits, so neither is the distinguishing factor. The correlation
+is with *being the second start in one guest boot* - every first start has
+worked, six times now.
 
-**The hypothesis this points at**, untested: the close gadget quit leaks
-resources - it leaves the Intuition window open and reports five unfreed signal
-bits (item 12) - and the next instance blocks on something that was never
-released.
+**A prepared second Shell does not help.** One was opened *before* the first
+game started, exactly so a working Shell would survive; when the wedge came,
+it did not echo a single character. The whole GUI goes, not just the game.
+`/tmp/aros-loco-serial.log` is empty on AROS One, so there is no host-side
+channel either.
 
-**What would close it:** a controlled run - boot the guest, start OpenLoco,
-quit it with the close gadget, start it again - repeated a few times, with
-`status` from a *second* Shell opened **before** the first game starts, so
-there is a working Shell left when the GUI wedges. Then the same with the game
-quit from its own menu instead, which would say whether the leak is what
-matters. Both are cheap; neither has been done.
+### Where it stops
 
-**Practical consequence today:** restart the guest between game runs. Every
-first start in a boot has worked.
+Variant C, 2026-09-18 01:14: the game run **without** output redirection so
+the log lands on the console, which is drawn immediately. The second start's
+last **visible** line is:
+
+```
+[INF] OpenLoco, c70ac1e (c70ac1e on baseline)
+[INF] AROS (x86-64)
+[INF] Using Locomotion install path: Locodata:Locomotion
+[INF] Using save path: Locohome:loco/save/
+```
+
+A successful start continues `Using landscape path: …` and then three OpenAL
+lines. So it stops **in the path setup, before audio is touched at all** -
+which also rules out the OpenAL hypothesis.
+Evidence: `../evidence/gameplay-abiv11/16-second-start-blocks-in-path-setup.png`.
+
+**The limit of that reading, and it matters:** the Shell window extends below
+the bottom of the screen, and with the GUI wedged it cannot be scrolled or
+resized. Later lines may exist unseen. This is the last *visible* line, not
+provably the last one.
+
+**The mechanism this points at**, untested: the code between those two log
+lines is filesystem work on `Locohome:` (`Environment.cpp`, resolving and
+`autoCreateDirectory`-ing each path). The volume is structurally **clean** on
+disk after such a wedge - `fsck_msdos` confirmed it, 242 files, no warnings -
+so the suspect is the handler's in-memory state rather than the filesystem
+itself. A wedged volume handler would also explain why the entire GUI freezes:
+anything else touching that volume, Wanderer included, queues behind it.
+
+**The test that would settle it, and it is cheap:** put the game install
+somewhere that is not the FAT32 volume - `RAM:` or the guest's own AROS
+partition - and run it twice in one boot. If the second start then works, the
+FAT handler is implicated and this item belongs with item 18 after all; if it
+still wedges, the filesystem is exonerated and the next place to look is what
+the first instance leaves behind in Intuition or in the libraries it opened.
+
+**Until then:** restart the guest between game runs. Every first start works.
 
 ## 18. FAT32 on AROS: writes are lost, and volumes get damaged
 
@@ -370,15 +400,32 @@ libstdc++ with `wchar_t` is wider and needs a separate check of whether AROS
 ABIv11 has the full set of wide-character functions on the C side - see
 `../platform/`.
 
-## 6. Audio has not been checked at all
+## 6. PARTLY ANSWERED - OpenAL initialises; nothing has been heard
 
-`SDL_INIT_AUDIO` was never requested in the test. The AHI backend in SDL3 is
-untouched. On ABIv11 `AudioEngine.cpp` does not know `ALC_HRTF_SOFT` - the SDK
-carries openal-soft 1.19.1 (2018). On mainline the OpenAL library is missing
-entirely, only the headers are there.
+The console log of a normal start, read 2026-09-18, says more than any earlier
+run did:
 
-**What would close it:** a test playing sound through SDL3/AHI, separately from
-OpenAL.
+```
+[INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+[INF] OpenAL EFX reverb initialized.
+[INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
+```
+
+So on AROS One / ABIv11 the game's audio stack **comes up**: OpenAL Soft
+initialises, and so does **EFX reverb** - which settles item 15 in the
+unexpected direction, since the guess there was that reverb would quietly
+degrade. 256 sources are reported available.
+
+**What is still unchecked:** whether any sound is actually produced. QEMU was
+started without a host audio driver in every run so far (`Can not open
+'ac97.pi'` in the launcher log), so nothing could have been heard even if the
+game played it. `SDL_INIT_AUDIO` remains unrequested and the SDL3/AHI path
+untouched - and irrelevant to this port, since OpenLoco goes through OpenAL.
+
+**What would close it:** `AUDIO=wav scripts/run-loco-vm.sh`, which the launcher
+already supports - it writes what the guest plays into
+`/tmp/aros-loco-audio.wav`, flushed when QEMU exits, so "is there any sound"
+becomes a question answered by looking at a file.
 
 ## 7. CLOSED - the remaining compile items
 
@@ -525,8 +572,12 @@ connected anywhere with it yet. IPv6 returns `EAI_FAMILY` deliberately.
 
 **What would close it:** a test connecting to a real host from AROS.
 
-## 15. EFX: reverb should disable itself, but that is unchecked
+## 15. ANSWERED - EFX reverb initialises
 
-`alGetProcAddress` on AROS may return pointers despite the symbols being absent
-from the archive. The code degrades to "no reverb"; whether that actually
-happens is unchecked, because audio was never run.
+The guess here was that `alGetProcAddress` might hand back pointers for symbols
+that are not really there, and that the code would degrade to "no reverb". On
+AROS One / ABIv11 the log says plainly `[INF] OpenAL EFX reverb initialized.`
+(2026-09-18), so the extension is present and the game took the reverb path.
+
+**Not checked:** whether reverb is audible or correct - see item 6, nothing has
+been heard yet.

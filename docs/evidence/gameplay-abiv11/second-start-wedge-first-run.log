@@ -1,0 +1,14 @@
+[INF] OpenLoco, c70ac1e (c70ac1e on baseline)
+[INF] AROS (x86-64)
+[INF] Using Locomotion install path: Locodata:Locomotion
+[INF] Using save path: Locohome:loco/save/
+[INF] Using landscape path: Locohome:loco/landscape/
+[INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+[INF] OpenAL EFX reverb initialized.
+[INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
+[INF] Scene transition: boot -> title
+*** 'OpenLoco' returned with unfreed signal 0x20000
+*** 'OpenLoco' returned with unfreed signal 0x40000
+*** 'OpenLoco' returned with unfreed signal 0x80000
+*** 'OpenLoco' returned with unfreed signal 0x100000
+*** 'OpenLoco' returned with unfreed signal 0x200000
