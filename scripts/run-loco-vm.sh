@@ -25,6 +25,11 @@
 #                    launching, and restart to pick up later changes.
 # There is no CD-ROM: its IDE slot is where loco-home.img goes.
 #
+# LOCO_DISK2=<image> does the same for the saves slot, so a disk experiment can
+# have two throwaway images in one boot - useful because each test case wants
+# its own volume and a boot costs a minute and a half. The game cannot run
+# without loco-home.img, and that is fine: such a run is not about the game.
+#
 # LOCO_DISK3=<image> puts a different image in the assets slot. All four IDE
 # slots are taken, so a disk experiment that must not touch the assets or the
 # saved games gets its own throwaway image this way - which is how
@@ -38,8 +43,9 @@ cd "$AROS_TESTBENCH"
 DISK=aros-loco-hd.qcow2
 [ -f "$DISK" ] || { echo "no $DISK in $AROS_TESTBENCH - make it with:" >&2
                     echo "  cp aros-one-hd.qcow2 $DISK" >&2; exit 1; }
+DISK2=${LOCO_DISK2:-loco-home.img}
 DISK3=${LOCO_DISK3:-loco-assets.img}
-for img in "$DISK3" loco-home.img; do
+for img in "$DISK2" "$DISK3"; do
     [ -f "$img" ] || { echo "no $img in $AROS_TESTBENCH - see docs/backlog/open-questions.md, 'Returning after a break'" >&2; exit 1; }
 done
 
@@ -78,6 +84,7 @@ fi
   echo "gfx      ${GFX:-vmware}"
   echo "disk     $DISK"
   echo "shared   shared-loco"
+  echo "disk2    $DISK2"
   echo "disk3    $DISK3"
 } > /tmp/aros-vm-loco.info
 
@@ -88,7 +95,7 @@ exec qemu-system-x86_64 \
   -m 2048 \
   -hda "$DISK" \
   -drive file=fat:rw:shared-loco,format=raw,if=ide,index=1 \
-  -drive file=loco-home.img,format=raw,if=ide,index=2 \
+  -drive file="$DISK2",format=raw,if=ide,index=2 \
   -drive file="$DISK3",format=raw,if=ide,index=3 \
   "${GFX_ARGS[@]}" \
   "${AUDIO_ARGS[@]}" \
