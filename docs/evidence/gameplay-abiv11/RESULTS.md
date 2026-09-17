@@ -41,8 +41,8 @@ directories already existed, so `autoCreateDirectory()` never reached
 | build a line | - | the save had no track (0 stations in the company list, as expected - it predates the earlier route), so ~8 new tiles were laid; the last refused with "Can't build Railway Track… Raise or lower land first", which is terrain, not a fault |
 | place it | `12-train-placed-on-track.png` | the train window's "click on view to set train starting position" tool works; status **"Stopped"**, the locomotive is drawn on the rails in both the main view and the window's own viewport |
 | **run it** | `13-train-running.png` | **"Travelling at 1mph"**, then **6mph**, and the locomotive visibly crosses the screen between screendumps |
-| **type a filename** | `14-text-input-works.png` | the field went from "Sandbox Settler" to "Sandbox Settler**arostrain**" - **the text-input patch works**, and this is the first character any SDL3 program has accepted on AROS |
-| save under that name | `15-typed-save-on-disk.png` | listed on disk as a third entry beside `autosave` and `Sandbox Settler`; saving to a **new** name avoids the truncate defect entirely |
+| **type a filename** | `14-text-input-works.png` | the field went from "Sandbox Settler" to "Sandbox Settler**arostrain**" - **the text-input patch works**. First characters accepted in **our** tests; before the patch our SDL3 smoke test and this dialog both got nothing, and nothing was checked beyond them |
+| save under that name | `15-typed-save-on-disk.png` | listed on disk as a third entry beside `autosave` and `Sandbox Settler`. It avoids the **observed** truncate case - it is not a safe path: the damage in `../fat32-corruption/` is unexplained, and the game rotates and deletes autosaves on its own |
 
 Navigation note worth keeping: after loading, the main viewport was **black**
 because the saved view sits over open sea. The town window's own viewport
@@ -97,7 +97,8 @@ answered** - see `../fat32-corruption/RESULTS.md`. In short: on AROS,
 `open(O_TRUNC)` over an existing file **silently loses the write**, which is
 exactly what leaves a directory entry pointing at freed clusters, as `fsck`
 reported for `openloco.yml`. The zeroed `FAT[0]` is still unexplained; three
-candidate causes have been ruled out by controls.
+candidate causes failed to reproduce under controls, which is weaker than
+being ruled out - see that report for why.
 
 **A note on FAT timestamps, which weakens one line of the above.** `run2.log`
 was listed as 1842 bytes dated **20:25:42**, yet its contents run to the game's

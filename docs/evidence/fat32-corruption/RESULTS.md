@@ -36,12 +36,18 @@ a new file works (step 1), which is why writing new saves was never a problem.
 affects any POSIX program that rewrites a file in place on a FAT volume, which
 includes every C++ `std::ofstream` opened for output.
 
-**It also explains the damaged `openloco.yml`.** The first `fsck_msdos` run
-reported `/LOCO/OPENLOCO.YML starts with free cluster` and a
-`cluster chain … ends with cluster marked free` - exactly the shape left behind
-when the truncate frees the chain and the following write never links new
-clusters in, while the directory entry keeps pointing at what is now free
-space. `Config::write()` rewrites that file through an ofstream on every save.
+**It may explain the damaged `openloco.yml`, and that is a hypothesis.** The
+first `fsck_msdos` run reported `/LOCO/OPENLOCO.YML starts with free cluster`
+and a `cluster chain … ends with cluster marked free`, and `Config::write()`
+rewrites that file through an ofstream on every save. A truncate that frees the
+chain while the following write links nothing in would leave that shape.
+
+**But the probe did not reproduce it.** Its own victim file came back as a
+plain empty file and the volume stayed `fsck`-clean, so "the write is lost" does
+not by itself produce "starts with free cluster". The two are consistent, not
+joined up. What would join them: run the probe against a file that the host
+then inspects with `fsck`, and repeat it for a file being rewritten repeatedly
+rather than once.
 
 **What this does NOT say:** the AROS Shell's own `copy` overwrites the same
 file on the same volume without trouble (checked: 307,200 B replaced by 6 B at
@@ -77,9 +83,16 @@ damaged sessions - that is, **without** a clean guest shutdown:
 | control | mounted the volume, `info` and `list` only, **no writes** | **clean** (`control-run-read-only.png` shows `read/write FAT32`, 0 Errs) |
 | O_TRUNC probe | created a 300 KB file, truncated and rewrote it, wrote a log | **clean**, 3 files |
 
-So the damage is **not** explained by mounting the volume, nor by stopping QEMU
-without a guest shutdown, nor by the simple truncate-and-rewrite sequence. All
-three are ruled out.
+So the damage was **not reproduced** by mounting the volume, by stopping QEMU
+without a guest shutdown, or by the simple truncate-and-rewrite sequence.
+
+**"Not reproduced" is weaker than "ruled out", and the difference matters
+here.** Each control ran once, on a 64 MB volume with one file, for under two
+minutes. The damaged volume was 512 MB, held 227 files, and saw about 10 MB of
+writes, deletions and directory creation across three sessions. A defect that
+needs volume size, file count, or repetition would pass every control above and
+still be the cause. The controls narrow the field; they do not clear any
+suspect.
 
 ### What is left, untested
 
@@ -108,6 +121,30 @@ with OpenLoco. The realistic options, in order of how much they are worth:
    inspection, which is why FAT32 was chosen in the first place.
 2. **Report finding 1 upstream to AROS.** It is small, reproducible, and the
    probe is ready to attach.
-3. Make the game write saves the safe way - to a new file, then swap - which
-   sidesteps the POSIX truncate path. That is a workaround in the wrong layer,
-   but it is the only one this project controls.
+3. Make the game write saves to a new file and then swap, which sidesteps the
+   POSIX truncate path. That is a workaround in the wrong layer, it is the only
+   one this project controls, and it addresses **finding 1 only** - it does
+   nothing about the unexplained damage in finding 2.
+
+**A caution about "just use a new filename".** Saving under a name that does
+not exist avoids the observed truncate case, and that is worth doing, but it is
+**not** an established safe path: the cause of finding 2 is unknown, and the
+game deletes and rotates autosave files on its own regardless of what the
+player types. Until the matrix below has been run, a save on such a volume
+needs a host-side copy.
+
+## What has to be measured next
+
+Each on its own throwaway image, `fsck` before and after, and - the part every
+run so far has skipped - **the file contents compared after a restart**, not
+just the presence of a file:
+
+| case | why it is separate |
+|---|---|
+| create a new file | the only case with any evidence of working |
+| overwrite an existing file | finding 1; lost the data silently |
+| delete a file | untested, and the handler must free a chain |
+| autosave rotation: write, then delete the oldest, repeatedly | the closest thing to what the damaged volume actually saw |
+
+A save that reads back byte-identical after a guest restart is the only result
+that would justify calling storage on this volume reliable.

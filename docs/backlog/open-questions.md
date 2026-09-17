@@ -168,9 +168,12 @@ clusters, and in between the third game session hung idle and then **froze the
 whole guest** (pointer stopped, CPU 3%). Same `FAT[0]` signature as the first
 occurrence.
 
-Three causes are **ruled out** by controls that came back clean: mounting the
-volume, stopping QEMU without a guest shutdown, and the truncate-and-rewrite
-sequence of 18a.
+Three causes were **not reproduced** by controls that came back clean: mounting
+the volume, stopping QEMU without a guest shutdown, and the truncate sequence
+of 18a. That is weaker than ruling them out - each control ran once, on a 64 MB
+volume with one file, while the damaged volume held 227 files and saw about
+10 MB of writes, deletions and directory creation. A defect needing size, file
+count or repetition would pass all three.
 
 *What would close it:* the untested candidate is deletion churn - the autosave
 rotation deletes old files, which neither control does. Extend the probe to
@@ -180,7 +183,18 @@ at all.
 
 **Consequence now:** do not keep saved games only on a FAT32 volume. The
 options are the guest's own native filesystem, an upstream fix, or having the
-game write to a new file and swap.
+game write to a new file and swap - the last addresses 18a only.
+
+**Saving under a new filename is not a safe workaround.** It avoids the case
+that was observed, which is worth doing, but 18b is unexplained and the game
+deletes and rotates autosave files by itself no matter what the player types.
+
+*What would close 18b, and it is the next priority:* the four cases measured
+separately, each on its own throwaway image with `fsck` before and after -
+create, overwrite, delete, and autosave-style rotation - and **file contents
+compared after a guest restart**, which no run so far has done. A save that
+reads back byte-identical after a restart is the only result that makes this
+storage trustworthy. See `../evidence/fat32-corruption/RESULTS.md`.
 
 The freeze first blamed on "overwriting a save" is **not** that: a verified
 retry of the same path saved normally. See the report.
@@ -198,7 +212,9 @@ already does: `patches/dependencies/sdl3-3.4.12-aros-text-input.diff`.
 
 **Verified 2026-09-17 in the running game:** OpenLoco's save dialog went from
 "Sandbox Settler" to "Sandbox Settler**arostrain**" as the characters were
-typed, and the game was then saved under that name.
+typed, and the game was then saved under that name. The scope of "no program
+could type" is **our own tests** - this dialog and our SDL3 smoke test, both of
+which got nothing before the patch. No other SDL3 program was tried.
 Evidence: `../evidence/gameplay-abiv11/14-text-input-works.png` and
 `15-typed-save-on-disk.png`.
 
