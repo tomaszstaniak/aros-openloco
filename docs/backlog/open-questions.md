@@ -53,12 +53,15 @@ can be recreated by `git clone` alone:
    `RAM:Locomotion`. The file on the host was stale (the fix had only been typed
    in the guest); corrected 2026-09-15.
 3. **vvfat is a snapshot taken when QEMU starts** - files are copied into
-   `shared/` *before* `run-aros-loco.sh`, not after.
+   `shared-loco/` *before* `run-loco-vm.sh`, not after.
 
-Fixed during this audit: `scripts/run-aros-loco.sh` did a `cd` into its own
-directory, that is `scripts/`, where there is no QEMU disk and no `shared/` - it
-could not be started from the repository at all. It now resolves paths in
-`$AROS_TESTBENCH` (default `~/Work/AROS`). The README did not mention
+Fixed during the 2026-09-15 audit: `scripts/run-aros-loco.sh` did a `cd` into
+its own directory, that is `scripts/`, where there is no QEMU disk and no
+`shared/` - it could not be started from the repository at all. Paths are now
+resolved in `$AROS_TESTBENCH` (default `~/Work/AROS`). That script was
+**deleted on 2026-09-17**: it also hardcoded the shared machine `one`, so it
+could open another session's disk from a second QEMU.
+`scripts/run-loco-vm.sh` replaces it. The README did not mention
 `build-openloco.sh`, `make-cmake-packages.sh`, `build-png-smoke.sh` or running
 in QEMU - now filled in.
 

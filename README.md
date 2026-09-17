@@ -77,7 +77,7 @@ scripts/build-png-smoke.sh abiv11    # PNG/zlib without the stubs
 ```sh
 cp build/abiv11/openloco/OpenLoco ~/Work/AROS/shared/loco/    # before starting QEMU
 cp -R build/abiv11/openloco/data  ~/Work/AROS/shared/loco/
-GFX=std scripts/run-aros-loco.sh     # adds loco-assets.img as a 4th IDE disk
+GFX=std scripts/run-loco-vm.sh       # machine `loco`: own disk copy, assets and saves disks
 ```
 
 In the guest:
