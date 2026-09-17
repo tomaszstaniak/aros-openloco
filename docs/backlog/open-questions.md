@@ -502,29 +502,36 @@ dies in the first `OpenLibrary()` and it looks like a defect in the program. The
 safe form: `--strip-unneeded --remove-section .comment`. To be written into the
 packaging script before somebody optimises the 14 MB binary.
 
-## 12. ANSWERED - the close gadget quits, but leaks the window
+## 12. ANSWERED - both quit paths work, and both leak the same way
 
-Checked 2026-09-17. Clicking the Intuition close gadget **ends the program**;
-the quit request reaches the game. Two defects came with it:
+Checked 2026-09-17, extended 2026-09-18. **Two exits, identical outcome:** the
+Intuition close gadget and the game's own "Exit Game" button both end the
+program, and both leave the same two things behind:
 
-1. **The Intuition window is not closed on exit.** It stays on the Workbench
-   screen frozen on the last frame, and nothing can close it because its owner
-   is gone. For several minutes it read as a hung game - identical
-   screendumps - and only `status` in a fresh Shell settled it: no OpenLoco
-   process. The tell-apart signature is CPU: **6.8-11% and sleeping** here
-   versus **101% spinning** for the real freeze in item 18.
-2. **Five signal bits are leaked**: `*** 'OpenLoco' returned with unfreed
-   signal 0x20000 … 0x200000`.
+1. **The Intuition window is not closed.** It stays on the Workbench screen
+   frozen on the last frame, and nothing can close it because its owner is
+   gone. For several minutes that read as a hung game, and only `status` in a
+   fresh Shell settled it: no OpenLoco process.
+2. **Five signal bits are leaked**, on both paths:
+   `*** 'OpenLoco' returned with unfreed signal 0x20000 … 0x200000`.
 
-Evidence: `../evidence/gameplay-abiv11/RESULTS.md`.
+The first write-up here treated this as a close-gadget defect. It is not - the
+game's own exit does exactly the same, which is why the leak turned out **not**
+to explain item 21.
 
-**What would close it:** find who should call `CloseWindow()` - SDL3's AROS
-backend on `SDL_Quit`, or the game on shutdown - and where the five signals are
-allocated. Untested guess, marked as such: SDL3 teardown on AROS, since the
-signals look like `AllocSignal()` from threads or the timer.
+**Telling a dead window from a hung program:** `status` in a fresh Shell is
+what settles it; if the program is not listed, the window is debris. Host CPU
+is the quick first hint - a real spin sits near 100%, a dead window leaves the
+guest idle at a few per cent - but it does not decide the question, since a
+deadlock and an ordinary wait are also idle.
 
-**Also worth knowing:** a stale window like this is the reason to check CPU
-before calling anything frozen. That rule earned itself twice in one evening.
+Evidence: `../evidence/gameplay-abiv11/RESULTS.md` and
+`second-start-wedge-first-run.log`.
+
+**What would close the leak itself:** find who should call `CloseWindow()` -
+SDL3's AROS backend on `SDL_Quit`, or the game on shutdown - and where the five
+signals are allocated. Untested guess, marked as such: SDL3 teardown, since the
+bits look like `AllocSignal()` from threads or the timer.
 
 ## 13. CLOSED - the binary starts (superseded by §16)
 
