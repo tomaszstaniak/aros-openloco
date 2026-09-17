@@ -70,28 +70,44 @@ scripts/build-openloco.sh abiv11     # -> build/abiv11/openloco/OpenLoco (~14 MB
 scripts/compile-probe.py             # compile probe, both ABIs -> docs/evidence/
 scripts/build-smoke.sh abiv11        # SDL3 + std::thread
 scripts/build-png-smoke.sh abiv11    # PNG/zlib without the stubs
+scripts/build-fat32-overwrite.sh abiv11   # POSIX O_TRUNC on a FAT32 volume
 ```
 
 ### Running it on AROS One
 
+The install lives on `loco-home.img` and is put there **from the host**, with
+QEMU stopped: copying its 170 files inside the guest is slow, and a directory
+of that size has hung AROS before.
+
 ```sh
-cp build/abiv11/openloco/OpenLoco ~/Work/AROS/shared/loco/    # before starting QEMU
-cp -R build/abiv11/openloco/data  ~/Work/AROS/shared/loco/
-GFX=std scripts/run-loco-vm.sh       # machine `loco`: own disk copy, assets and saves disks
+cd ~/Work/AROS
+hdiutil attach loco-home.img -nobrowse
+cp <port>/build/abiv11/openloco/OpenLoco /Volumes/LOCOHOME/loco/
+dot_clean -m /Volumes/LOCOHOME                 # macOS ._* files load as objects
+hdiutil detach /Volumes/LOCOHOME
+
+AROS_VM_OWNER=<your-session> GFX=std ./vm.sh start loco
 ```
 
-In the guest:
+In the guest, one Shell (`meta_r-w` from Wanderer):
 
 ```
-makedir RAM:loco
-copy "Qemu Vvfat:loco" RAM:loco ALL QUIET
-cd RAM:loco
-run >RAM:run.log OpenLoco
+cd Locohome:loco
+OpenLoco >run.log
 ```
 
-`RAM:loco/openloco.yml` must contain `loco_install_path: Locodata:Locomotion`
-(copied from `shared/loco/`). Details and evidence:
-`docs/evidence/menu-abiv11/RESULTS.md`.
+`Locohome:loco/openloco.yml` must contain
+`loco_install_path: Locodata:Locomotion`. Note that the AROS Shell does not
+understand `2>&1` - it returns to the prompt at once - so `[ERR]` lines stay on
+screen while the log keeps only stdout.
+
+**Saved games on that FAT32 volume are not safe yet**: on AROS a POSIX rewrite
+of an existing file silently loses the data, and the volume twice acquired a
+zeroed `FAT[0]`. Keep a host-side copy. See
+`docs/evidence/fat32-corruption/RESULTS.md` and backlog item 18.
+
+Details and evidence: `docs/evidence/gameplay-abiv11/RESULTS.md`, and
+`docs/evidence/menu-abiv11/RESULTS.md` for how the assets disk was built.
 
 The ABI names (`abiv11`, `mainline-v1`) and the toolchain and SDK paths live in
 one place: `scripts/env.sh`. They can be overridden through environment
@@ -99,6 +115,8 @@ variables.
 
 ## State
 
-The game runs on ABIv11: menu, title screen and a loaded scenario -
-`docs/evidence/menu-abiv11/RESULTS.md`. Assessment, numbers and remaining
+The game is playable on ABIv11: menu, scenario, construction, a running clock,
+and a saved game that survives closing and restarting the program -
+`docs/evidence/gameplay-abiv11/RESULTS.md`. No vehicle has been run yet, and
+storage on FAT32 is unsafe (item 18). Assessment, numbers and remaining
 blockers: `docs/AROS-ASSESSMENT.md`. Open items: `docs/backlog/`.
