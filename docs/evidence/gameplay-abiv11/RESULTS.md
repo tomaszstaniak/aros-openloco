@@ -69,11 +69,12 @@ hold. What the evidence supports instead:
    which fits the 101% CPU and the dead window;
 3. on a repaired volume the same write succeeds.
 
-**What is therefore still unknown, and it is the important part: what damaged
-the volume.** Candidates, none tested: an earlier `Config::write()`; writing
-from AROS to FAT32 in general; or the kill of QEMU - but that came *after* the
-freeze, so it cannot explain the freeze itself, only possibly some of the
-damage found later.
+**What damaged the volume was chased separately, and half of it is now
+answered** - see `../fat32-corruption/RESULTS.md`. In short: on AROS,
+`open(O_TRUNC)` over an existing file **silently loses the write**, which is
+exactly what leaves a directory entry pointing at freed clusters, as `fsck`
+reported for `openloco.yml`. The zeroed `FAT[0]` is still unexplained; three
+candidate causes have been ruled out by controls.
 
 **A note on FAT timestamps, which weakens one line of the above.** `run2.log`
 was listed as 1842 bytes dated **20:25:42**, yet its contents run to the game's

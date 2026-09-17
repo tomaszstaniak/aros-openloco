@@ -140,31 +140,49 @@ it looks like a version identifier.
 instead of taking them from the git repository in `work/`. Low priority - it
 affects bug reports, not behaviour.
 
-## 18. Saving over an existing file freezes the game
+## 18. FAT32 on AROS: writes are lost, and volumes get damaged
 
-Seen 2026-09-17 on `Locohome:` (FAT32, a real IDE disk). Save Game -> OK ->
-"Replace existing file?" -> Replace: the prompt closes, the save dialog stays,
-**two screendumps 80 s apart are byte-identical** and QEMU sits at **101%
-CPU** - a spin, not an I/O wait. The target file keeps its old size and
-timestamp. `fsck_msdos` then reports `openloco.yml` with a cluster chain
-running into a free cluster and `FAT[0]` zeroed.
+Two findings, one explained and one not. Full report with the controls:
+`../evidence/fat32-corruption/RESULTS.md`.
 
-`openloco.yml` is what `Config::write()` rewrites on every save
-(`PromptBrowseWindow.cpp:990`), which puts the fault in the overwrite path
-rather than in writing a new file - **writing new files works**: the manual
-save, and nine autosaves with unique names, all succeeded.
+**18a. CONFIRMED - `O_TRUNC` over an existing file silently loses the write.**
+`tests/fat32-overwrite/` in plain C on a throwaway FAT32 image: `open(O_WRONLY
+| O_TRUNC)` succeeds, `write()` returns 6, `close()` returns 0, and the file
+reads back **empty**. No call reports an error. Creating a new file works,
+which is why new saves were always fine. This is an AROS defect - posixc or the
+FAT handler - and it hits every C++ `std::ofstream` opened for output. It also
+explains the `openloco.yml` damage seen first: the truncate frees the cluster
+chain and the write never links new clusters, leaving the directory entry
+pointing at free space, which is exactly what `fsck` reported.
 
-**Already ruled out:** the AROS FAT handler can overwrite. From the Shell,
-`copy` over an existing 307,200 B file with a 6 B one succeeded at 6.1% CPU.
-`copy` uses `MODE_NEWFILE`; a C++ `std::ofstream` goes through posixc with
-`O_TRUNC`. That is the leading hypothesis and it is **untested**.
+*What would close it:* decide which layer is at fault with a DOS-packet level
+probe (`Open(MODE_OLDFILE)` + `SetFileSize()`), since the Shell's `copy`, which
+uses `MODE_NEWFILE`, overwrites the same file fine. Then report it upstream -
+the C probe is ready to attach.
 
-**What would close it:** run `tests/fat32-overwrite/` - plain C, no game, no
-C++ runtime, reports to a file - on AROS One. If it hangs, the bug is in AROS
-(posixc or the FAT handler) and belongs upstream there, not in this port. Then
-reproduce the game freeze deliberately, verifying every click against a fresh
-screendump: the first attempt at reproduction was lost because replayed
-coordinates hit a different toolbar item.
+**18b. CONFIRMED but UNEXPLAINED - `FAT[0]` zeroed and orphaned clusters.**
+`loco-home.img` was verified clean at 20:21 and only AROS wrote to it
+afterwards; at 21:04 `FAT[0]` was 0x0 (should be 0xFFF8) with 112 orphaned
+clusters, and in between the third game session hung idle and then **froze the
+whole guest** (pointer stopped, CPU 3%). Same `FAT[0]` signature as the first
+occurrence.
+
+Three causes are **ruled out** by controls that came back clean: mounting the
+volume, stopping QEMU without a guest shutdown, and the truncate-and-rewrite
+sequence of 18a.
+
+*What would close it:* the untested candidate is deletion churn - the autosave
+rotation deletes old files, which neither control does. Extend the probe to
+create, delete and recreate files in a subdirectory, checking the volume after
+each stage; and check whether `FAT[0]` is zeroed by the handler's first write
+at all.
+
+**Consequence now:** do not keep saved games only on a FAT32 volume. The
+options are the guest's own native filesystem, an upstream fix, or having the
+game write to a new file and swap.
+
+The freeze first blamed on "overwriting a save" is **not** that: a verified
+retry of the same path saved normally. See the report.
 
 ## 19. No text input in any SDL3 program on AROS
 
@@ -178,7 +196,9 @@ correct and both gates inside SDL3 were satisfied.
 
 Patch written: `patches/dependencies/sdl3-3.4.12-aros-text-input.diff`, using
 `keymap.library` as `AROS_MapRawKey()` in the same backend already does.
-**Not compiled, not run.**
+**Compiled** 2026-09-17 - SDL3 187/187 objects, and `SDL_arosevents.o` now
+references `KeymapBase`, so the code is really in the archive. **Not yet
+exercised in the guest.**
 
 **What would close it:** rebuild SDL3 and the game, then type into that dialog.
 Dead keys will still not compose (`ie_EventAddress` is NULL) - a separate,
@@ -190,8 +210,11 @@ on AROS.
 `autoCreateDirectory()` (`Environment.cpp:200`) creates the directory and then
 calls `fs::permissions()`, which on FAT32 fails with ENOENT - two modal error
 boxes at every start. The directories are created and used, so it is cosmetic
-but loud. Patch: `patches/openloco/16-aros-permissions-nonfatal.diff`,
-**not compiled, not run**. Worth sending upstream: any filesystem without
+but loud - and it only happens on the **first** run, because afterwards
+`is_directory()` is true and `fs::permissions()` is never reached. Patch:
+`patches/openloco/16-aros-permissions-nonfatal.diff`, **compiled** 2026-09-17
+(387/387, binary 14,213,768 B), **not yet exercised** - which needs a volume
+without those directories. Worth sending upstream: any filesystem without
 POSIX permissions hits this, not only AROS.
 
 ## 1. The software renderer has never been exercised
