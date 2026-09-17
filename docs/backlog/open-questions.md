@@ -185,16 +185,30 @@ at all.
 options are the guest's own native filesystem, an upstream fix, or having the
 game write to a new file and swap - the last addresses 18a only.
 
-**Saving under a new filename is not a safe workaround.** It avoids the case
-that was observed, which is worth doing, but 18b is unexplained and the game
-deletes and rotates autosave files by itself no matter what the player types.
+**Saving under a new filename mitigates 18a and nothing else.** That much is
+now measured: new files and autosave-style rotation both survive a restart
+byte-identical. It does not address 18b, which stays unexplained.
 
-*What would close 18b, and it is the next priority:* the four cases measured
-separately, each on its own throwaway image with `fsck` before and after -
-create, overwrite, delete, and autosave-style rotation - and **file contents
-compared after a guest restart**, which no run so far has done. A save that
-reads back byte-identical after a restart is the only result that makes this
-storage trustworthy. See `../evidence/fat32-corruption/RESULTS.md`.
+*Measured 2026-09-17, and it did not close:* the four cases were run
+separately, each on its own throwaway image, with `fsck` before and after and
+with **file contents compared after a guest restart** - create, overwrite,
+delete and autosave-style rotation. Create, delete and rotate came back
+**byte-identical after the restart**; overwrite lost the data 4 times out of 4
+and it stayed lost. **All eight `fsck` runs were clean**, so none of the four
+reproduced the zeroed `FAT[0]`, rotation included. Report:
+`../evidence/fat32-corruption/storage-matrix.md`.
+
+*What to try next, in this order:* a ~1 MB file (the game's saves are 950 KB
+and the probe's largest was 8 KB), a file written into a subdirectory, and the
+same cases on a 512 MB volume rather than 64 MB. Volume and file size are the
+two variables that could plausibly reach `FAT[0]` and neither has been
+exercised.
+
+*What is now supported by evidence:* creating, deleting and rotating files on
+such a volume is durable across a restart. So **never overwriting a save** is
+a real mitigation rather than a guess - but it does not address 18b, whose
+cause six runs have failed to find, and the one time the game met a damaged
+volume it wedged the whole guest. Keep a host-side copy.
 
 The freeze first blamed on "overwriting a save" is **not** that: a verified
 retry of the same path saved normally. See the report.

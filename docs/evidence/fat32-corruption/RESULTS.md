@@ -133,18 +133,25 @@ game deletes and rotates autosave files on its own regardless of what the
 player types. Until the matrix below has been run, a save on such a volume
 needs a host-side copy.
 
-## What has to be measured next
+## What was measured next - see `storage-matrix.md`
 
-Each on its own throwaway image, `fsck` before and after, and - the part every
-run so far has skipped - **the file contents compared after a restart**, not
-just the presence of a file:
+Run 2026-09-17, 22:11-22:36: four cases on four separate throwaway images,
+each `fsck`-clean beforehand, and - the step every earlier run skipped - the
+files read back and compared byte by byte **in a later boot**.
 
-| case | why it is separate |
-|---|---|
-| create a new file | the only case with any evidence of working |
-| overwrite an existing file | finding 1; lost the data silently |
-| delete a file | untested, and the handler must free a chain |
-| autosave rotation: write, then delete the oldest, repeatedly | the closest thing to what the damaged volume actually saw |
+| case | write | verify after restart |
+|---|---|---|
+| create 8 files | PASS | **PASS**, byte-identical |
+| overwrite through `O_TRUNC` | **FAIL 4/4**, 0 bytes | **FAIL 4/4**, still 0 bytes |
+| delete half of 8 files | PASS | **PASS** |
+| autosave-style rotation, 12 written, 3 kept | PASS | **PASS** |
 
-A save that reads back byte-identical after a guest restart is the only result
-that would justify calling storage on this volume reliable.
+All eight `fsck` runs afterwards came back clean, so **finding 2 was not
+reproduced by any of the four** - including rotation, which was the leading
+suspect. Finding 1 is now deterministic and shown to be **permanent**: the
+files are still empty after a restart.
+
+What still separates these runs from the damaged volume - 64 MB against
+512 MB, 12 files against 227, an 8 KB largest file against a 950 KB saved game,
+no subdirectories, and a C program rather than the game's own stream writer -
+is listed in `storage-matrix.md` with the three cases that should come next.
