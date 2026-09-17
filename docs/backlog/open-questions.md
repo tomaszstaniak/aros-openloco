@@ -1,9 +1,10 @@
 # Backlog - open items
 
 State as of 2026-09-17. **OpenLoco is playable on AROS One (ABIv11):** menu,
-scenario, construction (a railway line and a station), a running game clock,
-and a **saved game that survives closing and restarting the program**.
-Evidence: `../evidence/gameplay-abiv11/RESULTS.md`. 16 game patches plus the
+scenario, construction (a railway line and a station), a **bought train running
+on the track**, keyboard text entry, a running game clock, and a **saved game
+that survives closing and restarting the program**.
+Evidence: `../evidence/gameplay-abiv11/RESULTS.md`. 16 game patches plus 5
 dependency patches.
 
 **One blocker stands in the way of normal play: saving over an existing file
@@ -184,26 +185,30 @@ game write to a new file and swap.
 The freeze first blamed on "overwriting a save" is **not** that: a verified
 retry of the same path saved normally. See the report.
 
-## 19. No text input in any SDL3 program on AROS
+## 19. CLOSED - text input works on AROS
 
-`AROS_TranslateUnicode()` in `src/video/aros/SDL_arosevents.c` has its entire
-body inside `#if !defined(__AROS__)` - it was written around the
-MorphOS/AmigaOS4 tag `IMSGA_UCS4`. On AROS it always returns 0, so
-`SDL_SendKeyboardText()` is never called and every text field stays empty while
-key events arrive normally. Found in OpenLoco's "Name Owner" dialog
-(`../evidence/gameplay-abiv11/03-text-input-ignored.png`); the game side is
-correct and both gates inside SDL3 were satisfied.
+`AROS_TranslateUnicode()` in `src/video/aros/SDL_arosevents.c` had its entire
+body inside `#if !defined(__AROS__)` - written around the MorphOS/AmigaOS4 tag
+`IMSGA_UCS4` - so it always returned 0 and `SDL_SendKeyboardText()` was never
+reached. **No SDL3 program on AROS could receive a typed character**, while key
+events arrived normally.
 
-Patch written: `patches/dependencies/sdl3-3.4.12-aros-text-input.diff`, using
-`keymap.library` as `AROS_MapRawKey()` in the same backend already does.
-**Compiled** 2026-09-17 - SDL3 187/187 objects, and `SDL_arosevents.o` now
-references `KeymapBase`, so the code is really in the archive. **Not yet
-exercised in the guest.**
+Fixed with `keymap.library`, the way `AROS_MapRawKey()` in the same backend
+already does: `patches/dependencies/sdl3-3.4.12-aros-text-input.diff`.
 
-**What would close it:** rebuild SDL3 and the game, then type into that dialog.
-Dead keys will still not compose (`ie_EventAddress` is NULL) - a separate,
-smaller question. **Worth sending to contrib:** it affects every SDL3 program
-on AROS.
+**Verified 2026-09-17 in the running game:** OpenLoco's save dialog went from
+"Sandbox Settler" to "Sandbox Settler**arostrain**" as the characters were
+typed, and the game was then saved under that name.
+Evidence: `../evidence/gameplay-abiv11/14-text-input-works.png` and
+`15-typed-save-on-disk.png`.
+
+**Still out of scope:** dead keys do not compose, because `ie_EventAddress`
+stays NULL to match the existing in-tree call. Non-ASCII characters take the
+Latin-1 -> UTF-8 path in the patch and were **not** tested - only lowercase
+ASCII was typed.
+
+**Worth sending to contrib:** it affects every SDL3 program on AROS, not just
+this port.
 
 ## 20. fs::permissions() on FAT32 - patched, not rebuilt
 
@@ -213,8 +218,10 @@ boxes at every start. The directories are created and used, so it is cosmetic
 but loud - and it only happens on the **first** run, because afterwards
 `is_directory()` is true and `fs::permissions()` is never reached. Patch:
 `patches/openloco/16-aros-permissions-nonfatal.diff`, **compiled** 2026-09-17
-(387/387, binary 14,213,768 B), **not yet exercised** - which needs a volume
-without those directories. Worth sending upstream: any filesystem without
+(387/387, binary 14,213,768 B), **still not exercised**: the run on 2026-09-17
+produced no requesters at all, because the four directories already existed and
+`autoCreateDirectory()` therefore never reached `fs::permissions()`. Closing it
+needs a volume where those directories are absent. Worth sending upstream: any filesystem without
 POSIX permissions hits this, not only AROS.
 
 ## 1. The software renderer has never been exercised

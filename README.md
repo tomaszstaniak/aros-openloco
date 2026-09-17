@@ -115,8 +115,9 @@ variables.
 
 ## State
 
-The game is playable on ABIv11: menu, scenario, construction, a running clock,
-and a saved game that survives closing and restarting the program -
-`docs/evidence/gameplay-abiv11/RESULTS.md`. No vehicle has been run yet, and
-storage on FAT32 is unsafe (item 18). Assessment, numbers and remaining
+The game is playable on ABIv11: menu, scenario, construction, a bought train
+running on the track, keyboard text entry, and a saved game that survives
+closing and restarting the program -
+`docs/evidence/gameplay-abiv11/RESULTS.md`. Nothing has been transported yet,
+and storage on FAT32 is unsafe (item 18). Assessment, numbers and remaining
 blockers: `docs/AROS-ASSESSMENT.md`. Open items: `docs/backlog/`.

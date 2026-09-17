@@ -1,6 +1,6 @@
 # OpenLoco on AROS: a full game cycle on a persistent disk - ABIv11
 
-2026-09-17, 19:47-20:35. Machine: **AROS One 64-bit (ABIv11)**, QEMU TCG,
+2026-09-17, 19:47-21:35. Machine: **AROS One 64-bit (ABIv11)**, QEMU TCG,
 machine **`loco`** (new, see below), `GFX=std`, started by this session.
 Unstripped binary, 15 game patches plus the dependency patches. SHA-256 of the
 binary matches `build/abiv11/openloco/OpenLoco` exactly - nothing stale was
@@ -26,6 +26,29 @@ Original assets: `Locodata:Locomotion` (`loco-assets.img`), unchanged.
 
 A copy of the reloaded save is kept in `saves/` next to this file - the
 artefact the claim rests on, and the only copy outside the disk image.
+
+## Session 4, 21:16-21:35: a train runs, and typing works
+
+Same machine, **the rebuilt binary** (14,213,768 B, patches 16 and the SDL3
+text-input fix compiled in). No error requesters at all this time - the four
+directories already existed, so `autoCreateDirectory()` never reached
+`fs::permissions()`, which is also why patch 16 is still unexercised.
+
+| step | evidence | outcome |
+|---|---|---|
+| load the save | - | $9,344, 16th September 1900 - the state written by the **overwrite** save at 20:37, so that write did produce valid data |
+| buy a train | `11-build-trains-no-depot.png` | **"Build Trains"** opens from the fourth toolbar button from the right. **No depot is needed** - an assumption that cost time earlier. Bought a Special 2-4-2 (450hp, 45mph, 100t): $9,262 -> **$7,124** |
+| build a line | - | the save had no track (0 stations in the company list, as expected - it predates the earlier route), so ~8 new tiles were laid; the last refused with "Can't build Railway Track… Raise or lower land first", which is terrain, not a fault |
+| place it | `12-train-placed-on-track.png` | the train window's "click on view to set train starting position" tool works; status **"Stopped"**, the locomotive is drawn on the rails in both the main view and the window's own viewport |
+| **run it** | `13-train-running.png` | **"Travelling at 1mph"**, then **6mph**, and the locomotive visibly crosses the screen between screendumps |
+| **type a filename** | `14-text-input-works.png` | the field went from "Sandbox Settler" to "Sandbox Settler**arostrain**" - **the text-input patch works**, and this is the first character any SDL3 program has accepted on AROS |
+| save under that name | `15-typed-save-on-disk.png` | listed on disk as a third entry beside `autosave` and `Sandbox Settler`; saving to a **new** name avoids the truncate defect entirely |
+
+Navigation note worth keeping: after loading, the main viewport was **black**
+because the saved view sits over open sea. The town window's own viewport
+rendered correctly throughout, so this is a view position, not a renderer
+fault. The magnifier button's dropdown (Zoom In / Zoom Out / **Map**) opens a
+minimap, and a click there moves the main view.
 
 ## The freeze: one occurrence, and it did not come back
 
@@ -202,10 +225,11 @@ has hung AROS before.
 
 ## What this run does NOT show
 
-- **No vehicle was ever run.** A route and a station exist, but "Sandbox
-  Settler" in 1900 offers no depot in the station dropdown, so no train could
-  be bought. Gameplay beyond construction, and the economy doing anything, are
-  untested.
+- **The economy.** A train runs, but nothing has been transported: there is no
+  station on the new line, no orders, and no cargo. Revenue, industries and
+  the performance index are untested; the balance only ever went down.
+- **Patch 16 is still unexercised** - it only fires on a volume where the four
+  directories do not yet exist.
 - **The save that was reloaded predates the route.** The state comparison
   therefore covers map, date and balance - not track, station or company
   assets. The save carrying the route was never written, because that write is
@@ -215,8 +239,9 @@ has hung AROS before.
   second, and those numbers say nothing about hardware.
 - **Audio.** Never requested, never heard. OpenLoco uses OpenAL, so an SDL3/AHI
   test would not answer it.
-- **Mouse beyond single clicks.** Dragging, the right button and the wheel are
-  still untested. The window close gadget is now tested - see above.
+- **Mouse beyond single clicks.** The right button and the wheel are still
+  untested. Dragging now has one data point: the towns-list scrollbar was
+  dragged successfully. The window close gadget is tested - see above.
 - **Mainline v1.** Everything here is ABIv11.
 - The `._*` cleanup is confirmed only by the drop in error lines; the objects
   themselves were not counted in the game.
