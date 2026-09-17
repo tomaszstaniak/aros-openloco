@@ -22,18 +22,22 @@ new file mode 100644
 index 0000000..017eca0
 --- /dev/null
 +++ b/src/Core/include/OpenLoco/Core/SafeOverwrite.hpp
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,50 @@
 +/// @file
 +/// Replacing a file's contents, on systems where the obvious way is broken.
 +///
-+/// On AROS, opening an existing file with O_TRUNC - which is what fopen("wb")
-+/// and std::ofstream's default do - **silently loses the data**: the open
++/// Measured on AROS One 1.3 / ABIv11, FAT32 on a raw IDE image, under QEMU:
++/// opening an existing file with O_TRUNC - which is what fopen("wb") and
++/// std::ofstream's default do - **silently loses the data**. The open
 +/// succeeds, the writes report the full byte count, close() returns 0, and the
-+/// file afterwards reads back as 0 bytes. Measured on AROS One 1.3 / ABIv11 on
-+/// a FAT32 volume, 4 attempts out of 4, and the loss survives a reboot, so it
-+/// is destruction rather than a caching artefact. Creating a file that does not
-+/// exist yet works, and so does deleting one; both were verified byte for byte
-+/// after a guest restart.
++/// file afterwards reads back as 0 bytes; 4 attempts out of 4, and the loss
++/// survives a reboot, so it is destruction rather than a caching artefact.
++/// Creating a file that does not exist yet works, and so does deleting one;
++/// both were verified byte for byte after a guest restart.
++///
++/// Which layer owns the fault - posixc, the FAT handler, or lower - is not
++/// established, and no other AROS configuration was tried. Hence the guard on
++/// __AROS__ rather than on a filesystem: it is the scope that was measured.
 +///
 +/// So: remove the target first, then let the caller create it fresh. Two
 +/// operations that are known to work, instead of one that is known not to.

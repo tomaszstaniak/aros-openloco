@@ -32,9 +32,13 @@ Evidence: `o_trunc-data-loss.png`.
 Nothing anywhere returns an error, so a program has no way to notice. Creating
 a new file works (step 1), which is why writing new saves was never a problem.
 
-**This is an AROS defect, not an OpenLoco one** - posixc or the FAT handler. It
-affects any POSIX program that rewrites a file in place on a FAT volume, which
-includes every C++ `std::ofstream` opened for output.
+**This is not an OpenLoco defect** - the probe contains no game code at all.
+Where it *does* belong is still open: posixc, the FAT handler, or something
+below them. Everything here was seen on **one configuration** - AROS One 1.3 /
+ABIv11, FAT32 on a raw IDE image, under QEMU/TCG - so "AROS does this" is
+wider than the evidence. It affects any POSIX program on that configuration
+that rewrites a file in place, which includes every C++ `std::ofstream` opened
+for output.
 
 **It may explain the damaged `openloco.yml`, and that is a hypothesis.** The
 first `fsck_msdos` run reported `/LOCO/OPENLOCO.YML starts with free cluster`

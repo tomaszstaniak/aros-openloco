@@ -191,8 +191,11 @@ existing file silently loses the write.**
 `tests/fat32-overwrite/` in plain C on a throwaway FAT32 image: `open(O_WRONLY
 | O_TRUNC)` succeeds, `write()` returns 6, `close()` returns 0, and the file
 reads back **empty**. No call reports an error. Creating a new file works,
-which is why new saves were always fine. This is an AROS defect - posixc or the
-FAT handler - and it hits every C++ `std::ofstream` opened for output. It also
+which is why new saves were always fine. **Not an OpenLoco defect** - the probe
+has no game code in it - but which layer owns it is open: posixc, the FAT
+handler, or lower. Seen on **one configuration only** (AROS One 1.3 / ABIv11,
+FAT32 on a raw IDE image, QEMU/TCG), so calling it "an AROS defect" outruns the
+evidence. It hits every C++ `std::ofstream` opened for output there. It also
 explains the `openloco.yml` damage seen first: the truncate frees the cluster
 chain and the write never links new clusters, leaving the directory entry
 pointing at free space, which is exactly what `fsck` reported.
