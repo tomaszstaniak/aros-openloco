@@ -50,6 +50,32 @@ rendered correctly throughout, so this is a view position, not a renderer
 fault. The magnifier button's dropdown (Zoom In / Zoom Out / **Map**) opens a
 minimap, and a click there moves the main view.
 
+## Session 5, 23:29-23:52: the overwrite patch, three steps out of four
+
+The binary with patch 17 (`prepareForOverwrite`, applied at all four write
+sites). What was established, and what was not:
+
+| step | outcome |
+|---|---|
+| load "Sandbox Settlerarostrain" | **works** - the train is on the track with its smoke plume, $6,202, 16th July 1901, exactly the state saved at 21:32 |
+| **overwrite that save** - the operation that wedged the guest on 2026-09-17 20:14 | **works**: the "Replace existing file?" prompt was captured before clicking, and afterwards the game stayed alive - consecutive screendumps differed, CPU 81% then 77%, the clock ran on to 21st August 1901 |
+| quit the game | **works** - the close gadget; CPU dropped to 6.3% and the Shell prompt came back, so it exited (leaving its window behind, as ever) |
+| **reload the overwritten file** | **NOT ESTABLISHED.** The second start never reached the title screen and the whole guest wedged - see backlog item 21, which is a separate defect from anything about writing |
+
+So **the patch is not verified end to end.** Three of the four steps passed and
+the fourth was blocked by an unrelated failure. Calling it verified would be
+wrong.
+
+The wedge also settles something else: the volume afterwards was **clean**
+(`fsck_msdos`: 242 files, no warnings), so the earlier guess that the game
+blocks because the volume is damaged does not hold, and neither does blaming
+the truncate path - patch 17 had removed it.
+
+Conditions worth recording: the host was low on memory during this session, to
+the point where it killed one of the driving scripts. That is a plausible
+contributor to slowness but not to a four-minute freeze with the pointer dead
+at 1% CPU.
+
 ## The freeze: one occurrence, and it did not come back
 
 **What happened.** Saving over an existing file: Save Game -> OK -> "Replace

@@ -7,8 +7,10 @@ that survives closing and restarting the program**.
 Evidence: `../evidence/gameplay-abiv11/RESULTS.md`. 16 game patches plus 5
 dependency patches.
 
-**One blocker stands in the way of normal play: saving over an existing file
-freezes the game** - see item 18.
+**Two blockers stand in the way of normal play:** writing over an existing
+file is unreliable (item 18, worked around by patch 17 but not yet verified end
+to end), and **the second game start in one guest boot wedges the whole guest**
+(item 21). Restart the guest between runs.
 
 Items are ordered roughly by impact. Each says what is unknown and what would
 close it. Closed items stay for the record of decisions.
@@ -140,6 +142,42 @@ it looks like a version identifier.
 `scripts/env.sh`) and the patch count into CMake as `OPENLOCO_VERSION_TAG`,
 instead of taking them from the git repository in `work/`. Low priority - it
 affects bug reports, not behaviour.
+
+## 21. The second OpenLoco start in one guest boot wedges the whole guest
+
+Seen twice, 2026-09-17 at 20:56 and again at 23:44. The game opens its window,
+never reaches the title screen, and then the **entire guest** stops responding:
+the pointer does not move, keystrokes do not echo, and QEMU sits at **1-3% CPU**
+- waiting, not spinning.
+
+**The pattern across six starts has no exception:**
+
+| start | which one in its guest boot | outcome |
+|---|---|---|
+| run1, run2, run4, run5 | **first** | reached the menu |
+| run3, run6 | **second, after the previous game quit via the window close gadget** | guest wedged |
+
+**What this rules out.** The first wedge came with a damaged volume
+(`FAT[0]` = 0, orphaned clusters) and the obvious reading was that the game
+blocked on the damage. **That reading is wrong:** after the second wedge
+`fsck_msdos` found the volume **clean** - 242 files, no warnings. The second
+wedge also happened with patch 17 in place, so the broken `O_TRUNC` path was
+not involved either. Item 18 and this item are separate problems.
+
+**The hypothesis this points at**, untested: the close gadget quit leaks
+resources - it leaves the Intuition window open and reports five unfreed signal
+bits (item 12) - and the next instance blocks on something that was never
+released.
+
+**What would close it:** a controlled run - boot the guest, start OpenLoco,
+quit it with the close gadget, start it again - repeated a few times, with
+`status` from a *second* Shell opened **before** the first game starts, so
+there is a working Shell left when the GUI wedges. Then the same with the game
+quit from its own menu instead, which would say whether the leak is what
+matters. Both are cheap; neither has been done.
+
+**Practical consequence today:** restart the guest between game runs. Every
+first start in a boot has worked.
 
 ## 18. FAT32 on AROS: writes are lost, and volumes get damaged
 
