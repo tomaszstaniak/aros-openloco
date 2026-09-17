@@ -26,6 +26,7 @@ SDL3_VER=3.4.12
     # Ours on top of contrib's; patches/dependencies says why each exists.
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-langinfo-guard.diff"
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff"
+    patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-text-input.diff"
 }
 
 # Versions pinned by upstream's thirdparty/CMakeLists.txt. Changing one here

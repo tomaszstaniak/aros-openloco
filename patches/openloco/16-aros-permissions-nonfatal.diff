@@ -1,0 +1,47 @@
+# aros-permissions-nonfatal
+#
+# On AROS a FAT32 volume rejects the chmod in autoCreateDirectory with ENOENT even though create_directories() succeeded, so the game opened a modal error box for each of its four directories at every start. Report the failed permissions change and carry on instead. Worth sending upstream: it is not AROS-specific, any filesystem without POSIX permissions hits it.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-17.
+
+diff --git a/src/OpenLoco/src/Environment.cpp b/src/OpenLoco/src/Environment.cpp
+index 07d46da..d6eac4a 100644
+--- a/src/OpenLoco/src/Environment.cpp
++++ b/src/OpenLoco/src/Environment.cpp
+@@ -206,13 +206,28 @@ namespace OpenLoco::Environment
+                 auto path8 = path.u8string();
+                 Logging::info("Creating directory: {}", path8.c_str());
+                 fs::create_directories(path);
+-                // clang-format off
+-                fs::permissions(
+-                    path,
+-                    fs::perms::owner_all |
+-                    fs::perms::group_read | fs::perms::group_exec |
+-                    fs::perms::others_read | fs::perms::others_exec);
+-                // clang-format on
++
++                // Not every filesystem carries POSIX permissions. On AROS a
++                // FAT32 volume rejects the chmod with ENOENT even though the
++                // directory is there and writable, and the outer catch then
++                // puts a modal error box in front of the user for each of the
++                // four directories - while the game works perfectly well.
++                // Failing to relax the mode is not a reason to reject the
++                // directory, so it is reported and swallowed here.
++                try
++                {
++                    // clang-format off
++                    fs::permissions(
++                        path,
++                        fs::perms::owner_all |
++                        fs::perms::group_read | fs::perms::group_exec |
++                        fs::perms::others_read | fs::perms::others_exec);
++                    // clang-format on
++                }
++                catch (const std::exception& e)
++                {
++                    Logging::info("Could not set permissions on {}: {}", path8.c_str(), e.what());
++                }
+             }
+         }
+         catch (const std::exception& e)

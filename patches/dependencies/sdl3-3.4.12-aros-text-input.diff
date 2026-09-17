@@ -1,0 +1,71 @@
+# SDL3 3.4.12 on AROS: deliver typed characters (SDL_EVENT_TEXT_INPUT)
+#
+# AROS_TranslateUnicode() in the AROS backend had its whole body behind
+# "#if !defined(__AROS__)", because it was written around the MorphOS/AmigaOS4
+# tag IMSGA_UCS4. On AROS it therefore always returned 0, the caller skipped
+# SDL_SendKeyboardText(), and NO SDL3 program on AROS ever received a typed
+# character - every text field stays empty while key events arrive normally.
+#
+# Found in OpenLoco: the "Name Owner" dialog ignored everything typed, on AROS
+# One 1.3 / ABIv11. The game side is correct - it calls SDL_StartTextInput()
+# and handles SDL_EVENT_TEXT_INPUT - and SDL3 core drops the text earlier, in
+# SDL_SendKeyboardText(), which needs both keyboard focus and an active text
+# input. Both were fine; there simply was no text.
+#
+# The fix uses keymap.library, exactly as AROS_MapRawKey() in
+# SDL_aroskeyboard.c in this same backend already does. MapRawKey() yields
+# Latin-1 and SDL expects UTF-8, so the byte is encoded.
+#
+# Scope: AROS only; the non-AROS path is untouched. ie_EventAddress stays NULL
+# to match the existing in-tree call, so dead keys do not compose - that is a
+# known limitation, not an oversight. Control codes are left out because SDL
+# discards them anyway and Backspace/Tab/Return arrive as key events.
+#
+# Worth sending to aros-development-team/contrib: it affects every SDL3
+# program on AROS, not just this port.
+#
+--- a/src/video/aros/SDL_arosevents.c
++++ b/src/video/aros/SDL_arosevents.c
+@@ -123,6 +123,42 @@
+ #if !defined(__AROS__)
+     WCHAR keycode = getv(m, IMSGA_UCS4);
+ 	length = UTF8_Encode(keycode, buffer);
++#else
++	/* AROS has no IMSGA_UCS4 tag, so the whole body used to be compiled out
++	 * and this function always returned 0 - meaning SDL_SendKeyboardText()
++	 * was never reached and NO SDL3 program on AROS could receive a typed
++	 * character. keymap.library translates the raw key instead, the same way
++	 * AROS_MapRawKey() in SDL_aroskeyboard.c already does.
++	 *
++	 * MapRawKey() yields Latin-1 while SDL expects UTF-8, so the byte is
++	 * encoded here. ie_EventAddress stays NULL, matching the existing call in
++	 * SDL_aroskeyboard.c; dead keys therefore do not compose. Control codes
++	 * are left out: SDL discards them anyway, and Backspace, Tab and Return
++	 * arrive as key events. */
++	/* Declared the same way in SDL_aroskeyboard.c: <proto/keymap.h> does not
++	 * bring the library base in. */
++	extern struct Library *KeymapBase;
++	struct InputEvent ie;
++	UBYTE mapped[2] = { 0, 0 };
++
++	ie.ie_Class = IECLASS_RAWKEY;
++	ie.ie_SubClass = 0;
++	ie.ie_Code = m->Code;
++	ie.ie_Qualifier = m->Qualifier;
++	ie.ie_EventAddress = NULL;
++
++	if (MapRawKey(&ie, (STRPTR)mapped, sizeof(mapped), NULL) == 1) {
++		const UBYTE c = mapped[0];
++
++		if (c >= 0x20 && c < 0x80) {
++			buffer[0] = (char)c;
++			length = 1;
++		} else if (c >= 0xA0) {
++			buffer[0] = (char)(0xC0 | (c >> 6));
++			buffer[1] = (char)(0x80 | (c & 0x3F));
++			length = 2;
++		}
++	}
+ #endif
+ 	return length;
+ }

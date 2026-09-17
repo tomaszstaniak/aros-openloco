@@ -1,9 +1,13 @@
 # Backlog - open items
 
-State as of 2026-09-15. **OpenLoco runs on AROS One (ABIv11):** menu, title
-screen with an animating map, and a loaded scenario with its interface and game
-clock. Evidence: `../evidence/menu-abiv11/RESULTS.md`. 15 game patches plus the
+State as of 2026-09-17. **OpenLoco is playable on AROS One (ABIv11):** menu,
+scenario, construction (a railway line and a station), a running game clock,
+and a **saved game that survives closing and restarting the program**.
+Evidence: `../evidence/gameplay-abiv11/RESULTS.md`. 16 game patches plus the
 dependency patches.
+
+**One blocker stands in the way of normal play: saving over an existing file
+freezes the game** - see item 18.
 
 Items are ordered roughly by impact. Each says what is unknown and what would
 close it. Closed items stay for the record of decisions.
@@ -29,6 +33,8 @@ can be recreated by `git clone` alone:
 | original game assets, 510 MB | `~/Work/AROS/assets-staging/Locomotion/` | copyrighted, your own copy of the game | copy them again from a Locomotion installation |
 | asset disk image, 700 MB | `~/Work/AROS/loco-assets.img` | derived from the above | rebuild it with the procedure in `../evidence/menu-abiv11/RESULTS.md` |
 | the AROS One guest system | `~/Work/AROS/aros-one-hd.qcow2` | shared testbench | outside this project |
+| the `loco` machine disk, 3 GB | `~/Work/AROS/aros-loco-hd.qcow2` | a copy of the above | `cp aros-one-hd.qcow2 aros-loco-hd.qcow2` |
+| the game/saves disk, 512 MB | `~/Work/AROS/loco-home.img` | holds the built binary and saved games | rebuild it with the procedure in `../evidence/gameplay-abiv11/RESULTS.md`; **the saved games in it are not backed up anywhere else** |
 | ABIv11 toolchain and SDK | `~/Work/AROS/toolchain`, `~/Work/AROS/sdk` | shared testbench; paths in `scripts/env.sh` | outside this project |
 | the `arosbuild` image, 4.9 GB | `~/Work/AROS/aros-build.sparseimage` | shared testbench | outside this project |
 
@@ -130,6 +136,60 @@ it looks like a version identifier.
 `scripts/env.sh`) and the patch count into CMake as `OPENLOCO_VERSION_TAG`,
 instead of taking them from the git repository in `work/`. Low priority - it
 affects bug reports, not behaviour.
+
+## 18. Saving over an existing file freezes the game
+
+Seen 2026-09-17 on `Locohome:` (FAT32, a real IDE disk). Save Game -> OK ->
+"Replace existing file?" -> Replace: the prompt closes, the save dialog stays,
+**two screendumps 80 s apart are byte-identical** and QEMU sits at **101%
+CPU** - a spin, not an I/O wait. The target file keeps its old size and
+timestamp. `fsck_msdos` then reports `openloco.yml` with a cluster chain
+running into a free cluster and `FAT[0]` zeroed.
+
+`openloco.yml` is what `Config::write()` rewrites on every save
+(`PromptBrowseWindow.cpp:990`), which puts the fault in the overwrite path
+rather than in writing a new file - **writing new files works**: the manual
+save, and nine autosaves with unique names, all succeeded.
+
+**Already ruled out:** the AROS FAT handler can overwrite. From the Shell,
+`copy` over an existing 307,200 B file with a 6 B one succeeded at 6.1% CPU.
+`copy` uses `MODE_NEWFILE`; a C++ `std::ofstream` goes through posixc with
+`O_TRUNC`. That is the leading hypothesis and it is **untested**.
+
+**What would close it:** run `tests/fat32-overwrite/` - plain C, no game, no
+C++ runtime, reports to a file - on AROS One. If it hangs, the bug is in AROS
+(posixc or the FAT handler) and belongs upstream there, not in this port. Then
+reproduce the game freeze deliberately, verifying every click against a fresh
+screendump: the first attempt at reproduction was lost because replayed
+coordinates hit a different toolbar item.
+
+## 19. No text input in any SDL3 program on AROS
+
+`AROS_TranslateUnicode()` in `src/video/aros/SDL_arosevents.c` has its entire
+body inside `#if !defined(__AROS__)` - it was written around the
+MorphOS/AmigaOS4 tag `IMSGA_UCS4`. On AROS it always returns 0, so
+`SDL_SendKeyboardText()` is never called and every text field stays empty while
+key events arrive normally. Found in OpenLoco's "Name Owner" dialog
+(`../evidence/gameplay-abiv11/03-text-input-ignored.png`); the game side is
+correct and both gates inside SDL3 were satisfied.
+
+Patch written: `patches/dependencies/sdl3-3.4.12-aros-text-input.diff`, using
+`keymap.library` as `AROS_MapRawKey()` in the same backend already does.
+**Not compiled, not run.**
+
+**What would close it:** rebuild SDL3 and the game, then type into that dialog.
+Dead keys will still not compose (`ie_EventAddress` is NULL) - a separate,
+smaller question. **Worth sending to contrib:** it affects every SDL3 program
+on AROS.
+
+## 20. fs::permissions() on FAT32 - patched, not rebuilt
+
+`autoCreateDirectory()` (`Environment.cpp:200`) creates the directory and then
+calls `fs::permissions()`, which on FAT32 fails with ENOENT - two modal error
+boxes at every start. The directories are created and used, so it is cosmetic
+but loud. Patch: `patches/openloco/16-aros-permissions-nonfatal.diff`,
+**not compiled, not run**. Worth sending upstream: any filesystem without
+POSIX permissions hits this, not only AROS.
 
 ## 1. The software renderer has never been exercised
 
