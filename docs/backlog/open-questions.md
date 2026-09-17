@@ -146,7 +146,8 @@ affects bug reports, not behaviour.
 Two findings, one explained and one not. Full report with the controls:
 `../evidence/fat32-corruption/RESULTS.md`.
 
-**18a. CONFIRMED - `O_TRUNC` over an existing file silently loses the write.**
+**18a. CONFIRMED for a C probe, INTERMITTENT for the game - `O_TRUNC` over an
+existing file silently loses the write.**
 `tests/fat32-overwrite/` in plain C on a throwaway FAT32 image: `open(O_WRONLY
 | O_TRUNC)` succeeds, `write()` returns 6, `close()` returns 0, and the file
 reads back **empty**. No call reports an error. Creating a new file works,
@@ -155,6 +156,13 @@ FAT handler - and it hits every C++ `std::ofstream` opened for output. It also
 explains the `openloco.yml` damage seen first: the truncate frees the cluster
 chain and the write never links new clusters, leaving the directory entry
 pointing at free space, which is exactly what `fsck` reported.
+
+*A nuance that must not be flattened:* the game uses the same primitive
+(`fopen(path, "wb")`) and on the two occasions it was watched it wedged the
+guest once and **succeeded** once - the on-disk save is 939,772 bytes against
+the 952,272-byte copy taken earlier, so real content was written. The probe
+shrinks 64 KB to 1 KB; the game shrank 952 KB to 940 KB. Whether the amount
+freed by the truncate is what separates them is untested.
 
 *What would close it:* decide which layer is at fault with a DOS-packet level
 probe (`Open(MODE_OLDFILE)` + `SetFileSize()`), since the Shell's `copy`, which
@@ -198,11 +206,11 @@ and it stayed lost. **All eight `fsck` runs were clean**, so none of the four
 reproduced the zeroed `FAT[0]`, rotation included. Report:
 `../evidence/fat32-corruption/storage-matrix.md`.
 
-*What to try next, in this order:* a ~1 MB file (the game's saves are 950 KB
-and the probe's largest was 8 KB), a file written into a subdirectory, and the
-same cases on a 512 MB volume rather than 64 MB. Volume and file size are the
-two variables that could plausibly reach `FAT[0]` and neither has been
-exercised.
+*What to try next, changing one variable at a time:* a ~1 MB file (the game's
+saves are 950 KB and the probe's largest was 8 KB), a file written into a
+subdirectory, and the same cases on a 512 MB volume rather than 64 MB. These
+are **differences from the damaged case, not a mechanism** - nothing so far
+says how any of them would zero `FAT[0]`.
 
 *What is now supported by evidence:* creating, deleting and rotating files on
 such a volume is durable across a restart. So **never overwriting a save** is

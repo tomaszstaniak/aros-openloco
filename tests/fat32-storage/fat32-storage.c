@@ -16,6 +16,11 @@
  *   fat32-storage <volume:> delete     8 files created, the even ones removed
  *   fat32-storage <volume:> rotate     12 written, never more than 3 kept - what
  *                                      autosave rotation does
+ *   fat32-storage <volume:> big       one ~1 MB file - the game's saves are 950 KB
+ *   fat32-storage <volume:> subdir    files inside a subdirectory
+ *   fat32-storage <volume:> replace   the primitives a safe-save workaround needs:
+ *                                     rename onto a free name, and rename over an
+ *                                     existing file
  *   fat32-storage <volume:> verify     read everything back and compare
  *
  * The write pass leaves "mode.txt" behind, so verify needs no arguments beyond
@@ -34,12 +39,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define KEEP 3            /* rotate: how many files stay */
 #define ROTATE_STEPS 12
 #define CREATE_FILES 8
 #define OVERWRITE_FILES 4
+#define BIG_BYTES (1024L * 1024L)     /* the game's saves are about 950 KB */
+#define SUBDIR_FILES 4
 
 static FILE *report;
 static int failures;
@@ -179,6 +187,42 @@ static void write_marker(const char *vol, const char *mode)
     fclose(f);
 }
 
+/* The rename-over-an-existing-file result cannot be predicted, so the write
+ * pass records what actually happened and the verify pass reads it. Guessing
+ * here would make verify assert the wrong thing and call a working system
+ * broken. */
+static void write_note(const char *vol, const char *name, const char *text)
+{
+    char path[512];
+    FILE *f;
+    snprintf(path, sizeof(path), "%s%s", vol, name);
+    f = fopen(path, "w");
+    if (f == NULL) {
+        fail("cannot write %s: %s", path, strerror(errno));
+        return;
+    }
+    fprintf(f, "%s\n", text);
+    fclose(f);
+}
+
+static int read_note(const char *vol, const char *name, char *out, size_t cap)
+{
+    char path[512];
+    FILE *f;
+    snprintf(path, sizeof(path), "%s%s", vol, name);
+    f = fopen(path, "r");
+    if (f == NULL) {
+        return 1;
+    }
+    if (fgets(out, (int)cap, f) == NULL) {
+        fclose(f);
+        return 1;
+    }
+    fclose(f);
+    out[strcspn(out, "\r\n")] = '\0';
+    return 0;
+}
+
 static int read_marker(const char *vol, char *out, size_t cap)
 {
     char path[512];
@@ -268,6 +312,75 @@ int main(int argc, char **argv)
         }
         write_marker(vol, mode);
 
+    } else if (strcmp(mode, "big") == 0) {
+        /* one variable changed from `create`: the size. 8 KB was the largest
+         * file in that run; a saved game is about 950 KB. */
+        snprintf(path, sizeof(path), "%sbig.bin", vol);
+        say("create %s (%ld bytes)", path, BIG_BYTES);
+        if (write_file(path, pattern_of(0, 0), BIG_BYTES, 1) == 0) {
+            check_file(path, pattern_of(0, 0), BIG_BYTES);
+        }
+        write_marker(vol, mode);
+
+    } else if (strcmp(mode, "subdir") == 0) {
+        /* one variable changed from `create`: the files live in a directory the
+         * program creates, as the game's save/ and save/autosave/ do. */
+        char dir[512];
+        snprintf(dir, sizeof(dir), "%ssub", vol);
+        say("mkdir %s", dir);
+        if (mkdir(dir, 0777) != 0 && errno != EEXIST) {
+            fail("mkdir %s: %s", dir, strerror(errno));
+        }
+        for (i = 0; i < SUBDIR_FILES; i++) {
+            snprintf(path, sizeof(path), "%ssub/f%02d.bin", vol, i);
+            say("create %s", path);
+            if (write_file(path, pattern_of(i, 0), size_of(i, 0), 1) == 0) {
+                check_file(path, pattern_of(i, 0), size_of(i, 0));
+            }
+        }
+        write_marker(vol, mode);
+
+    } else if (strcmp(mode, "replace") == 0) {
+        /* The workaround for the truncate defect needs two things this checks:
+         * renaming onto a free name, and renaming over an existing file. The
+         * first is used twice by the safe sequence (target -> backup, then
+         * temp -> target); the second would make the sequence shorter but its
+         * behaviour here is unknown, so it is measured rather than assumed. */
+        char tmp[512], bak[512];
+
+        snprintf(path, sizeof(path), "%st00.bin", vol);
+        snprintf(tmp, sizeof(tmp), "%st00.tmp", vol);
+        snprintf(bak, sizeof(bak), "%st00.bak", vol);
+
+        say("safe sequence: write the new content to a temporary file first");
+        write_file(path, pattern_of(0, 0), 1024L, 1);      /* the old target */
+        write_file(tmp, pattern_of(0, 1), 1024L, 1);       /* the new content */
+        check_file(tmp, pattern_of(0, 1), 1024L);
+
+        say("rename %s -> %s (the name is free)", path, bak);
+        if (rename(path, bak) != 0) {
+            fail("rename onto a free name: %s", strerror(errno));
+        }
+        say("rename %s -> %s (the name is free again)", tmp, path);
+        if (rename(tmp, path) != 0) {
+            fail("rename onto a free name: %s", strerror(errno));
+        }
+
+        /* and now the shortcut, whose behaviour is the open question */
+        snprintf(path, sizeof(path), "%su00.bin", vol);
+        snprintf(tmp, sizeof(tmp), "%su00.tmp", vol);
+        write_file(path, pattern_of(1, 0), 1024L, 1);
+        write_file(tmp, pattern_of(1, 1), 1024L, 1);
+        say("rename %s -> %s, ON TOP of an existing file", tmp, path);
+        if (rename(tmp, path) == 0) {
+            say("  the call succeeded");
+            write_note(vol, "replace-over.txt", "ok");
+        } else {
+            say("  the call failed: %s", strerror(errno));
+            write_note(vol, "replace-over.txt", "failed");
+        }
+        write_marker(vol, mode);
+
     } else if (strcmp(mode, "verify") == 0) {
         char was[64];
         if (read_marker(vol, was, sizeof(was)) != 0) {
@@ -304,6 +417,41 @@ int main(int argc, char **argv)
                 } else {
                     absent(path);
                 }
+            }
+        } else if (strcmp(was, "big") == 0) {
+            snprintf(path, sizeof(path), "%sbig.bin", vol);
+            check_file(path, pattern_of(0, 0), BIG_BYTES);
+        } else if (strcmp(was, "subdir") == 0) {
+            for (i = 0; i < SUBDIR_FILES; i++) {
+                snprintf(path, sizeof(path), "%ssub/f%02d.bin", vol, i);
+                check_file(path, pattern_of(i, 0), size_of(i, 0));
+            }
+        } else if (strcmp(was, "replace") == 0) {
+            char note[64];
+            char tmp[512];
+
+            /* the safe sequence: new content under the real name, old content
+             * kept as the backup, no temporary file left behind */
+            snprintf(path, sizeof(path), "%st00.bin", vol);
+            check_file(path, pattern_of(0, 1), 1024L);
+            snprintf(path, sizeof(path), "%st00.bak", vol);
+            check_file(path, pattern_of(0, 0), 1024L);
+            snprintf(path, sizeof(path), "%st00.tmp", vol);
+            absent(path);
+
+            /* the shortcut: expect whatever the write pass recorded */
+            snprintf(path, sizeof(path), "%su00.bin", vol);
+            snprintf(tmp, sizeof(tmp), "%su00.tmp", vol);
+            if (read_note(vol, "replace-over.txt", note, sizeof(note)) != 0) {
+                fail("no replace-over.txt; cannot tell what to expect");
+            } else if (strcmp(note, "ok") == 0) {
+                say("the write pass said rename-over succeeded, so expect the new content");
+                check_file(path, pattern_of(1, 1), 1024L);
+                absent(tmp);
+            } else {
+                say("the write pass said rename-over failed, so expect the old content");
+                check_file(path, pattern_of(1, 0), 1024L);
+                check_file(tmp, pattern_of(1, 1), 1024L);
             }
         } else {
             say("RESULT: FAIL - mode.txt says \"%s\", which is not a write mode", was);

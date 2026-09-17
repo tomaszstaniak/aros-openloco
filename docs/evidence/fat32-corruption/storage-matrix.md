@@ -30,10 +30,29 @@ Evidence: `matrix-write-create-overwrite.png`,
 
 ## What this establishes
 
-**1. `O_TRUNC` over an existing file loses the data, deterministically.** Four
-out of four on a freshly built volume, and the loss **survives a restart** -
-the files are still 0 bytes in a later boot, so this is permanent destruction
-and not a caching artefact. Every call reports success throughout.
+**1. `O_TRUNC` over an existing file loses the data - deterministically for
+this probe.** Four out of four on a freshly built volume, and the loss
+**survives a restart** - the files are still 0 bytes in a later boot, so this
+is permanent destruction and not a caching artefact. Every call reports success
+throughout.
+
+**But the game is not deterministic on the same primitive, and that matters.**
+OpenLoco saves through `fopen(path, "wb")`, which is the same O_TRUNC path, and
+it behaved differently on the two occasions it was watched: once the guest
+wedged mid-save (2026-09-17 20:14), and once it **succeeded** (20:37). The
+proof that it succeeded is on disk: `Sandbox Settler.SV5` is now 939,772 bytes
+while the copy taken from that volume at 20:21 is 952,272 bytes, and the
+reloaded game showed the expected state. So the file really was rewritten with
+valid, smaller content.
+
+Which means the defect is **not** "O_TRUNC always destroys the file". Something
+separates the probe's case from the game's, and the obvious candidates are the
+sizes involved - the probe shrinks 64 KB to 1 KB, the game shrank 952 KB to
+940 KB - and how many clusters the truncate has to free. That is untested.
+
+(Incidentally, this is the second sighting of stale FAT metadata: the file's
+directory entry still says 20:08, the time of the save *before* the one that
+rewrote it.)
 
 **2. Creating, deleting and rotating files is reliable in this scope.** Content
 read back after a guest restart is byte-identical in all three cases. This is
@@ -61,10 +80,11 @@ damaged volume, none of it tested:
 | writer | one C program, `write()` | the game, C++ `ofstream` and its own stream writer |
 | session | under two minutes | three sessions over an hour, one ending in a wedged guest |
 
-**Volume size and file size are the two that stand out**, because a FAT32
-cluster chain gets long enough to matter only at some scale, and `FAT[0]` sits
-in the FAT that a large file walks. The next probe cases should be: a ~1 MB
-file, a file written into a subdirectory, and the same on a 512 MB volume.
+These are **differences from the damaged case, not a mechanism**. Nothing here
+says how any of them would zero `FAT[0]`; they are simply the variables that
+were never exercised. The next probe cases change **one at a time**: a ~1 MB
+file, a file written into a subdirectory, and the same cases on a 512 MB
+volume.
 
 ## What this means for saving a game
 

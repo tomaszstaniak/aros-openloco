@@ -1,0 +1,154 @@
+# aros-safe-overwrite
+#
+# On AROS, opening an existing file with O_TRUNC - what fopen("wb") and std::ofstream do - silently loses the data: the open succeeds, the writes report the full count, close() returns 0, and the file reads back as 0 bytes, permanently. Measured 4/4 on FAT32 and confirmed after a guest restart; creating and deleting files both work. So remove the target first and let the caller create it fresh, at all four write sites: saved games (FileStream), the configuration, scores.dat and screenshots. A no-op on every other platform. This does NOT give atomicity - a write that fails halfway now loses the previous contents - which is no worse than today, where the file is destroyed even on success; the temp-file-and-rename refinement is a tracked follow-up, and rename() was measured to work here.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-17.
+
+diff --git a/src/Core/CMakeLists.txt b/src/Core/CMakeLists.txt
+index 117234e..c319991 100644
+--- a/src/Core/CMakeLists.txt
++++ b/src/Core/CMakeLists.txt
+@@ -5,6 +5,7 @@ set(public_files
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/Exception.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/FileStream.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/FileSystem.hpp"
++    "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/SafeOverwrite.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/LocoFixedVector.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/MemoryStream.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/Numerics.hpp"
+diff --git a/src/Core/include/OpenLoco/Core/SafeOverwrite.hpp b/src/Core/include/OpenLoco/Core/SafeOverwrite.hpp
+new file mode 100644
+index 0000000..017eca0
+--- /dev/null
++++ b/src/Core/include/OpenLoco/Core/SafeOverwrite.hpp
+@@ -0,0 +1,46 @@
++/// @file
++/// Replacing a file's contents, on systems where the obvious way is broken.
++///
++/// On AROS, opening an existing file with O_TRUNC - which is what fopen("wb")
++/// and std::ofstream's default do - **silently loses the data**: the open
++/// succeeds, the writes report the full byte count, close() returns 0, and the
++/// file afterwards reads back as 0 bytes. Measured on AROS One 1.3 / ABIv11 on
++/// a FAT32 volume, 4 attempts out of 4, and the loss survives a reboot, so it
++/// is destruction rather than a caching artefact. Creating a file that does not
++/// exist yet works, and so does deleting one; both were verified byte for byte
++/// after a guest restart.
++///
++/// So: remove the target first, then let the caller create it fresh. Two
++/// operations that are known to work, instead of one that is known not to.
++///
++/// **What this does not give**: atomicity. If the write then fails halfway, the
++/// previous contents are gone. That is no worse than the current behaviour -
++/// today the file is destroyed even when the write "succeeds" - but it is not
++/// the end state. The safe sequence is to write a temporary file, verify it,
++/// and rename it over the target; `rename()` onto both a free and an occupied
++/// name was measured to work and to persist on this system, so that refinement
++/// is possible and is tracked as a follow-up.
++///
++/// Elsewhere this is a no-op, so behaviour on other platforms is unchanged.
++
++#pragma once
++
++#include "FileSystem.hpp"
++
++namespace OpenLoco
++{
++#ifdef __AROS__
++    inline void prepareForOverwrite(const fs::path& path)
++    {
++        std::error_code ec;
++        if (fs::exists(path, ec))
++        {
++            fs::remove(path, ec);
++        }
++    }
++#else
++    inline void prepareForOverwrite(const fs::path&)
++    {
++    }
++#endif
++}
+diff --git a/src/Core/src/FileStream.cpp b/src/Core/src/FileStream.cpp
+index d80c1a6..91ccd14 100644
+--- a/src/Core/src/FileStream.cpp
++++ b/src/Core/src/FileStream.cpp
+@@ -2,6 +2,7 @@
+ #include "Exception.hpp"
+ #include <Stream.hpp>
+ #include <algorithm>
++#include <OpenLoco/Core/SafeOverwrite.hpp>
+ #include <cstdio>
+ #include <filesystem>
+ 
+@@ -13,6 +14,13 @@ namespace OpenLoco
+         {
+             throw Exception::InvalidArgument("Invalid mode argument");
+         }
++        if (mode != StreamMode::read)
++        {
++            // "wb" truncates an existing file, which loses the data outright on
++            // AROS - see SafeOverwrite.hpp. A no-op on every other platform,
++            // so it sits in front of both branches rather than inside one.
++            prepareForOverwrite(path);
++        }
+ #ifdef _WIN32
+         FILE* fs;
+         _wfopen_s(&fs, path.wstring().c_str(), mode == StreamMode::read ? L"rb" : L"wb");
+diff --git a/src/OpenLoco/src/Config.cpp b/src/OpenLoco/src/Config.cpp
+index 232b0f4..1bcfdae 100644
+--- a/src/OpenLoco/src/Config.cpp
++++ b/src/OpenLoco/src/Config.cpp
+@@ -3,6 +3,7 @@
+ #include "Environment.h"
+ #include <Message.h>
+ #include <OpenLoco/Core/FileSystem.hpp>
++#include <OpenLoco/Core/SafeOverwrite.hpp>
+ #include <fstream>
+ #include <locale>
+ #include <yaml-cpp/yaml.h>
+@@ -352,6 +353,8 @@ namespace OpenLoco::Config
+         // Misc settings
+         node["scenarioSelectedTab"] = _config.scenarioSelectedTab;
+ 
++        // Rewriting this file in place loses it on AROS - see SafeOverwrite.hpp.
++        prepareForOverwrite(configPath);
+         std::ofstream stream(configPath);
+         if (stream.is_open())
+         {
+diff --git a/src/OpenLoco/src/Scenario/ScenarioManager.cpp b/src/OpenLoco/src/Scenario/ScenarioManager.cpp
+index 54dee8a..c0042ae 100644
+--- a/src/OpenLoco/src/Scenario/ScenarioManager.cpp
++++ b/src/OpenLoco/src/Scenario/ScenarioManager.cpp
+@@ -1,3 +1,4 @@
++#include <OpenLoco/Core/SafeOverwrite.hpp>
+ #include "Scenario/ScenarioManager.h"
+ #include "EditorController.h"
+ #include "Environment.h"
+@@ -133,6 +134,8 @@ namespace OpenLoco::ScenarioManager
+     static void saveIndex()
+     {
+         const auto scorePath = Environment::getPath(Environment::PathId::scores);
++        // Rewriting this file in place loses it on AROS - see SafeOverwrite.hpp.
++        prepareForOverwrite(scorePath);
+         std::ofstream stream;
+         stream.open(scorePath, std::ios::out | std::ios::binary);
+         if (!stream.is_open())
+diff --git a/src/OpenLoco/src/Ui/Screenshot.cpp b/src/OpenLoco/src/Ui/Screenshot.cpp
+index c5d6913..568585d 100644
+--- a/src/OpenLoco/src/Ui/Screenshot.cpp
++++ b/src/OpenLoco/src/Ui/Screenshot.cpp
+@@ -1,3 +1,4 @@
++#include <OpenLoco/Core/SafeOverwrite.hpp>
+ #include "Ui/Screenshot.h"
+ #include "Entities/EntityManager.h"
+ #include "Environment.h"
+@@ -177,6 +178,8 @@ namespace OpenLoco::Ui
+             throw Exception::RuntimeError("Failed finding filename");
+         }
+ 
++        // Rewriting this file in place loses it on AROS - see SafeOverwrite.hpp.
++        prepareForOverwrite(path);
+         std::fstream outputStream(path.c_str(), std::ios::out | std::ios::binary);
+         saveRenderTargetToPng(rt, outputStream);
+ 
