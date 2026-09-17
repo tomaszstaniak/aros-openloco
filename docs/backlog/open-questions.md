@@ -40,6 +40,8 @@ can be recreated by `git clone` alone:
 | the game/saves disk, 512 MB | `~/Work/AROS/loco-home.img` | holds the built binary and saved games | rebuild it with the procedure in `../evidence/gameplay-abiv11/RESULTS.md`; **the saved games in it are not backed up anywhere else** |
 | ABIv11 toolchain and SDK | `~/Work/AROS/toolchain`, `~/Work/AROS/sdk` | shared testbench; paths in `scripts/env.sh` | outside this project |
 | the `arosbuild` image, 4.9 GB | `~/Work/AROS/aros-build.sparseimage` | shared testbench | outside this project |
+| two wedged-volume images, 512 MB each | `~/Work/AROS/loco-home-wedged-20260917.img`, `…-wedged2-20260917.img` | **evidence**, not working files: the states behind items 18b and 21 | irreplaceable - do not delete them without reading those items |
+| throwaway test images | `~/Work/AROS/loco-t{a..f}.img`, `loco-scratch.img` | disposable | regenerate with `scripts/make-scratch-image.sh` |
 
 **Three traps on returning, each of which has bitten once already:**
 
