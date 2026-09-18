@@ -230,9 +230,11 @@ proceeding: `Using save path: RAM Disk:loco/save/`,
 reaching the title screen, CPU 8.8% and sleeping
 (`../evidence/gameplay-abiv11/17-second-start-wedges-from-ram-too.png`).
 
-So **the writable volume and its handler are not the cause.** That closes the
-direction this item was pointing at, and the FAT32 findings of item 18 are
-unrelated to this one.
+So **the writable volume is no longer the main trail** for this wedge, and the
+direction this item was pointing at is closed. That is narrower than "file
+mechanisms are excluded": the assets still come from `Locodata:`, the program
+is still loaded from a filesystem, and item 18's `O_TRUNC` defect remains a
+separate, live problem of its own.
 
 Its last **visible** console line was the landscape path - one further than the
 FAT32 run managed - but the Shell text area again runs past the bottom of the
