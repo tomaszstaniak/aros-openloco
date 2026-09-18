@@ -241,10 +241,48 @@ FAT32 run managed - but the Shell text area again runs past the bottom of the
 screen, so neither reading establishes where it actually stops, and the
 difference between them should not be built on.
 
-**What is left to suspect:** the shared teardown path (both exits leak the
-window and five signal bits), and the libraries the first instance opened -
-**OpenAL among them**, since its three initialisation lines are what a healthy
-start prints next. None of this is tested.
+### Instrumented, 2026-09-18: it hangs inside the OpenAL device open
+
+Numbered markers were added around every startup and shutdown step, printed
+with an immediate flush (`Core/StartupMarker.hpp`, patch 18). Read from a Shell
+window tall enough to hold the whole log this time, the second start gives:
+
+```
+[MARK 10] before Ui::createWindow
+[MARK 11] after Ui::createWindow
+[MARK 12] after Ui::initialiseCursors
+[INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+```
+
+and stops. A healthy start prints two more OpenAL lines (EFX reverb, then the
+source counts) and then `[MARK 13]`. So the second instance **enters
+`Audio::initialiseDSound()`, opens the device far enough to report the version,
+and never returns**.
+Evidence: `../evidence/gameplay-abiv11/20-second-start-hangs-in-openal-init.png`.
+
+**The first instance's cleanup is complete**, which the same markers settle:
+50 through 58 are all present, ending at `exitCleanly: about to exit(0)`. So the
+teardown neither hangs nor skips a step - the only thing it does not do is
+`SDL_Quit()`, which is commented out upstream in `OpenLoco.cpp` and is why the
+window is left behind.
+
+**One earlier reading must be re-taken.** A run with audio initialisation
+skipped entirely (a `no-audio` file next to the binary) also hung - but that was
+read from an eight-line Shell window, the same screen-edge trap as before, so
+"it stopped after MARK 13" is not trustworthy. Repeat it with the tall window:
+if it then reaches the title screen, the OpenAL open is the hang; if it still
+hangs somewhere later, the audio path is only the first thing that touches
+whatever is actually exhausted.
+
+**The file-based markers did not survive the hung instance**, for a reason
+already in item 18: AROS leaves the FAT directory entry's size stale, so the
+host reads only the bytes the *first* instance committed even though the second
+one appended and closed after every line. The console remains the only usable
+channel, and the window must be tall enough - that is the whole lesson.
+
+**What is left to suspect:** whatever the OpenAL open waits on - AHI, a device
+or a signal the first instance did not release - given that `exitCleanly()` runs
+to completion but `SDL_Quit()` never does.
 
 **The obstacle to testing it is the missing log channel.** A file on the
 volume is never flushed, `RAM:` cannot be read once the GUI is gone, the serial

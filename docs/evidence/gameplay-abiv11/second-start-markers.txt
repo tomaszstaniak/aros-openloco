@@ -1,0 +1,15 @@
+[MARK 10] before Ui::createWindow
+[MARK 11] after Ui::createWindow
+[MARK 12] after Ui::initialiseCursors
+[MARK 13] after Audio::initialiseDSound
+[MARK 14] after initialise()
+[MARK 15] entering the message loop
+[MARK 50] exitCleanly: entry
+[MARK 51] exitCleanly: after Audio::close
+[MARK 52] exitCleanly: after Audio::disposeDSound
+[MARK 53] exitCleanly: after Ui::disposeCursors
+[MARK 54] exitCleanly: after unloadLanguageFile
+[MARK 55] exitCleanly: after the temp file
+[MARK 56] exitCleanly: after CrashHandler::shutdown
+[MARK 57] exitCleanly: after Logging::shutdown
+[MARK 58] exitCleanly: about to exit(0)
