@@ -1,0 +1,166 @@
+# aros-startup-markers
+#
+# Numbered progress markers around every startup and shutdown step, printed with an immediate flush, for locating a call that never returns - backlog item 21. Also a 'no-audio' file next to the binary that skips OpenAL initialisation entirely rather than muting it, so the two can be compared; a file and not an environment variable because the AROS Shell's setenv does not reach posixc's getenv(). Diagnostic scaffolding, NOT for upstream: remove it once item 21 is closed.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-18.
+
+diff --git a/src/App/src/Main.cpp b/src/App/src/Main.cpp
+index 618774f..fd752ca 100644
+--- a/src/App/src/Main.cpp
++++ b/src/App/src/Main.cpp
+@@ -1,3 +1,5 @@
++#include <OpenLoco/Core/StartupMarker.hpp>
++#include <cstdlib>
+ #include <OpenLoco/Audio/Audio.h>
+ #include <OpenLoco/CommandLine.h>
+ #include <OpenLoco/Config.h>
+@@ -245,16 +247,41 @@ namespace OpenLoco
+         auto& cfg = Config::get();
+ 
+         // Window creation must be done before Gfx can be initialized.
++        mark(10, "before Ui::createWindow");
+         Ui::createWindow(cfg.display);
++        mark(11, "after Ui::createWindow");
++
+         Ui::initialiseCursors();
+-        Audio::initialiseDSound();
++        mark(12, "after Ui::initialiseCursors");
++
++        // A file named "no-audio" next to the binary skips OpenAL entirely
++        // rather than muting it, so a run can be compared with one where the
++        // device is never opened at all - see backlog item 21.
++        //
++        // A file and not an environment variable on purpose: on AROS the
++        // Shell's `setenv` does not reach posixc's getenv(), which is already
++        // recorded for SDL_RENDER_DRIVER in docs/platform/libraries.md.
++        const auto noAudioMarker = Environment::getPathNoWarning(Environment::PathId::openlocoYML).parent_path() / "no-audio";
++        std::error_code noAudioEc;
++        if (!fs::exists(noAudioMarker, noAudioEc))
++        {
++            Audio::initialiseDSound();
++            mark(13, "after Audio::initialiseDSound");
++        }
++        else
++        {
++            mark(13, "Audio::initialiseDSound SKIPPED (no-audio file present)");
++        }
+ 
+         initialise();
++        mark(14, "after initialise()");
+ 
++        mark(15, "entering the message loop");
+         while (Input::processMessages())
+         {
+             update();
+         }
++        mark(16, "left the message loop");
+     }
+ 
+     static std::optional<int> runCommandLineOnlyCommand(const CommandLineOptions& options)
+diff --git a/src/Core/CMakeLists.txt b/src/Core/CMakeLists.txt
+index c319991..4e0ee01 100644
+--- a/src/Core/CMakeLists.txt
++++ b/src/Core/CMakeLists.txt
+@@ -6,6 +6,7 @@ set(public_files
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/FileStream.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/FileSystem.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/SafeOverwrite.hpp"
++    "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/StartupMarker.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/LocoFixedVector.hpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/MemoryStream.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/OpenLoco/Core/Numerics.hpp"
+diff --git a/src/Core/include/OpenLoco/Core/StartupMarker.hpp b/src/Core/include/OpenLoco/Core/StartupMarker.hpp
+new file mode 100644
+index 0000000..69aa8e4
+--- /dev/null
++++ b/src/Core/include/OpenLoco/Core/StartupMarker.hpp
+@@ -0,0 +1,46 @@
++/// @file
++/// Numbered progress markers for locating a call that never returns.
++///
++/// Why this is not Logging: the logging path buffers, and a call that hangs
++/// takes whatever is still in the buffer with it. These print straight to
++/// stdout and flush immediately, so the last line on screen is the last thing
++/// that actually happened.
++///
++/// Why stdout and not a file: on AROS a file on the volume is never flushed
++/// when the process is stuck, RAM: cannot be read once the GUI is wedged, and
++/// the serial log is empty on AROS One. The console is the only channel that
++/// survives, which is what this exists for - see backlog item 21.
++///
++/// The numbering is deliberately sparse so that markers can be inserted later
++/// without renumbering the ones around them.
++
++/// The console alone was not enough: an AROS Shell window can be taller than
++/// the screen, its newest line is drawn at the very bottom edge, and a wedged
++/// GUI cannot be scrolled - so "the last line I can see" was never provably
++/// the last line written. Each marker is therefore also appended to a file
++/// that is **closed immediately**, which commits it: a file left open by a
++/// process that then hangs is never flushed, but one closed after every write
++/// is already on disk and can be read from the host once QEMU is stopped.
++///
++/// The path is fixed rather than configurable through the environment: on AROS
++/// the Shell's `setenv` does not reach posixc's getenv(), so such a knob would
++/// look adjustable and silently never fire.
++
++#pragma once
++
++#include <cstdio>
++
++namespace OpenLoco
++{
++    inline void mark(int n, const char* what)
++    {
++        std::printf("[MARK %02d] %s\n", n, what);
++        std::fflush(stdout);
++
++        if (FILE* f = std::fopen("Locohome:loco/markers.txt", "a"))
++        {
++            std::fprintf(f, "[MARK %02d] %s\n", n, what);
++            std::fclose(f);
++        }
++    }
++}
+diff --git a/src/OpenLoco/src/OpenLoco.cpp b/src/OpenLoco/src/OpenLoco.cpp
+index 76f184b..dd7f16e 100644
+--- a/src/OpenLoco/src/OpenLoco.cpp
++++ b/src/OpenLoco/src/OpenLoco.cpp
+@@ -1,3 +1,4 @@
++#include <OpenLoco/Core/StartupMarker.hpp>
+ #include "Scenario/Scenario.h"
+ #include <algorithm>
+ #include <cassert>
+@@ -92,10 +93,15 @@ namespace OpenLoco
+     // 0x004BE65E
+     [[noreturn]] void exitCleanly()
+     {
++        mark(50, "exitCleanly: entry");
+         Audio::close();
++        mark(51, "exitCleanly: after Audio::close");
+         Audio::disposeDSound();
++        mark(52, "exitCleanly: after Audio::disposeDSound");
+         Ui::disposeCursors();
++        mark(53, "exitCleanly: after Ui::disposeCursors");
+         Localisation::unloadLanguageFile();
++        mark(54, "exitCleanly: after unloadLanguageFile");
+ 
+         auto tempFilePath = Environment::getPathNoWarning(Environment::PathId::_1tmp);
+         if (fs::exists(tempFilePath))
+@@ -104,12 +110,16 @@ namespace OpenLoco
+             Logging::info("Removing temp file '{}'", path8.c_str());
+             fs::remove(tempFilePath);
+         }
++        mark(55, "exitCleanly: after the temp file");
+         CrashHandler::shutdown(_exHandler);
++        mark(56, "exitCleanly: after CrashHandler::shutdown");
+ 
+         // Logging should be the last before terminating.
+         Logging::shutdown();
++        mark(57, "exitCleanly: after Logging::shutdown");
+ 
+         // SDL_Quit();
++        mark(58, "exitCleanly: about to exit(0)");
+         exit(0);
+     }
+ 
