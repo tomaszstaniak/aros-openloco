@@ -1,0 +1,167 @@
+# aros-audio-init-markers
+#
+# Denser diagnostic markers for backlog item 21: 20-37 around every call between the OpenAL version log and the end of Audio::initialiseDSound(); the no-audio switch logs its full path and the result of exists(); the file copy of each marker reports a failed fprintf/fclose on the console. NOTE: with these markers in place the second-start hang did not occur (3 starts of 3 in one boot) - so this patch changes the behaviour it was meant to observe, and must not be read as a fix. Diagnostic scaffolding, NOT for upstream.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-19.
+
+diff --git a/src/App/src/Main.cpp b/src/App/src/Main.cpp
+index fd752ca..a5fbe14 100644
+--- a/src/App/src/Main.cpp
++++ b/src/App/src/Main.cpp
+@@ -263,7 +263,17 @@ namespace OpenLoco
+         // recorded for SDL_RENDER_DRIVER in docs/platform/libraries.md.
+         const auto noAudioMarker = Environment::getPathNoWarning(Environment::PathId::openlocoYML).parent_path() / "no-audio";
+         std::error_code noAudioEc;
+-        if (!fs::exists(noAudioMarker, noAudioEc))
++        const bool noAudio = fs::exists(noAudioMarker, noAudioEc);
++        {
++            // Say which variant this run really is, rather than assume the
++            // switch was seen: the full path looked at, what exists() said,
++            // and any error it reported.
++            std::string what = "no-audio switch: path=" + noAudioMarker.u8string()
++                + " exists=" + (noAudio ? "yes" : "no")
++                + " error=" + (noAudioEc ? noAudioEc.message() : std::string("none"));
++            mark(18, what.c_str());
++        }
++        if (!noAudio)
+         {
+             Audio::initialiseDSound();
+             mark(13, "after Audio::initialiseDSound");
+diff --git a/src/Audio/src/AudioEngine.cpp b/src/Audio/src/AudioEngine.cpp
+index df0dbcf..4c3ed00 100644
+--- a/src/Audio/src/AudioEngine.cpp
++++ b/src/Audio/src/AudioEngine.cpp
+@@ -1,4 +1,5 @@
+ #define AL_ALEXT_PROTOTYPES
++#include <OpenLoco/Core/StartupMarker.hpp>
+ #include <AL/al.h>
+ #include <AL/alc.h>
+ #include <AL/alext.h>
+@@ -204,41 +205,54 @@ namespace OpenLoco::Audio
+         }
+ 
+         Logging::info("OpenAL {}, Vendor: {}, Renderer: {}, initialized.", alGetString(AL_VERSION), alGetString(AL_VENDOR), alGetString(AL_RENDERER));
++        mark(20, "openDevice: after the version log");
+ 
+         // Need to disable this for debug builds, there is a bug in OpenAL that triggers an iterator check, but no release has been made yet.
+         // https://github.com/kcat/openal-soft/issues/1238
+         // It is functional for release builds so we just skip it for debug. Once a fixed version of OpenAL is released we can remove this workaround.
+ #ifdef NDEBUG
++        mark(21, "openDevice: before alcIsExtensionPresent(ALC_EXT_EFX)");
+         _reverbAvailable = alcIsExtensionPresent(_alcDevice, "ALC_EXT_EFX") == ALC_TRUE;
++        mark(22, _reverbAvailable ? "openDevice: EFX present" : "openDevice: EFX absent");
+ #else
+         _reverbAvailable = false;
+ #endif
+ #ifdef __AROS__
++        mark(23, "openDevice: before loadEfxEntryPoints (alGetProcAddress x7)");
+         if (_reverbAvailable && !loadEfxEntryPoints())
+         {
+             Logging::info("OpenAL reports EFX but does not provide its entry points; reverb disabled.");
+             _reverbAvailable = false;
+         }
++        mark(24, "openDevice: after loadEfxEntryPoints");
+ #endif
+         if (_reverbAvailable)
+         {
+             alGenEffects(1, &_reverbEffect);
++            mark(25, "openDevice: after alGenEffects");
+             alEffecti(_reverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
++            mark(26, "openDevice: after alEffecti");
+ 
+             alGenAuxiliaryEffectSlots(1, &_reverbSlot);
++            mark(27, "openDevice: after alGenAuxiliaryEffectSlots");
+             alAuxiliaryEffectSloti(_reverbSlot, AL_EFFECTSLOT_EFFECT, static_cast<ALint>(_reverbEffect));
++            mark(28, "openDevice: after alAuxiliaryEffectSloti");
+ 
+             Logging::info("OpenAL EFX reverb initialized.");
+         }
+ 
+         ALCint numMono = 0;
+         ALCint numStereo = 0;
++        mark(29, "openDevice: before alcGetIntegerv(MONO)");
+         alcGetIntegerv(_alcDevice, ALC_MONO_SOURCES, 1, &numMono);
++        mark(30, "openDevice: after alcGetIntegerv(MONO)");
+         alcGetIntegerv(_alcDevice, ALC_STEREO_SOURCES, 1, &numStereo);
++        mark(31, "openDevice: after alcGetIntegerv(STEREO)");
+         _maxInstances = static_cast<std::size_t>(numMono + numStereo);
+ 
+         Logging::info("OpenAL supports {} mono sources and {} stereo sources, total {} sources.", numMono, numStereo, _maxInstances);
+ 
++        mark(32, "openDevice: returning true");
+         return true;
+     }
+ 
+diff --git a/src/Core/include/OpenLoco/Core/StartupMarker.hpp b/src/Core/include/OpenLoco/Core/StartupMarker.hpp
+index 69aa8e4..3fb9b30 100644
+--- a/src/Core/include/OpenLoco/Core/StartupMarker.hpp
++++ b/src/Core/include/OpenLoco/Core/StartupMarker.hpp
+@@ -28,6 +28,7 @@
+ 
+ #pragma once
+ 
++#include <cerrno>
+ #include <cstdio>
+ 
+ namespace OpenLoco
+@@ -37,10 +38,24 @@ namespace OpenLoco
+         std::printf("[MARK %02d] %s\n", n, what);
+         std::fflush(stdout);
+ 
+-        if (FILE* f = std::fopen("Locohome:loco/markers.txt", "a"))
++        // Report a failure of the file copy on the console, which is the channel
++        // that is known to work: the host once saw the first instance's lines
++        // in this file and none of the second's, and with no result checked
++        // there was nothing to tell a failed write from a stale directory
++        // entry.
++        FILE* f = std::fopen("Locohome:loco/markers.txt", "a");
++        if (f == nullptr)
+         {
+-            std::fprintf(f, "[MARK %02d] %s\n", n, what);
+-            std::fclose(f);
++            std::printf("[MARK %02d] (markers.txt: fopen failed, errno %d)\n", n, errno);
++            std::fflush(stdout);
++            return;
++        }
++        const int written = std::fprintf(f, "[MARK %02d] %s\n", n, what);
++        const int closed = std::fclose(f);
++        if (written < 0 || closed != 0)
++        {
++            std::printf("[MARK %02d] (markers.txt: fprintf %d, fclose %d, errno %d)\n", n, written, closed, errno);
++            std::fflush(stdout);
+         }
+     }
+ }
+diff --git a/src/OpenLoco/src/Audio/Audio.cpp b/src/OpenLoco/src/Audio/Audio.cpp
+index 6d2d7f3..8a025eb 100644
+--- a/src/OpenLoco/src/Audio/Audio.cpp
++++ b/src/OpenLoco/src/Audio/Audio.cpp
+@@ -1,3 +1,4 @@
++#include <OpenLoco/Core/StartupMarker.hpp>
+ #include "Audio/Audio.h"
+ #include "Audio/AmbientAudio.h"
+ #include "Audio/VehicleAudio.h"
+@@ -213,7 +214,9 @@ namespace OpenLoco::Audio
+     {
+         const auto& cfg = Config::get();
+         openDevice(cfg.audio.device);
++        mark(33, "initialiseDSound: after openDevice");
+         initialize();
++        mark(34, "initialiseDSound: after initialize (channels)");
+ 
+         setChannelVolume(ChannelId::master, percentToDb(cfg.audio.masterVolume));
+         setChannelVolume(ChannelId::music, percentToDb(cfg.audio.musicVolume));
+@@ -221,9 +224,12 @@ namespace OpenLoco::Audio
+         setChannelVolume(ChannelId::vehicles, percentToDb(cfg.audio.vehiclesVolume));
+         setChannelVolume(ChannelId::ui, percentToDb(cfg.audio.uiVolume));
+         setChannelVolume(ChannelId::ambient, percentToDb(cfg.audio.ambientVolume));
++        mark(35, "initialiseDSound: after the six setChannelVolume");
+ 
+         auto css1path = Environment::getPath(Environment::PathId::css1);
++        mark(36, "initialiseDSound: before loadSoundsFromCSS");
+         _samples = loadSoundsFromCSS(css1path);
++        mark(37, "initialiseDSound: after loadSoundsFromCSS");
+     }
+ 
+     void disposeDSound()
