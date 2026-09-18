@@ -309,17 +309,60 @@ Whether that is a stale directory-entry size, a cache, a failed write, missing
 synchronisation or another FAT problem is **not** determined - the code checks
 neither `fclose()` nor syncs.
 
+### Dense markers, 2026-09-19: the hang disappeared
+
+Markers 20-37 were added around every call in that interval - after the
+version log, the `ALC_EXT_EFX` check, `loadEfxEntryPoints()`, each EFX effect
+and slot call, both `alcGetIntegerv()`, the return from `openDevice()`, channel
+init, the six volumes, the CSS1 load. The `no-audio` switch now logs its full
+path and the result of `exists()` (marker 18: `path=Locohome:loco/no-audio
+exists=no error=none`, so this was provably the audio-on variant), and the file
+copy of each marker reports a failed `fprintf`/`fclose` on the console (none
+appeared).
+
+**With that binary the second start worked - and so did a third, in the same
+boot.** Each passed every marker, 11 through 15 including all of 20-37, reached
+the title screen, and was alive: consecutive screendumps differed and QEMU sat
+at 103-105% CPU. Each exit completed 50-58 before the next start.
+Evidence: `../evidence/gameplay-abiv11/21-dense-markers-second-start-works.png`,
+`22-dense-markers-third-start-works.png`.
+
+| binary | markers | second start |
+|---|---|---|
+| `d8c253e` | 10-16, 50-58 | **wedged** - twice, one of them read from a full-height Shell |
+| 2026-09-19 | the same + **20-37 inside audio init** + `fclose` checks | **worked, 2nd and 3rd** |
+
+**What this does and does not say.** The only substantive change is the
+markers in the middle of `openDevice()` and `initialiseDSound()` - each is a
+`printf`, an `fflush`, and a file open, append and close on FAT32, i.e. added
+delay inside exactly the interval where it used to stop. That is the classic
+shape of a timing-dependent hang that the instrumentation masks. It is **a
+correlation from one boot, not a mechanism**: three starts is a small sample,
+and nothing yet separates "delay" from "filesystem traffic" from chance.
+
+A hypothesis, marked as one: OpenAL Soft's backend starts a mixer thread
+during device or context creation, and the main thread goes straight on into
+EFX setup and `alcGetIntegerv()`. A lock-order problem between those two would
+depend on timing, and slowing the main thread would let the mixer thread
+finish first. Why only the *second* start would still need explaining - perhaps
+the device takes a different path when the first instance has used it.
+
+Also recorded from this session: a poisoned `vmctl` calibration made every
+click land elsewhere for part of it (see `porting-notes.md`); the runs above
+were taken after it was reset on a still desktop.
+
 ### The next test
 
-1. Markers before and after **every** call between the OpenAL version log and
-   `MARK 13` - each EFX step, each `alcGetIntegerv()`, the return from
-   `openDevice()`, channel init, volumes, CSS1 load. That turns the interval
-   into one named call.
-2. In parallel, the `no-audio` run with a tall Shell - logging the **full path**
-   of the `no-audio` file and the result of `exists()`, so the variant is
-   provably active rather than assumed.
-3. The file markers report a failed `fclose()` on the console, so the next
-   disagreement between file and console says something.
+Change one thing at a time, same boot pattern (start, exit, start):
+
+1. **Markers on the console only**, no file writes. Separates filesystem
+   traffic from plain delay.
+2. **No markers 20-37 at all, but a fixed sleep** at the same place (after the
+   version log). If that alone makes the second start work, it is timing.
+3. If either result is ambiguous, repeat the failing binary (`d8c253e`) once in
+   the same conditions, to rule out that something *other* than the build
+   changed - the calibration fix, for instance, touched how the first game was
+   quit.
 
 **Until then:** restart the guest between game runs. Every first start works.
 
