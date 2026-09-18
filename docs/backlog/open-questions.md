@@ -208,16 +208,48 @@ so the suspect is the handler's in-memory state rather than the filesystem
 itself. A wedged volume handler would also explain why the entire GUI freezes:
 anything else touching that volume, Wanderer included, queues behind it.
 
-**The next test, and it is cheap:** put everything the game **writes** on
-`RAM:` - the program directory, since our patch 14 derives the configuration,
-logs, saves and landscape directories from it - and run it twice in one boot
-without restarting the guest in between. Moving the binary alone would not
-isolate anything. The read-only assets can stay on `Locodata:`.
+### Run from RAM: - the writable volume is exonerated
 
-Two passes would be **a strong argument that the writable volume or its handler
-is involved** - not proof of a mechanism. A wedge would exonerate the
-filesystem and move the search to the shared teardown path, the libraries the
-first instance opened, and OpenAL among them.
+Done 2026-09-18 02:46. The whole program directory copied to `RAM:loco` (our
+patch 14 derives the configuration, logs, saves and landscape directories from
+it, so moving the binary alone would have isolated nothing), the assets left
+read-only on `Locodata:`, and two starts in one boot with no restart between
+them.
+
+**Validity was checked before the measurement, and the first attempt was
+invalid:** the copied `openloco.yml` carried a remembered
+`last_save_path` pointing back at `Locohome:`, so the game kept saving to the
+FAT32 volume while only the landscape path had moved. That run was discarded,
+the guest rebooted and the config replaced with the one-line original. The
+second attempt was verified from the game's own log and config before
+proceeding: `Using save path: RAM Disk:loco/save/`,
+`Using landscape path: RAM Disk:loco/landscape/`, `last_save_path: ""`,
+`last_landscape_path: ""` (`../evidence/gameplay-abiv11/18-ram-run-paths-verified.png`).
+
+**Result: the second start wedged exactly as before** - grey window, never
+reaching the title screen, CPU 8.8% and sleeping
+(`../evidence/gameplay-abiv11/17-second-start-wedges-from-ram-too.png`).
+
+So **the writable volume and its handler are not the cause.** That closes the
+direction this item was pointing at, and the FAT32 findings of item 18 are
+unrelated to this one.
+
+Its last **visible** console line was the landscape path - one further than the
+FAT32 run managed - but the Shell text area again runs past the bottom of the
+screen, so neither reading establishes where it actually stops, and the
+difference between them should not be built on.
+
+**What is left to suspect:** the shared teardown path (both exits leak the
+window and five signal bits), and the libraries the first instance opened -
+**OpenAL among them**, since its three initialisation lines are what a healthy
+start prints next. None of this is tested.
+
+**The obstacle to testing it is the missing log channel.** A file on the
+volume is never flushed, `RAM:` cannot be read once the GUI is gone, the serial
+log is empty on AROS One, and the console scrolls past the screen edge. Getting
+a readable tail is the prerequisite for any further localisation: a short Shell
+window parked below the game window is the cheapest fix, and resizing it before
+the run is what this session should have done from the start.
 
 **Until then:** restart the guest between game runs. Every first start works.
 
