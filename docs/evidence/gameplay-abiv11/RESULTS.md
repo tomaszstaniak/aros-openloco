@@ -201,7 +201,9 @@ So two things, neither of them a hang:
 
 - **the quit path works** - the gadget request reaches the game and it shuts
   down;
-- **it exits without closing its Intuition window and leaks five signal bits**.
+- **it exits without closing its Intuition window**, and the Shell reports five
+  signal bits left allocated - which it then frees itself (`Shell.c:539`), so
+  those do not outlive the command.
   The stale window stays on the Workbench screen, frozen on the last frame,
   where it reads exactly like a hung program - which is how it was misread
   here for several minutes. Nothing can close it afterwards, because the owner

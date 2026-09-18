@@ -241,11 +241,11 @@ FAT32 run managed - but the Shell text area again runs past the bottom of the
 screen, so neither reading establishes where it actually stops, and the
 difference between them should not be built on.
 
-### Instrumented, 2026-09-18: it hangs inside the OpenAL device open
+### Instrumented, 2026-09-18: a boundary, not yet a call
 
-Numbered markers were added around every startup and shutdown step, printed
-with an immediate flush (`Core/StartupMarker.hpp`, patch 18). Read from a Shell
-window tall enough to hold the whole log this time, the second start gives:
+Numbered markers around the startup and shutdown steps, printed with an
+immediate flush (`Core/StartupMarker.hpp`, patch 18). Read from a Shell window
+tall enough to hold the whole log, the second start gives:
 
 ```
 [MARK 10] before Ui::createWindow
@@ -254,42 +254,72 @@ window tall enough to hold the whole log this time, the second start gives:
 [INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
 ```
 
-and stops. A healthy start prints two more OpenAL lines (EFX reverb, then the
-source counts) and then `[MARK 13]`. So the second instance **enters
-`Audio::initialiseDSound()`, opens the device far enough to report the version,
-and never returns**.
-Evidence: `../evidence/gameplay-abiv11/20-second-start-hangs-in-openal-init.png`.
+and stops. Evidence:
+`../evidence/gameplay-abiv11/20-second-start-hangs-in-openal-init.png`.
 
-**The first instance's cleanup is complete**, which the same markers settle:
-50 through 58 are all present, ending at `exitCleanly: about to exit(0)`. So the
-teardown neither hangs nor skips a step - the only thing it does not do is
-`SDL_Quit()`, which is commented out upstream in `OpenLoco.cpp` and is why the
-window is left behind.
+**What that establishes - and a first write-up claimed more.** The version line
+is logged in `AudioEngine.cpp:206`, which is **after** a successful
+`alcOpenDevice()`, context creation and `alcMakeContextCurrent()`. So the device
+open is *not* where it hangs; that claim was wrong. What is established:
 
-**One earlier reading must be re-taken.** A run with audio initialisation
-skipped entirely (a `no-audio` file next to the binary) also hung - but that was
-read from an eight-line Shell window, the same screen-edge trap as before, so
-"it stopped after MARK 13" is not trustworthy. Repeat it with the tall window:
-if it then reaches the title screen, the OpenAL open is the hang; if it still
-hangs somewhere later, the audio path is only the first thing that touches
-whatever is actually exhausted.
+> The second start reaches a working OpenAL context, prints the implementation
+> details, and then hangs somewhere between that log line and the end of
+> `Audio::initialiseDSound()`.
 
-**The file-based markers did not survive the hung instance**, for a reason
-already in item 18: AROS leaves the FAT directory entry's size stale, so the
-host reads only the bytes the *first* instance committed even though the second
-one appended and closed after every line. The console remains the only usable
-channel, and the window must be tall enough - that is the whole lesson.
+That interval still holds a lot: in `openDevice()` the `ALC_EXT_EFX` check,
+seven `alGetProcAddress()` calls, creating the reverb effect and its slot, and
+two `alcGetIntegerv()` calls; then, back in `Audio::initialiseDSound()`
+(`Audio.cpp:212`), channel initialisation, six volume settings and loading
+CSS1. `MARK 13` sits after all of it.
 
-**What is left to suspect:** whatever the OpenAL open waits on - AHI, a device
-or a signal the first instance did not release - given that `exitCleanly()` runs
-to completion but `SDL_Quit()` never does.
+**What the shutdown markers establish.** 50 through 58 are all present, ending
+at `exitCleanly: about to exit(0)`. That proves every cleanup function
+**returned** and the program reached `exit(0)`. It does **not** prove resources
+were released - nothing checks the results of the OpenAL shutdown, and the SDL
+teardown is missing more than one step:
 
-**The obstacle to testing it is the missing log channel.** A file on the
-volume is never flushed, `RAM:` cannot be read once the GUI is gone, the serial
-log is empty on AROS One, and the console scrolls past the screen edge. Getting
-a readable tail is the prerequisite for any further localisation: a short Shell
-window parked below the game window is the cheapest fix, and resizing it before
-the run is what this session should have done from the start.
+- `SDL_Quit()` is commented out in `OpenLoco.cpp`;
+- `SDL_DestroyWindow()` is never called anywhere in `src/OpenLoco`;
+- `~SoftwareDrawingEngine()` (`SoftwareDrawingEngine.cpp:33`) destroys the
+  palette and textures but never the renderer from `SDL_CreateRenderer()`.
+  (It also has an unrelated upstream slip: the third block nulls
+  `_screenTexture` where it means `_scaledScreenTexture`.)
+
+So which of these leaves the Intuition window behind is a **hypothesis**; any of
+the three could.
+
+**The five unfreed-signal warnings are not a direct cause.** The Shell prints
+that warning and immediately calls `FreeSignal()` itself
+(`workbench/c/Shell/Shell.c:539` in the ABIv11 source tree), so that particular
+leak is repaired before the next command. The warnings show imperfect process
+cleanup, nothing more.
+
+That same code carries a hint worth testing: the Shell compares signals of its
+**own** process, because an AmigaDOS command runs inside the CLI process. Two
+games started from one Shell therefore share a process, and anything the first
+leaves attached to that process is still there for the second. Hypothesis only;
+it may be contradicted by an earlier run started from a different Shell, which
+was not recorded carefully enough to rely on.
+
+**The file markers.** Each marker was also appended to `markers.txt` and the
+file closed. The host saw the first instance's markers and none of the
+second's, although the console shows the second printed three. The data
+establishes only that: the host did not see the second process's appends.
+Whether that is a stale directory-entry size, a cache, a failed write, missing
+synchronisation or another FAT problem is **not** determined - the code checks
+neither `fclose()` nor syncs.
+
+### The next test
+
+1. Markers before and after **every** call between the OpenAL version log and
+   `MARK 13` - each EFX step, each `alcGetIntegerv()`, the return from
+   `openDevice()`, channel init, volumes, CSS1 load. That turns the interval
+   into one named call.
+2. In parallel, the `no-audio` run with a tall Shell - logging the **full path**
+   of the `no-audio` file and the result of `exists()`, so the variant is
+   provably active rather than assumed.
+3. The file markers report a failed `fclose()` on the console, so the next
+   disagreement between file and console says something.
 
 **Until then:** restart the guest between game runs. Every first start works.
 
@@ -597,8 +627,11 @@ program, and both leave the same two things behind:
    frozen on the last frame, and nothing can close it because its owner is
    gone. For several minutes that read as a hung game, and only `status` in a
    fresh Shell settled it: no OpenLoco process.
-2. **Five signal bits are leaked**, on both paths:
-   `*** 'OpenLoco' returned with unfreed signal 0x20000 … 0x200000`.
+2. **Five signal bits are left allocated**, on both paths:
+   `*** 'OpenLoco' returned with unfreed signal 0x20000 … 0x200000`. The Shell
+   frees them itself right after printing that (`Shell.c:539`), so they do not
+   carry over to the next command; they show imperfect cleanup, not a
+   persistent leak.
 
 The first write-up here treated this as a close-gadget defect. It is not - the
 game's own exit does exactly the same, which is why the leak turned out **not**
@@ -613,10 +646,10 @@ deadlock and an ordinary wait are also idle.
 Evidence: `../evidence/gameplay-abiv11/RESULTS.md` and
 `second-start-wedge-first-run.log`.
 
-**What would close the leak itself:** find who should call `CloseWindow()` -
-SDL3's AROS backend on `SDL_Quit`, or the game on shutdown - and where the five
-signals are allocated. Untested guess, marked as such: SDL3 teardown, since the
-bits look like `AllocSignal()` from threads or the timer.
+**What would close the window leak:** the game never calls
+`SDL_DestroyWindow()`, never destroys its renderer, and has `SDL_Quit()`
+commented out - see item 21. Which of the three the AROS backend needs in order
+to call `CloseWindow()` is untested.
 
 ## 13. CLOSED - the binary starts (superseded by §16)
 
