@@ -159,11 +159,13 @@ echo, and QEMU sits at **4-6% CPU**: waiting, not spinning.
 | A | the Intuition close gadget | **wedged**, CPU 5.1% |
 | B | the game's own "Exit Game" button | **wedged**, CPU 4.6% |
 
-**So the exit path does not matter, and the leak hypothesis is refuted.** Both
-exits leave the Intuition window on screen and both report the same five
-unfreed signal bits, so neither is the distinguishing factor. The correlation
-is with *being the second start in one guest boot* - every first start has
-worked, six times now.
+**So the exit path does not matter.** That refutes a defect specific to the
+close gadget - but **not** the shutdown path as such: both exits run the same
+teardown, leave the same stale Intuition window and report the same five
+unfreed signal bits, and that shared path remains a suspect. What the
+comparison narrows is which *route into* the teardown matters: none. The
+correlation is with *being the second start in one guest boot* - every first
+start has worked, six times now.
 
 **A prepared second Shell does not help.** One was opened *before* the first
 game started, exactly so a working Shell would survive; when the wedge came,
@@ -185,14 +187,18 @@ last **visible** line is:
 ```
 
 A successful start continues `Using landscape path: …` and then three OpenAL
-lines. So it stops **in the path setup, before audio is touched at all** -
-which also rules out the OpenAL hypothesis.
+lines.
 Evidence: `../evidence/gameplay-abiv11/16-second-start-blocks-in-path-setup.png`.
 
-**The limit of that reading, and it matters:** the Shell window extends below
-the bottom of the screen, and with the GUI wedged it cannot be scrolled or
-resized. Later lines may exist unseen. This is the last *visible* line, not
-provably the last one.
+**What this does and does not say.** The Shell window extends below the bottom
+of the screen and a wedged GUI cannot be scrolled or resized, so later lines
+may exist unseen. This is the last *visible* line, **not provably the last
+one** - so it does **not** establish that the hang precedes audio, and
+**OpenAL is not excluded**, either as where the second instance blocks or as
+the source of state the first instance left behind. Getting a real localisation
+needs the log somewhere that survives a wedge, which is the open problem: a
+file on the volume is never flushed, `RAM:` cannot be read once the GUI is
+gone, and the serial log is empty.
 
 **The mechanism this points at**, untested: the code between those two log
 lines is filesystem work on `Locohome:` (`Environment.cpp`, resolving and
@@ -202,12 +208,16 @@ so the suspect is the handler's in-memory state rather than the filesystem
 itself. A wedged volume handler would also explain why the entire GUI freezes:
 anything else touching that volume, Wanderer included, queues behind it.
 
-**The test that would settle it, and it is cheap:** put the game install
-somewhere that is not the FAT32 volume - `RAM:` or the guest's own AROS
-partition - and run it twice in one boot. If the second start then works, the
-FAT handler is implicated and this item belongs with item 18 after all; if it
-still wedges, the filesystem is exonerated and the next place to look is what
-the first instance leaves behind in Intuition or in the libraries it opened.
+**The next test, and it is cheap:** put everything the game **writes** on
+`RAM:` - the program directory, since our patch 14 derives the configuration,
+logs, saves and landscape directories from it - and run it twice in one boot
+without restarting the guest in between. Moving the binary alone would not
+isolate anything. The read-only assets can stay on `Locodata:`.
+
+Two passes would be **a strong argument that the writable volume or its handler
+is involved** - not proof of a mechanism. A wedge would exonerate the
+filesystem and move the search to the shared teardown path, the libraries the
+first instance opened, and OpenAL among them.
 
 **Until then:** restart the guest between game runs. Every first start works.
 
@@ -424,8 +434,11 @@ untouched - and irrelevant to this port, since OpenLoco goes through OpenAL.
 
 **What would close it:** `AUDIO=wav scripts/run-loco-vm.sh`, which the launcher
 already supports - it writes what the guest plays into
-`/tmp/aros-loco-audio.wav`, flushed when QEMU exits, so "is there any sound"
-becomes a question answered by looking at a file.
+`/tmp/aros-loco-audio.wav`, flushed when QEMU exits. **Examine the recording,
+not its existence:** QEMU writes a WAV header and silence regardless, so the
+question is whether the samples are non-zero and where - `sox`/`ffmpeg` stats,
+or simply the file size against the run length. A 44-byte or all-zero file
+means nothing was played.
 
 ## 7. CLOSED - the remaining compile items
 
