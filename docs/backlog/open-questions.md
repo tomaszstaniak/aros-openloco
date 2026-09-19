@@ -357,7 +357,7 @@ controlled: the automation's pointer calibration (reset on a still desktop, see
 `porting-notes.md`), possibly how the first game was quit, and the gap before
 the second start. Three starts in one boot are not independent repetitions.
 
-### A → B → A, 2026-09-19 09:13-09:46: the binary is not the factor
+### A → B → A, 2026-09-19 09:13-09:46: under current conditions, both work
 
 Each variant from a fresh guest boot, `loco-home.img` restored from one golden
 copy (SHA-256 `5438f590…`) by `scripts/prepare-variant.sh`, the same sequence
@@ -379,9 +379,12 @@ work commit `4466c21`; its size, 14,217,944 bytes, matches the original to the
 byte. The original file itself was overwritten by a later build and not kept,
 so the two differ at least in the embedded version string.
 
-So **the dense markers did not make the difference, and the earlier reading
-that they did is withdrawn.** Something outside the binary changed between the
-failing runs and these. What is known to have changed, none of it tested yet:
+So **the earlier reading that the dense markers made the difference is
+withdrawn.** What is established is narrower than "the binary is not the
+factor": under the conditions of 2026-09-19 both variants work. The binary that
+actually wedged was not kept, and matching source and size do not make a
+rebuild the identical file - so a difference in the binary is not excluded
+either, only unsupported. What changed besides the build: What is known to have changed, none of it tested yet:
 
 - **Host load.** On 2026-09-17/18 the host was at times down to 136 MB free
   memory with three QEMUs running, and killed driving scripts for lack of
@@ -395,18 +398,23 @@ failing runs and these. What is known to have changed, none of it tested yet:
   2026-09-19.
 - The time and anything else on a shared machine that was not observed.
 
-The seven failures were real - identical screendumps, the pointer frozen, a
-wedged GUI - so this is not a claim that item 21 is gone. It is a claim that it
-is not reproducible from the binary alone, which moves every binary-based step
-below behind reproducing it again.
+**Status: observed earlier, currently not reproduced.** The seven failures
+were real - identical screendumps, the pointer frozen, a wedged GUI. The port
+does not wait on this item: cleanup, sound and the remaining usability tests
+go ahead in parallel, with the reproduction kit kept ready - both binaries and
+the golden disk image in `~/Work/AROS/loco-variants/`, every build archived by
+hash, host state recorded per run.
 
 ### The next test, in this order
 
-0. **Reproduce the failure again before anything else**, since A/B/A could not.
-   The cheapest lead is host load - but load-testing the host affects other
-   sessions' machines on this shared testbench, so it needs agreeing first.
-   From now on every run records host free memory, load average and the list of
-   running QEMUs.
+0. **Reproduce the failure again before any binary-based step**, using
+   ordinary runs - no artificial load on the shared host. Each run records host
+   state with `scripts/host-state.sh`: free memory is not enough, it takes swap
+   use, the kernel's memory-pressure level and CPU load too, plus the running
+   QEMUs. A load test belongs on a free testbench later, as a controlled
+   experiment - CPU and memory pressure separately, each with a fixed limit and
+   an abort condition; loading everything at once answers little. Load inside
+   the guest is not neutral either, it consumes host resources too.
 1. ~~A → B → A~~ - done, all three work; see above.
 2. **A plus `MARK 18` alone.** If that is enough to make the second start
    work, the markers inside OpenAL are beside the point.

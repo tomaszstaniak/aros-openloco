@@ -44,3 +44,29 @@ cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
     "$@"
 
 cmake --build "$BUILD" -j "$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
+
+# Keep every build. Backlog item 21 was lost to exactly this: the binary that
+# wedged was overwritten by the next build, and a rebuild from the same source
+# is not provably the same file. Each result is copied under its own SHA-256
+# with a note of where it came from, and nothing here ever deletes one.
+OUT="$BUILD/OpenLoco"
+if [ -f "$OUT" ]; then
+    SHA=$(shasum -a 256 "$OUT" | cut -d' ' -f1)
+    ARCHIVE=${AROS_TESTBENCH:-$HOME/Work/AROS}/loco-variants/builds/$SHA
+    if [ ! -d "$ARCHIVE" ]; then
+        mkdir -p "$ARCHIVE"
+        cp "$OUT" "$ARCHIVE/OpenLoco"
+        {
+            echo "sha256:      $SHA"
+            echo "built:       $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "abi:         $ABI"
+            echo "work commit: $(git -C "$WORK_DIR" rev-parse --short HEAD 2>/dev/null)"
+            echo "work dirty:  $(git -C "$WORK_DIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ') file(s)"
+            echo "patches:     $(ls "$PORT_ROOT"/patches/openloco/*.diff 2>/dev/null | wc -l | tr -d ' ')"
+            echo "port commit: $(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null)"
+        } > "$ARCHIVE/BUILD-INFO.txt"
+        echo "archived: $ARCHIVE"
+    else
+        echo "already archived: $ARCHIVE"
+    fi
+fi
