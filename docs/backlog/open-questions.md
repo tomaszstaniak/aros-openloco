@@ -749,35 +749,42 @@ libstdc++ with `wchar_t` is wider and needs a separate check of whether AROS
 ABIv11 has the full set of wide-character functions on the C side - see
 `../platform/`.
 
-## 6. PARTLY ANSWERED - OpenAL initialises; nothing has been heard
+## 6. Audio: the game does produce sound; nobody has listened yet
 
-The console log of a normal start, read 2026-09-18, says more than any earlier
-run did:
+**Initialisation** (2026-09-18): OpenAL Soft 1.16.0 comes up, **EFX reverb**
+initialises - which settles item 15 against the guess there - and 256 sources
+are reported. Note what provides it: `libopenal.a` is stubs into the shared
+`openal.library`, so this is the system library, not code in the game.
 
-```
-[INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
-[INF] OpenAL EFX reverb initialized.
-[INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
-```
+**Sound is produced** (2026-09-20, variant E, `AUDIO=wav`). QEMU's wav backend
+records only while the guest holds the audio device open, and the recording is
+**428 s** where the game ran about 425 s - so the file covers the game's audio
+device lifetime and nothing else.
 
-So on AROS One / ABIv11 the game's audio stack **comes up**: OpenAL Soft
-initialises, and so does **EFX reverb** - which settles item 15 in the
-unexpected direction, since the guess there was that reverb would quietly
-degrade. 256 sources are reported available.
+| measure | value |
+|---|---|
+| peak | 11,976 of 32,767 (~37% full scale) |
+| seconds with signal over the threshold | 402 of 429 |
+| RMS per second | hundreds, not units - continuous waveforms, not clicks |
+| zero crossings/s, title screen | 2,366 |
+| zero crossings/s, in game | 1,365 |
 
-**What is still unchecked:** whether any sound is actually produced. QEMU was
-started without a host audio driver in every run so far (`Can not open
-'ac97.pi'` in the launcher log), so nothing could have been heard even if the
-game played it. `SDL_INIT_AUDIO` remains unrequested and the SDL3/AHI path
-untouched - and irrelevant to this port, since OpenLoco goes through OpenAL.
+Two different rates for the two phases, both in a tonal range (white noise at
+44.1 kHz would be an order of magnitude higher), so the content changes with
+what the game is doing.
 
-**What would close it:** `AUDIO=wav scripts/run-loco-vm.sh`, which the launcher
-already supports - it writes what the guest plays into
-`/tmp/aros-loco-audio.wav`, flushed when QEMU exits. **Examine the recording,
-not its existence:** QEMU writes a WAV header and silence regardless, so the
-question is whether the samples are non-zero and where - `sox`/`ffmpeg` stats,
-or simply the file size against the run length. A 44-byte or all-zero file
-means nothing was played.
+**What is still missing: somebody has to listen.** Numbers show a signal with
+structure; they do not show that the music is the right music or that it is
+not distorted. Files for that, outside the repository because of their size:
+
+- `~/Work/AROS/loco-variants/loco-audio-2026-09-20.wav` - the whole session
+- `…/loco-audio-title-20s.wav`, `…/loco-audio-ingame-20s.wav` - 20-second
+  excerpts of each phase
+
+**A trap in `AUDIO=wav`**: QEMU leaves the RIFF and data size fields **zero**
+in the header, so players and `wave.open()` reject the file as "not a WAVE
+file" even though the samples are all there. The copies above have corrected
+headers; read the raw file past byte 44 if you make your own.
 
 ## 7. CLOSED - the remaining compile items
 
