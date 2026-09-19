@@ -45,7 +45,7 @@ if [ "$(git rev-parse HEAD)" != "$UPSTREAM_COMMIT" ]; then
 fi
 if [ -n "$(git status --porcelain)" ]; then
     echo "upstream/OpenLoco has local modifications - it must stay clean." >&2
-    echo "Move them into patches/openloco/ and re-run with --reset." >&2
+    echo "Move them into $PATCH_DIR and re-run with --reset." >&2
     exit 1
 fi
 echo "upstream at $UPSTREAM_COMMIT (clean)"
@@ -93,7 +93,7 @@ if [ ! -d "$WORK_DIR" ]; then
     rsync -a --exclude '.git' "$UPSTREAM_DIR/" "$WORK_DIR/"
 
     applied=0
-    for p in "$PORT_ROOT"/patches/openloco/*.diff; do
+    for p in "$PATCH_DIR"/*.diff; do
         [ -e "$p" ] || continue
         echo "  applying $(basename "$p")"
         patch -p1 -d "$WORK_DIR" < "$p"
@@ -103,7 +103,7 @@ if [ ! -d "$WORK_DIR" ]; then
     git -C "$WORK_DIR" init -q -b baseline
     git -C "$WORK_DIR" add -A
     git -C "$WORK_DIR" -c user.name=bootstrap -c user.email=bootstrap@local \
-        commit -q -m "baseline: $UPSTREAM_COMMIT + $applied patch(es) from patches/openloco"
+        commit -q -m "baseline: $UPSTREAM_COMMIT + $applied patch(es) from $(basename "$PATCH_DIR")"
     echo "work tree ready ($applied patch(es) applied, baseline recorded)"
 else
     if work_dirty; then

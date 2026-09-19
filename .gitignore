@@ -5,3 +5,6 @@
 /deps/
 
 .DS_Store
+/upstream-next/
+/work-next/
+/build-next/

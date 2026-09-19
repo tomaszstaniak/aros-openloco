@@ -497,6 +497,28 @@ the end load 7.8 with **five** guests running. A busy host, and no hang - which
 is another data point against, not for, the host-load lead, though one run
 proves little either way.
 
+### Variant E, 2026-09-20 01:16-01:35: the newer upstream builds and runs
+
+Built **beside** the pinned tree, not instead of it: `scripts/env.sh` now takes
+overrides for the upstream commit, the upstream and work directories, the patch
+directory and the build root, so two variants coexist and the pinned one stays
+the reference. `patches/openloco-next/` is a directory of symlinks to the same
+patch files minus the #4018 backport, which upstream already contains.
+
+**E** = upstream `7f8c90cf` (26.09+) + patches 01-17 and 21, SHA-256
+`4f5e3a5e…`, 442 targets, no errors.
+
+| check | result |
+|---|---|
+| menu | reached |
+| map | **a save written by the older build loads**: the train on its track, $5,986, 4th September 1901, toolbars, autosave rotation running (`28-new-upstream-loads-old-save.png`) |
+| three start → exit cycles | all clean: window gone, prompt back, **one** unfreed signal each (`29-new-upstream-three-cycles.png`) |
+| exit paths | the close gadget (from a loaded game) and "Exit Game" (from the title) behave identically |
+
+So patch 21 works unchanged on the newer upstream, and the save format carried
+over. Variant D stays as the comparison point; the pin in `env.sh` is
+unchanged until we decide to move it.
+
 ### The next test, in this order
 
 0. **Reproduce the failure again before any binary-based step**, using
