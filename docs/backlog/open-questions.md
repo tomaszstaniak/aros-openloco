@@ -434,9 +434,18 @@ considered. Recorded as a hypothesis with two cheap, discriminating tests for
 when the hang is reproducible again:
 
 - `avail flush` in the Shell between the two runs, which expunges unused
-  libraries - fresh `openal.library` state for the second start;
-- a build linked against `libopenal.static.a` (also 1.16.0) instead of the
-  stubs, so no library state is shared between runs at all.
+  libraries. Only meaningful if the library really left memory - check it
+  (`avail` before and after, or that the next open re-initialises), otherwise
+  a negative result says nothing;
+- a build linked against `libopenal.static.a` instead of the stubs, so no
+  library state is shared between runs. That changes more than the linkage:
+  the static archive is its own 1.16.0 build with its own configuration
+  (`openal.conf` is read by the shared library, not necessarily by a static
+  one), so both have to be compared before any behaviour difference is put
+  down to sharing.
+
+Using a shared library does not by itself show that bad state survives between
+runs - it only makes it possible.
 
 ### Orderly shutdown, 2026-09-19 23:08-23:21 (variant C)
 
@@ -464,6 +473,29 @@ future reproduction has to consider.
 before a release, and 20/21 were saved on top of them, so their
 `OpenLoco.cpp` hunks carry marker lines as context. Dropping 18/19 means
 regenerating 20 and 21.
+
+### Variant D, 2026-09-20 00:00-00:15: the clean build, three cycles
+
+The diagnostic patches were taken out of the series rather than left for later
+(`patches/diagnostics/`), 20 and 21 regenerated on the clean `01`-`17` base -
+and #4018 then applied **verbatim**, needing no adaptation once our marker
+lines were no longer its context. Variant **D** = patches 01-17 + 20 + 21,
+SHA-256 `0a23010c…`, with no `[MARK` string anywhere in the binary.
+
+Three start → "Exit Game" cycles in one guest boot, each one:
+
+- reached the title screen (103-105% CPU);
+- on exit left **no window** on the Workbench screen and returned the Shell
+  prompt;
+- reported **one** unfreed signal, `0x200000` - the same one each time.
+
+Evidence: `../evidence/gameplay-abiv11/27-clean-build-three-cycles.png`, where
+all three runs and all three exits are readable in one console.
+
+Host state was recorded around it: at boot load 16.8 with three other QEMUs, at
+the end load 7.8 with **five** guests running. A busy host, and no hang - which
+is another data point against, not for, the host-load lead, though one run
+proves little either way.
 
 ### The next test, in this order
 
