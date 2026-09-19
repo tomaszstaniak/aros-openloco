@@ -405,6 +405,39 @@ go ahead in parallel, with the reproduction kit kept ready - both binaries and
 the golden disk image in `~/Work/AROS/loco-variants/`, every build archived by
 hash, host state recorded per run.
 
+### Upstream review, 2026-09-19
+
+Fetched, not pulled - `upstream/` stays on the pinned `af445f8` so the running
+comparison keeps its base.
+
+**OpenLoco**, 6 commits since the pin. One matters here: **`6072709d`
+"Software drawing engine proper cleanup (#4018)"**, 2026-09-14. The drawing
+engine's destructor now frees textures, surfaces, palette **and the renderer**,
+in reverse order of creation; the `_scaledScreenTexture` slip is fixed; and
+`exitCleanly()` calls a new `Gfx::disposeDrawingEngine()`. Still absent on
+`master`: `SDL_DestroyWindow()`, and `SDL_Quit()` remains commented out. All 19
+of our patches apply cleanly to `origin/master` (`7f8c90cf`, checked in a
+separate worktree); **it has not been compiled** there.
+
+**SDL3 AROS patch (contrib)**: identical to what we use (SHA-256 `d4ce803b…`);
+the only change to `contrib/SDL3` since August is a README. But
+`fetch-deps.sh` fetched it from `master`, unpinned - it is now pinned to
+contrib `20049962` with a checksum check, so it cannot drift silently.
+
+**OpenAL - a fact that reframes this item.** The game contains no OpenAL code:
+`libopenal.a` is link stubs into the shared **`openal.library`**, and the one
+installed on AROS One is openal-soft **1.16.0** (contrib now builds 1.19.1). A
+shared library stays resident after the program closes it, until memory
+pressure expunges it, so **state inside `openal.library` can carry from the
+first game into the second** - which a per-process view of the problem never
+considered. Recorded as a hypothesis with two cheap, discriminating tests for
+when the hang is reproducible again:
+
+- `avail flush` in the Shell between the two runs, which expunges unused
+  libraries - fresh `openal.library` state for the second start;
+- a build linked against `libopenal.static.a` (also 1.16.0) instead of the
+  stubs, so no library state is shared between runs at all.
+
 ### The next test, in this order
 
 0. **Reproduce the failure again before any binary-based step**, using

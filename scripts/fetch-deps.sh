@@ -20,8 +20,19 @@ SDL3_VER=3.4.12
     "https://www.libsdl.org/release/SDL3-$SDL3_VER.tar.gz"
 [ -d "SDL3-$SDL3_VER" ] || {
     tar xzf "SDL3-$SDL3_VER.tar.gz"
+    # Pinned to a contrib commit, not `master`: fetching from master meant a
+    # re-run could pick up a changed AROS patch silently, and move the base of
+    # a comparison under our feet. The checksum makes any drift loud.
+    # To update: pick the new commit, fetch, review the diff, change both lines.
+    CONTRIB_SDL3_COMMIT=200499623c8be1f65a7567fcb4c8f62b343936e4
+    CONTRIB_SDL3_SHA256=d4ce803bc97a257a
     curl -fsSL -o "SDL3-$SDL3_VER-aros.diff" \
-        "https://raw.githubusercontent.com/aros-development-team/contrib/master/SDL3/main/SDL3-$SDL3_VER-aros.diff"
+        "https://raw.githubusercontent.com/aros-development-team/contrib/$CONTRIB_SDL3_COMMIT/SDL3/main/SDL3-$SDL3_VER-aros.diff"
+    got=$(shasum -a 256 "SDL3-$SDL3_VER-aros.diff" | cut -c1-16)
+    [ "$got" = "$CONTRIB_SDL3_SHA256" ] || {
+        echo "SDL3-$SDL3_VER-aros.diff: checksum $got, expected $CONTRIB_SDL3_SHA256 - refusing" >&2
+        exit 1
+    }
     patch -p1 -d "SDL3-$SDL3_VER" < "SDL3-$SDL3_VER-aros.diff"
     # Ours on top of contrib's; patches/dependencies says why each exists.
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-langinfo-guard.diff"
