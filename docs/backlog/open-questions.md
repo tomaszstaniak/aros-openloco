@@ -332,37 +332,66 @@ Evidence: `../evidence/gameplay-abiv11/21-dense-markers-second-start-works.png`,
 | `d8c253e` | 10-16, 50-58 | **wedged** - twice, one of them read from a full-height Shell |
 | 2026-09-19 | the same + **20-37 inside audio init** + `fclose` checks | **worked, 2nd and 3rd** |
 
-**What this does and does not say.** The only substantive change is the
-markers in the middle of `openDevice()` and `initialiseDSound()` - each is a
-`printf`, an `fflush`, and a file open, append and close on FAT32, i.e. added
-delay inside exactly the interval where it used to stop. That is the classic
-shape of a timing-dependent hang that the instrumentation masks. It is **a
-correlation from one boot, not a mechanism**: three starts is a small sample,
-and nothing yet separates "delay" from "filesystem traffic" from chance.
+**What this does and does not say.** Patch 19 changed more than markers
+20-37, and a first write-up said otherwise:
 
-A hypothesis, marked as one: OpenAL Soft's backend starts a mixer thread
-during device or context creation, and the main thread goes straight on into
-EFX setup and `alcGetIntegerv()`. A lock-order problem between those two would
-depend on timing, and slowing the main thread would let the mixer thread
-finish first. Why only the *second* start would still need explaining - perhaps
-the device takes a different path when the first instance has used it.
+- `MARK 18` was added **before** audio initialisation, building a
+  `std::string` to report the `no-audio` switch;
+- `mark()` itself changed for every marker - it now checks `fprintf` and
+  `fclose` and can print a second line;
+- and 20-37 went inside `openDevice()` and `initialiseDSound()`.
 
-Also recorded from this session: a poisoned `vmctl` calibration made every
-click land elsewhere for part of it (see `porting-notes.md`); the runs above
-were taken after it was reset on a still desktop.
+So "remove 20-37" would not reproduce the earlier binary, and the difference
+could already lie in the delay before audio starts, in extra allocations, or in
+a changed code layout.
 
-### The next test
+Nor does this prove a timing dependency. `printf`, `fflush` and file
+operations change several things at once - thread timing and ordering, lock and
+system-call use, memory allocation, code and stack layout. A race fits; so does
+a memory error whose symptoms a rebuild moved. The mixer-thread lock-order idea
+is more specific than the evidence and stays out of this entry until something
+points at it.
 
-Change one thing at a time, same boot pattern (start, exit, start):
+Also changed between the failing runs and the working ones, and not yet
+controlled: the automation's pointer calibration (reset on a still desktop, see
+`porting-notes.md`), possibly how the first game was quit, and the gap before
+the second start. Three starts in one boot are not independent repetitions.
 
-1. **Markers on the console only**, no file writes. Separates filesystem
-   traffic from plain delay.
-2. **No markers 20-37 at all, but a fixed sleep** at the same place (after the
-   version log). If that alone makes the second start work, it is timing.
-3. If either result is ambiguous, repeat the failing binary (`d8c253e`) once in
-   the same conditions, to rule out that something *other* than the build
-   changed - the calibration fix, for instance, touched how the first game was
-   quit.
+### The next test, in this order
+
+1. **A → B → A**, each from a fresh guest boot, identical sequence (start,
+   title screen, quit with "Exit Game", second start), identical starting
+   disks - `loco-home.img` restored from one golden copy before each variant -
+   same gap before the second start. A is the sparse-marker binary (patches
+   1-18), B the dense one (1-19); each identified by the **SHA-256 of the
+   binary**, not by a repository commit.
+2. **A plus `MARK 18` alone.** If that is enough to make the second start
+   work, the markers inside OpenAL are beside the point.
+3. **Second start from a new process** - on the failing binary, the second
+   game from a separate Shell, verified to be a different process, versus from
+   the same Shell; each from a fresh boot. The Shell freeing the signal bits
+   does not prove that whatever used them is gone.
+4. Only then one of: markers on the console without the file (tests whether
+   the FAT writes are needed for success - it also changes the delays, so it
+   does not cleanly separate the two), or a fixed pause without dense markers
+   (if it helps repeatably, that strengthens a scheduling dependency without
+   identifying a race). A pause is a diagnostic tool, never a fix to keep.
+
+**Separately, a review of the shutdown**, not three calls added blind:
+`SDL_Quit()` is commented out, the window is never destroyed, the renderer
+never is. The order has to respect ownership so that no later destructor
+touches something SDL has already freed. The test for such a variant covers
+the window disappearing, the return to the Shell, the resource warnings, and a
+second start together. (The destructor's `_screenTexture` slip is worth fixing
+on its own, without attributing anything to it.)
+
+**Less intrusive observation** is worth more than further FAT writes per step:
+halting the guest through QEMU's debugger to collect CPU state and, if tools
+allow, AROS task state; or a small in-memory marker buffer read from the host
+once a reliable way to find it exists. A minimal OpenAL reproducer only makes
+sense once the comparison points at audio, and it must reproduce a process
+exit and restart - an open/close loop inside one program is a different
+situation.
 
 **Until then:** restart the guest between game runs. Every first start works.
 
