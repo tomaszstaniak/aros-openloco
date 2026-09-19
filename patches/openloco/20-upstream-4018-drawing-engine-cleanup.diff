@@ -1,9 +1,18 @@
 # upstream-4018-drawing-engine-cleanup
 #
-# Backport of upstream OpenLoco 6072709d, 'Software drawing engine proper cleanup (#4018)', merged 2026-09-14 - four days after our pinned af445f8. The drawing engine's destructor frees textures, surfaces, palette and the renderer in reverse order of creation; it fixes the destructor nulling _screenTexture where it meant _scaledScreenTexture; and exitCleanly() calls the new Gfx::disposeDrawingEngine(), so the engine is gone before exit() rather than in a static destructor afterwards. Upstream code, applied verbatim except the one exitCleanly() line, placed where upstream puts it but next to our diagnostic markers. Drop this patch when the pin moves past 6072709d.
+# Verbatim backport of upstream OpenLoco 6072709d, "Software drawing engine
+# proper cleanup (#4018)", merged 2026-09-14 - four days after our pinned
+# af445f8. The drawing engine's destructor frees textures, surfaces, palette
+# and the renderer in reverse order of creation; it fixes the destructor
+# nulling _screenTexture where it meant _scaledScreenTexture; and
+# exitCleanly() calls the new Gfx::disposeDrawingEngine(), so the engine is
+# gone before exit() rather than in a static destructor afterwards.
+#
+# Applies unchanged - generated as `git show 6072709d` on top of patches 01-17.
+# Drop this patch when the pin moves past 6072709d.
 #
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
-# Saved 2026-09-19.
+# Saved 2026-09-20.
 
 diff --git a/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h b/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h
 index 8b92ac0..7800593 100644
@@ -143,12 +152,12 @@ index d1f62d1..421b205 100644
      }
  
 diff --git a/src/OpenLoco/src/OpenLoco.cpp b/src/OpenLoco/src/OpenLoco.cpp
-index dd7f16e..20f90aa 100644
+index 76f184b..0b66c55 100644
 --- a/src/OpenLoco/src/OpenLoco.cpp
 +++ b/src/OpenLoco/src/OpenLoco.cpp
-@@ -103,6 +103,8 @@ namespace OpenLoco
+@@ -97,6 +97,8 @@ namespace OpenLoco
+         Ui::disposeCursors();
          Localisation::unloadLanguageFile();
-         mark(54, "exitCleanly: after unloadLanguageFile");
  
 +        OpenLoco::Gfx::disposeDrawingEngine();
 +
