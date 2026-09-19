@@ -357,14 +357,57 @@ controlled: the automation's pointer calibration (reset on a still desktop, see
 `porting-notes.md`), possibly how the first game was quit, and the gap before
 the second start. Three starts in one boot are not independent repetitions.
 
+### A → B → A, 2026-09-19 09:13-09:46: the binary is not the factor
+
+Each variant from a fresh guest boot, `loco-home.img` restored from one golden
+copy (SHA-256 `5438f590…`) by `scripts/prepare-variant.sh`, the same sequence
+(start, title screen, "Exit Game", 40 s, click the Shell, second start, two
+screendumps 20 s apart), the same `vmctl` calibration (both scales 1.11,
+checked before each). Binaries identified by SHA-256:
+
+| variant | binary | exit of the first | second start |
+|---|---|---|---|
+| A | `d8df9ba5…` - patches 1-18, sparse markers | 50-58, prompt back | **works** - title screen, 102% CPU, frames differ |
+| B | `02fc1ca5…` - patches 1-19, dense markers | 50-58, prompt back | **works** - 103.7% CPU |
+| A | `d8df9ba5…` | 50-58, prompt back | **works** - 103.4% CPU |
+
+Evidence: `../evidence/gameplay-abiv11/23-aba-A-second-start-works.png`,
+`24-aba-A-again-second-start-works.png`.
+
+**A is the same source as the binary that wedged on 2026-09-18** - rebuilt from
+work commit `4466c21`; its size, 14,217,944 bytes, matches the original to the
+byte. The original file itself was overwritten by a later build and not kept,
+so the two differ at least in the embedded version string.
+
+So **the dense markers did not make the difference, and the earlier reading
+that they did is withdrawn.** Something outside the binary changed between the
+failing runs and these. What is known to have changed, none of it tested yet:
+
+- **Host load.** On 2026-09-17/18 the host was at times down to 136 MB free
+  memory with three QEMUs running, and killed driving scripts for lack of
+  memory. On 2026-09-19 it had 2.3 GB free, load about 2.5-3, two QEMUs. **Host
+  state was not recorded for the failing runs of 2026-09-18 morning**, so this
+  is a lead, not a finding. Every future run records it.
+- **The `vmctl` calibration**, reset on a still desktop at 01:08 on 2026-09-19.
+  Every success so far came after that reset; every failure before it. But the
+  failing runs of 2026-09-18 had working exits, which argues that the
+  calibration was sound then - the poisoned file only appeared at 00:57 on
+  2026-09-19.
+- The time and anything else on a shared machine that was not observed.
+
+The seven failures were real - identical screendumps, the pointer frozen, a
+wedged GUI - so this is not a claim that item 21 is gone. It is a claim that it
+is not reproducible from the binary alone, which moves every binary-based step
+below behind reproducing it again.
+
 ### The next test, in this order
 
-1. **A → B → A**, each from a fresh guest boot, identical sequence (start,
-   title screen, quit with "Exit Game", second start), identical starting
-   disks - `loco-home.img` restored from one golden copy before each variant -
-   same gap before the second start. A is the sparse-marker binary (patches
-   1-18), B the dense one (1-19); each identified by the **SHA-256 of the
-   binary**, not by a repository commit.
+0. **Reproduce the failure again before anything else**, since A/B/A could not.
+   The cheapest lead is host load - but load-testing the host affects other
+   sessions' machines on this shared testbench, so it needs agreeing first.
+   From now on every run records host free memory, load average and the list of
+   running QEMUs.
+1. ~~A → B → A~~ - done, all three work; see above.
 2. **A plus `MARK 18` alone.** If that is enough to make the second start
    work, the markers inside OpenAL are beside the point.
 3. **Second start from a new process** - on the failing binary, the second
