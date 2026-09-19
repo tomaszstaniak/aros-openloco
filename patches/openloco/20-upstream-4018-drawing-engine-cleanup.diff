@@ -1,0 +1,157 @@
+# upstream-4018-drawing-engine-cleanup
+#
+# Backport of upstream OpenLoco 6072709d, 'Software drawing engine proper cleanup (#4018)', merged 2026-09-14 - four days after our pinned af445f8. The drawing engine's destructor frees textures, surfaces, palette and the renderer in reverse order of creation; it fixes the destructor nulling _screenTexture where it meant _scaledScreenTexture; and exitCleanly() calls the new Gfx::disposeDrawingEngine(), so the engine is gone before exit() rather than in a static destructor afterwards. Upstream code, applied verbatim except the one exitCleanly() line, placed where upstream puts it but next to our diagnostic markers. Drop this patch when the pin moves past 6072709d.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-19.
+
+diff --git a/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h b/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h
+index 8b92ac0..7800593 100644
+--- a/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h
++++ b/src/OpenLoco/include/OpenLoco/Graphics/Gfx.h
+@@ -184,6 +184,7 @@ namespace OpenLoco::Gfx
+     G1Element* getG1Element(uint32_t id);
+ 
+     Gfx::SoftwareDrawingEngine& getDrawingEngine();
++    void disposeDrawingEngine();
+ 
+     void loadCurrency();
+     void loadDefaultPalette();
+diff --git a/src/OpenLoco/include/OpenLoco/Graphics/SoftwareDrawingEngine.h b/src/OpenLoco/include/OpenLoco/Graphics/SoftwareDrawingEngine.h
+index 90a2e48..73b4782 100644
+--- a/src/OpenLoco/include/OpenLoco/Graphics/SoftwareDrawingEngine.h
++++ b/src/OpenLoco/include/OpenLoco/Graphics/SoftwareDrawingEngine.h
+@@ -71,8 +71,11 @@ namespace OpenLoco::Gfx
+     private:
+         void renderDirtyRegions();
+ 
+-        SDL_Renderer* _renderer{};
++        // Initialize top to bottom, destroy bottom to top
+         SDL_Window* _window{};
++
++        SDL_Renderer* _renderer{};
++
+         SDL_Palette* _palette{};
+         SDL_Surface* _screenSurface{};
+         SDL_Surface* _screenRGBASurface{};
+diff --git a/src/OpenLoco/include/OpenLoco/Paint/PaintRoadAdditionsData.h b/src/OpenLoco/include/OpenLoco/Paint/PaintRoadAdditionsData.h
+index 2651385..46fb542 100644
+--- a/src/OpenLoco/include/OpenLoco/Paint/PaintRoadAdditionsData.h
++++ b/src/OpenLoco/include/OpenLoco/Paint/PaintRoadAdditionsData.h
+@@ -63,7 +63,13 @@ namespace OpenLoco::Paint::AdditionStyle1
+     constexpr std::array<uint8_t, 4> kRotationTable2301 = { 2, 3, 0, 1 };
+     constexpr std::array<uint8_t, 4> kRotationTable3012 = { 3, 0, 1, 2 };
+ 
+-    constexpr RoadPaintAdditionPiece kNullRoadPaintAdditionPiece = { { std::numeric_limits<uint32_t>::max() } };
++    constexpr RoadPaintAdditionPiece kNullRoadPaintAdditionPiece = {
++        { std::numeric_limits<uint32_t>::max() },
++        {},
++        {},
++        false,
++        std::nullopt,
++    };
+     constexpr auto kNoSupports = std::nullopt;
+ 
+     consteval std::optional<RoadAdditionSupport> rotateRoadPPASupport(const std::optional<RoadAdditionSupport>& reference, const std::array<uint8_t, 4>& rotationTable)
+diff --git a/src/OpenLoco/include/OpenLoco/Paint/PaintTrackAdditionsData.h b/src/OpenLoco/include/OpenLoco/Paint/PaintTrackAdditionsData.h
+index d4ebe55..519fdea 100644
+--- a/src/OpenLoco/include/OpenLoco/Paint/PaintTrackAdditionsData.h
++++ b/src/OpenLoco/include/OpenLoco/Paint/PaintTrackAdditionsData.h
+@@ -1577,7 +1577,13 @@ namespace OpenLoco::Paint
+         constexpr std::array<uint8_t, 4> kRotationTable2301 = { 2, 3, 0, 1 };
+         constexpr std::array<uint8_t, 4> kRotationTable3012 = { 3, 0, 1, 2 };
+ 
+-        constexpr TrackPaintAdditionPiece kNullTrackPaintAdditionPiece = { { std::numeric_limits<uint32_t>::max() } };
++        constexpr TrackPaintAdditionPiece kNullTrackPaintAdditionPiece = {
++            { std::numeric_limits<uint32_t>::max() },
++            {},
++            {},
++            false,
++            std::nullopt,
++        };
+         constexpr auto kNoSupports = std::nullopt;
+ 
+         consteval std::optional<TrackAdditionSupport> rotateTrackPPASupport(const std::optional<TrackAdditionSupport>& reference, const std::array<uint8_t, 4>& rotationTable)
+diff --git a/src/OpenLoco/src/Graphics/Gfx.cpp b/src/OpenLoco/src/Graphics/Gfx.cpp
+index 97213ba..3ea0020 100644
+--- a/src/OpenLoco/src/Graphics/Gfx.cpp
++++ b/src/OpenLoco/src/Graphics/Gfx.cpp
+@@ -237,6 +237,11 @@ namespace OpenLoco::Gfx
+         return *engine;
+     }
+ 
++    void disposeDrawingEngine()
++    {
++        engine.reset();
++    }
++
+     /**
+      * 0x004C5C69
+      *
+diff --git a/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp b/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
+index d1f62d1..421b205 100644
+--- a/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
++++ b/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
+@@ -32,11 +32,8 @@ namespace OpenLoco::Gfx
+ 
+     SoftwareDrawingEngine::~SoftwareDrawingEngine()
+     {
+-        if (_palette != nullptr)
+-        {
+-            SDL_DestroyPalette(_palette);
+-            _palette = nullptr;
+-        }
++
++        // Free textures
+         if (_screenTexture != nullptr)
+         {
+             SDL_DestroyTexture(_screenTexture);
+@@ -45,7 +42,34 @@ namespace OpenLoco::Gfx
+         if (_scaledScreenTexture != nullptr)
+         {
+             SDL_DestroyTexture(_scaledScreenTexture);
+-            _screenTexture = nullptr;
++            _scaledScreenTexture = nullptr;
++        }
++
++        // Free surfaces
++        if (_screenSurface != nullptr)
++        {
++            SDL_DestroySurface(_screenSurface);
++            _screenSurface = nullptr;
++        }
++        if (_screenRGBASurface != nullptr)
++        {
++            SDL_DestroySurface(_screenRGBASurface);
++            _screenRGBASurface = nullptr;
++        }
++
++        // Free palette
++        if (_palette != nullptr)
++        {
++            SDL_DestroyPalette(_palette);
++            _palette = nullptr;
++        }
++
++        // Free renderer
++        if (_renderer != nullptr)
++        {
++            SDL_DestroyRenderer(_renderer);
++            _renderer = nullptr;
++            _screenRT.bits = nullptr;
+         }
+     }
+ 
+diff --git a/src/OpenLoco/src/OpenLoco.cpp b/src/OpenLoco/src/OpenLoco.cpp
+index dd7f16e..20f90aa 100644
+--- a/src/OpenLoco/src/OpenLoco.cpp
++++ b/src/OpenLoco/src/OpenLoco.cpp
+@@ -103,6 +103,8 @@ namespace OpenLoco
+         Localisation::unloadLanguageFile();
+         mark(54, "exitCleanly: after unloadLanguageFile");
+ 
++        OpenLoco::Gfx::disposeDrawingEngine();
++
+         auto tempFilePath = Environment::getPathNoWarning(Environment::PathId::_1tmp);
+         if (fs::exists(tempFilePath))
+         {

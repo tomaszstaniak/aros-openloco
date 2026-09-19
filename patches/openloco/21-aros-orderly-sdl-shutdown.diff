@@ -1,0 +1,81 @@
+# aros-orderly-sdl-shutdown
+#
+# Completes the shutdown that upstream (even with #4018, patch 20) leaves unfinished: the game window is never destroyed and SDL_Quit() is commented out. Adds Ui::disposeWindow() and calls it after the drawing engine is disposed - the renderer belongs to the window - then calls SDL_Quit() at the point where upstream has it commented out. Order checked against ownership before writing: the only static SDL holders are raw pointers (_window, _cursors) and the drawing engine, which patch 20 now resets before this, so no static destructor running after exit() touches SDL after SDL_Quit(). Markers 61-63 bracket the new steps. Motivated by the stale Intuition window left on screen after every exit on AROS; NOT claimed to be the cause of backlog item 21.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-19.
+
+diff --git a/src/OpenLoco/include/OpenLoco/Ui.h b/src/OpenLoco/include/OpenLoco/Ui.h
+index be35216..7c9a6eb 100644
+--- a/src/OpenLoco/include/OpenLoco/Ui.h
++++ b/src/OpenLoco/include/OpenLoco/Ui.h
+@@ -99,6 +99,7 @@ namespace OpenLoco::Ui
+     void initialise();
+     void initialiseCursors();
+     void disposeCursors();
++    void disposeWindow();
+     void setCursor(CursorId id);
+     CursorId getCursor();
+     Point getCursorPosScaled();
+diff --git a/src/OpenLoco/src/OpenLoco.cpp b/src/OpenLoco/src/OpenLoco.cpp
+index 20f90aa..b7c4f4b 100644
+--- a/src/OpenLoco/src/OpenLoco.cpp
++++ b/src/OpenLoco/src/OpenLoco.cpp
+@@ -1,3 +1,4 @@
++#include <SDL3/SDL.h>
+ #include <OpenLoco/Core/StartupMarker.hpp>
+ #include "Scenario/Scenario.h"
+ #include <algorithm>
+@@ -104,6 +105,15 @@ namespace OpenLoco
+         mark(54, "exitCleanly: after unloadLanguageFile");
+ 
+         OpenLoco::Gfx::disposeDrawingEngine();
++        mark(61, "exitCleanly: after Gfx::disposeDrawingEngine");
++
++        // The order follows ownership: the renderer (gone with the drawing
++        // engine above) belongs to the window, and every SDL object has to be
++        // released before SDL_Quit() below. The drawing engine used to be
++        // destroyed by a static destructor after exit(), which would have run
++        // after SDL_Quit() - hence disposing it explicitly first.
++        Ui::disposeWindow();
++        mark(62, "exitCleanly: after Ui::disposeWindow");
+ 
+         auto tempFilePath = Environment::getPathNoWarning(Environment::PathId::_1tmp);
+         if (fs::exists(tempFilePath))
+@@ -120,7 +130,11 @@ namespace OpenLoco
+         Logging::shutdown();
+         mark(57, "exitCleanly: after Logging::shutdown");
+ 
+-        // SDL_Quit();
++        // Upstream has this commented out. Nothing SDL-owned is left by now:
++        // cursors, drawing engine and window are all released above, and no
++        // static destructor that runs after exit() touches SDL.
++        SDL_Quit();
++        mark(63, "exitCleanly: after SDL_Quit");
+         mark(58, "exitCleanly: about to exit(0)");
+         exit(0);
+     }
+diff --git a/src/OpenLoco/src/Ui.cpp b/src/OpenLoco/src/Ui.cpp
+index 51d2c4f..54e2ba3 100644
+--- a/src/OpenLoco/src/Ui.cpp
++++ b/src/OpenLoco/src/Ui.cpp
+@@ -385,6 +385,19 @@ namespace OpenLoco::Ui
+         loadCursor(CursorId::placeStation, Cursor::placeStation);
+     }
+ 
++    // Destroys the game window. Must run after the drawing engine has been
++    // disposed - its renderer belongs to this window - and before SDL_Quit().
++    // Upstream never destroys the window at all; on AROS that left the
++    // Intuition window on screen after the program had exited.
++    void disposeWindow()
++    {
++        if (_window != nullptr)
++        {
++            SDL_DestroyWindow(_window);
++            _window = nullptr;
++        }
++    }
++
+     void disposeCursors()
+     {
+         for (auto*& cursor : _cursors)

@@ -438,6 +438,33 @@ when the hang is reproducible again:
 - a build linked against `libopenal.static.a` (also 1.16.0) instead of the
   stubs, so no library state is shared between runs at all.
 
+### Orderly shutdown, 2026-09-19 23:08-23:21 (variant C)
+
+Independent of reproducing the hang, the cleanup gaps were closed as a
+separate variant: **C** = B plus patch 20 (verbatim backport of upstream #4018)
+plus patch 21 (destroy the window, then `SDL_Quit()`), SHA-256 `8c11ae86…`.
+Before writing patch 21 every SDL resource was inventoried: the only static SDL
+holders are raw pointers (`_window`, `_cursors`) and the drawing engine, which
+patch 20 resets before `SDL_Quit()` - so no static destructor running after
+`exit()` touches SDL. Markers 61-63 bracket the new steps; all appeared, in
+order, ending with `after SDL_Quit` and `about to exit(0)`.
+
+Result against all four criteria at once: window gone, Shell back, one
+unfreed signal instead of five, second start works (103.9% CPU, frames
+differ). Host state was recorded this time: four QEMUs running, load 2.9-4.6,
+pressure normal.
+
+This is **not** offered as the fix for item 21: A and B also started twice
+without it on 2026-09-19, so a working second start here shows nothing about
+the hang. What it does show is that the leaked window and four of the five
+leaked signal bits are gone, which removes them from the list of things a
+future reproduction has to consider.
+
+**Housekeeping to remember:** patches 18 and 19 are diagnostic and must go
+before a release, and 20/21 were saved on top of them, so their
+`OpenLoco.cpp` hunks carry marker lines as context. Dropping 18/19 means
+regenerating 20 and 21.
+
 ### The next test, in this order
 
 0. **Reproduce the failure again before any binary-based step**, using
@@ -802,10 +829,24 @@ deadlock and an ordinary wait are also idle.
 Evidence: `../evidence/gameplay-abiv11/RESULTS.md` and
 `second-start-wedge-first-run.log`.
 
-**What would close the window leak:** the game never calls
-`SDL_DestroyWindow()`, never destroys its renderer, and has `SDL_Quit()`
-commented out - see item 21. Which of the three the AROS backend needs in order
-to call `CloseWindow()` is untested.
+**Fixed, verified once (2026-09-19), by patches 20 and 21.** Patch 20 backports
+upstream #4018 (the drawing engine now destroys its renderer, surfaces,
+textures and palette, and is disposed explicitly in `exitCleanly()`); patch 21
+destroys the window after it and calls `SDL_Quit()` last - the order checked
+against ownership first, see item 21. With both, quitting via "Exit Game":
+
+- **the window is gone** - no stale Intuition window on the Workbench screen;
+- the Shell prompt returns;
+- **one** unfreed signal is reported (`0x200000`) instead of five;
+- a second start in the same boot works.
+
+Evidence: `../evidence/gameplay-abiv11/25-orderly-shutdown-window-gone-one-signal.png`,
+`26-orderly-shutdown-second-start-works.png`. One run; the close gadget path was
+not re-checked with these patches.
+
+**Still open:** whose signal bit `0x200000` is. Something opened after SDL -
+`openal.library`'s mixer, or a thread SDL does not join - is a guess, not a
+finding.
 
 ## 13. CLOSED - the binary starts (superseded by §16)
 
