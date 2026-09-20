@@ -684,15 +684,15 @@ produced no requesters at all, because the four directories already existed and
 needs a volume where those directories are absent. Worth sending upstream: any filesystem without
 POSIX permissions hits this, not only AROS.
 
-## 1. ANSWERED - OpenLoco only gets the software renderer; OpenGL is refused
+## 1. PARTLY ANSWERED - OpenLoco gets the software renderer, the smoke test gets OpenGL
 
-Measured 2026-09-20 with a diagnostic build (variant F/G, upstream 7f8c90cf)
-that logs the renderer once and times the message loop into memory.
+Measured 2026-09-20 with diagnostic builds that log the renderer once and,
+since the latest build, count actual frame presentations.
 
-| run | what the game got | frames | median | p90 | min |
-|---|---|---|---|---|---|
-| `SDL_CreateRenderer(window, nullptr)` | **software, 640x480** | 7,639 | 21.2 ms | 38.1 ms | 1.1 ms |
-| `"opengl"` asked for by name | **refused** → software, 640x480 | 7,274 | 21.6 ms | 37.6 ms | 1.1 ms |
+| run | what the game got |
+|---|---|
+| `SDL_CreateRenderer(window, nullptr)` | **software, 640x480**, no error logged |
+| `"opengl"` asked for by name (variant G) | **refused** -> software, 640x480 |
 
 ```
 [ERR] Renderer 'opengl' was asked for and refused:
@@ -700,65 +700,84 @@ that logs the renderer once and times the message loop into memory.
 [INF] Renderer: software (640x480) [asked for by the renderer-driver file]
 ```
 
-**What is established: `opengl` was refused in these runs.** That is narrower
-than "software is the only path available" - two runs on one machine
-configuration do not establish what the program can never get. The two rows are
-the same path twice, which is why the numbers match, so no renderer comparison
-was made.
+**What is established: `opengl` was refused in these runs**, and with no driver
+forced SDL picks `software` for the game's window without reporting an error.
+That is narrower than "software is the only path available" - a handful of runs
+on one machine configuration do not establish what the program can never get.
 
 Note also that the name `opengl` would not have meant GPU acceleration: that
 driver can render on the CPU too. Nothing here has measured acceleration.
-Evidence: `../evidence/gameplay-abiv11/32-renderer-default-frames.png`,
-`33-renderer-opengl-refused.png`.
 
-**Why it is refused is open.** `SDL_GetError()` came back empty. The obvious
-suspect, untested: SDL3 does not allow a window to have both a surface and a
-renderer, and our hidden-window patch makes the AROS backend build a
-framebuffer for the window on demand - if that marks the window as a surface
-window, a GL renderer afterwards cannot be created. The SDL3 smoke test, which
-did get `opengl`, created a plain visible window and never asked for a surface.
+**The comparison the user asked for has now been run.** In one guest session,
+on the same machine configuration and the same SDL3 3.4.12 build, the freshly
+rebuilt `sdl3-smoke` reported `video driver: aros`, `renderer: opengl`,
+`VIDEO: PASS`; the game started minutes later in that same session and got
+`software`. **So the Mac, QEMU and the SDL3 build are all excluded as the
+explanation: the difference lies in the program.**
+Evidence: `../evidence/gameplay-abiv11/34-smoke-test-opengl-same-session.png`,
+`32-renderer-default-frames.png`, `33-renderer-opengl-refused.png`.
 
-The error **was** read immediately after the failed call, before the fallback
-attempt, and came back empty - so "SDL cleared it later" is not the
-explanation; either nothing set it, or it was set somewhere that does not reach
-here.
+**Why is still open.** With `opengl` forced, `SDL_GetError()` was read
+immediately after the failed call, before the fallback attempt, and came back
+empty - so "SDL cleared it later" is not the explanation; either nothing set
+it, or it was set somewhere that does not reach here.
 
-*What would close it, and it is the comparison we can actually run:* the SDL3
-smoke test **did** get `opengl`, on this same Mac under QEMU - so QEMU is not
-an explanation by itself. Run the smoke test and the game **on the same guest,
-the same session and the same SDL3 build**, then vary the one difference
-already known: a visible window against the hidden-window-plus-framebuffer path
-that our SDL3 patch introduced.
+*Next test, the one difference already known:* the smoke test creates a plain
+**visible** window and never asks for a surface; our SDL3 patch gives OpenLoco a
+**hidden** window whose framebuffer the AROS backend builds on demand. Build a
+variant that creates the window visible, without the framebuffer-on-demand
+path, and compare the two in one guest session.
 
-## 2. Performance - the first real frame times
+## 2. ANSWERED for this configuration - gameplay holds the game's own 40 fps cap
 
-Measured 2026-09-20, variant F (upstream 7f8c90cf + our patches + the frame
-timer), AROS One / ABIv11 under QEMU TCG, **software renderer at 640x480**:
+Measured 2026-09-20, build `833476c8...` (**newer upstream `7f8c90cf`**, patch set
+`openloco-next`: 01-17 + 21, plus diagnostic patch 22; the `7c7bf52` in the
+game's title bar is the work-tree commit, not upstream), AROS One / ABIv11 under
+QEMU TCG, **software renderer at 640x480**. The patch was rewritten to the
+user's instruction: the measurement is confined to fixed 30-second windows and
+counts **actual presentations** (`SDL_RenderPresent` in
+`SoftwareDrawingEngine::present()`), not iterations of the message loop.
 
-- **median 21.2 ms**, p90 38.1 ms, min 1.1 ms, over 7,639 iterations
-- the second run agreed: median 21.6 ms, p90 37.6 ms
+| stretch | frames / 30 s | fps | median | p90 | max |
+|---|---|---|---|---|---|
+| title screen | 960 | **32.0** | 24.4 ms | 27.0 ms | 533 ms |
+| gameplay, map loaded, 8 consecutive windows | 1,202 | **40.0** | 24.8-25.0 ms | 26.4 ms | 29.7 ms |
 
-**These are iterations of the main loop, not rendered frames, and the
-distinction matters.** The patch times `while (Input::processMessages())
-update()` across the whole run - startup, the title screen, the file dialogs -
-so the median is a mixture, and it does **not** establish ~47 rendered frames
-per second during play. It also does not count presentations: an iteration may
-draw nothing. A number about gameplay needs the measurement confined to a fixed
-stretch after the map is loaded, counting actual frame presentations.
+**40.0 fps is the game's own ceiling, not the machine's.** `tickWait()` in
+`OpenLoco.cpp` idles until `Engine::UpdateRateInMs` has passed, and
+`UpdateRateInMs = 1000 / UpdateRateHz` with `UpdateRateHz = 40`
+(`OpenLoco/include/OpenLoco/OpenLoco.h:16`):
 
-**Read the mean and the maximum as artefacts, not results**: mean 52 ms and max
-236 s come from the game's modal file dialog, which runs its own nested loop -
-one outer iteration spans the whole time the dialog is open. The median and p90
-are what describe drawing.
+```cpp
+    static void tickWait()
+    {
+        // Idle loop for a 40 FPS
+        do { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+        while (Platform::getTime() - _last_tick_time < Engine::UpdateRateInMs);
+    }
+```
 
-**Conditions this number belongs to**: emulation (TCG, no KVM), a host running
-two to five QEMU guests, the software renderer, 640x480, and a small map with
-one vehicle. It says nothing about hardware, and nothing about the OpenGL path,
-which could not be obtained (item 1).
+So the result reads: **the software renderer at 640x480 under emulation keeps
+up with the cap during play, with a tight distribution** (p90 26.4 ms against a
+25 ms budget). It does **not** measure how fast the port could draw - the cap
+would have to be raised for that. The title screen's 32 fps sits below the cap
+and is the one stretch where drawing did not keep up.
 
-*What is still missing:* a bigger map, a busier company, and a higher
-resolution; and the same measurement on real hardware, which cannot be done
-from here.
+Occasional maxima of ~450-470 ms appear next to `Autosaving game ...` in the
+log, so the visible hitch during play is the save, not the renderer.
+
+**Superseded:** the earlier "median 21.2 ms over 7,639 iterations" figures
+counted main-loop iterations, mixed startup, title screen and modal dialogs into
+one median, and did not describe gameplay. The mean of 52 ms and max of 236 s in
+that measurement were the modal file dialog's nested loop, not drawing.
+
+**Conditions this number belongs to**: emulation (TCG, no KVM), the software
+renderer, 640x480, and a small map with one vehicle.
+Evidence: `../evidence/gameplay-abiv11/35-present-title-and-gameplay.png`.
+
+*What is still missing:* a bigger map, a busier company, a higher resolution,
+and a run with the cap lifted to find the actual ceiling; and the same
+measurement on real hardware, which cannot be done from here.
 
 ## 3. SDL3 as `sdl3.library`, not a static build alongside
 
@@ -797,7 +816,7 @@ libstdc++ with `wchar_t` is wider and needs a separate check of whether AROS
 ABIv11 has the full set of wide-character functions on the C side - see
 `../platform/`.
 
-## 6. Audio: the game does produce sound; nobody has listened yet
+## 6. Audio: music confirmed by ear; sound effects still unchecked
 
 **Initialisation** (2026-09-18): OpenAL Soft 1.16.0 comes up, **EFX reverb**
 initialises - which settles item 15 against the guess there - and 256 sources
