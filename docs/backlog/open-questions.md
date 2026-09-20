@@ -696,59 +696,58 @@ produced no requesters at all, because the four directories already existed and
 needs a volume where those directories are absent. Worth sending upstream: any filesystem without
 POSIX permissions hits this, not only AROS.
 
-## 1. PARTLY ANSWERED - OpenLoco gets the software renderer, the smoke test gets OpenGL
+## 1. ANSWERED - the hidden window is why; and OpenGL here is 20x slower
 
-Measured 2026-09-20 with diagnostic builds that log the renderer once and,
-since the latest build, count actual frame presentations.
+Answered 2026-09-20 by the test named in the previous version of this item: one
+binary (`74277abb...`), one guest boot, `opengl` asked for by name in both runs,
+the only difference being the `visible-window` file that diagnostic patch 24
+reads.
 
-| run | what the game got |
-|---|---|
-| `SDL_CreateRenderer(window, nullptr)` | **software, 640x480**, no error logged |
-| `"opengl"` asked for by name (variant G) | **refused** -> software, 640x480 |
+| run | window | what SDL gave | title screen |
+|---|---|---|---|
+| 1 | **visible** | `Renderer: opengl (640x480)` | 40, 49, 49, 48 frames per 30 s = **1.3-1.6 fps**, median 630-651 ms |
+| 2 | **hidden** (upstream behaviour) | `SDL_CreateRenderer(opengl) failed: (SDL set no error text)` -> software | 1021 and 966 frames per 30 s = **34.0 and 32.2 fps**, median 24.4 and 28.9 ms |
 
-```
-[ERR] Renderer 'opengl' was asked for and refused:
-[WRN] Hardware acceleration not available, falling back to software renderer.
-[INF] Renderer: software (640x480) [asked for by the renderer-driver file]
-```
+**So the hidden window is the reason.** OpenLoco asks for a renderer while its
+window is still hidden - upstream behaviour, unchanged by this port - and our
+SDL3 patch has the AROS backend build the framebuffer on demand for that case.
+On that path OpenGL is refused. Created visible, the same binary is granted
+OpenGL, and it **draws correctly**: title screen, menu, version line, all
+right.
 
-**What is established: `opengl` was refused in these runs**, and with no driver
-forced SDL picks `software` for the game's window without reporting an error.
-That is narrower than "software is the only path available" - a handful of runs
-on one machine configuration do not establish what the program can never get.
+**And getting OpenGL would be a defeat, not a win.** In the same session, on
+the same screen, OpenGL ran the title screen at 1.3-1.6 fps against 32-34 fps
+for the software renderer: **about twenty times slower**, 630 ms per frame
+against 25 ms. AROS One's GL here is a software implementation running inside
+QEMU TCG, with no GPU behind it, so every frame is rasterised by the emulated
+CPU and then handed back. The name `opengl` never meant acceleration; this
+measures what it does mean on this machine.
 
-Note also that the name `opengl` would not have meant GPU acceleration: that
-driver can render on the CPU too. Nothing here has measured acceleration.
+That reverses the standing of item 1. The software renderer is not a
+consolation prize this port is stuck with - on this configuration it is the
+fast path, by a factor of twenty, and the refusal on the hidden-window path
+happens to steer the game onto it.
 
-**The comparison the user asked for has now been run.** In one guest session,
-on the same machine configuration and the same SDL3 3.4.12 build, the freshly
-rebuilt `sdl3-smoke` reported `video driver: aros`, `renderer: opengl`,
-`VIDEO: PASS`; the game started minutes later in that same session and got
-`software`.
+**What is still wrong, and is worth reporting.** SDL3's AROS backend refuses
+the renderer **without setting an error string**: `SDL_GetError()`, read
+immediately after the failed call and before any fallback, comes back empty
+(hence "SDL set no error text" in the log). A silent refusal is a defect
+regardless of which renderer is right here - it is what made this question take
+four sessions.
 
-**What that excludes, stated exactly:** the general claim "OpenGL does not work
-in this configuration" is refuted - the same Mac, the same QEMU and the same
-SDL3 build did hand out an OpenGL renderer in that session. It does **not**
-clear QEMU or SDL3 of taking part in the failure: the difference may lie in how
-the SDL3 AROS backend serves what the game asks for, and the hidden window is
-the most obvious such request. The two programs differ; which difference
-matters is exactly what is not yet known.
-Evidence: `../evidence/gameplay-abiv11/34-smoke-test-opengl-same-session.png`,
-`32-renderer-default-frames.png`, `33-renderer-opengl-refused.png`.
+**What this does not say:** nothing about OpenGL on real AROS hardware with a
+GPU driver, which cannot be tested from here; and nothing about whether the
+backend's hidden-window path is *correct* - only that it is the branch on which
+the refusal happens.
 
-**Why is still open.** With `opengl` forced, `SDL_GetError()` was read
-immediately after the failed call, before the fallback attempt, and came back
-empty - so "SDL cleared it later" is not the explanation; either nothing set
-it, or it was set somewhere that does not reach here.
+Evidence: `../evidence/gameplay-abiv11/40-software-same-session-34fps.png`
+(both runs in one Shell, the whole log readable),
+`37-visible-window-gets-opengl.png`, `38-opengl-visible-window-1.6fps.png`,
+`39-hidden-window-opengl-refused-same-session.png`, and for the smoke test
+`34-smoke-test-opengl-same-session.png`.
 
-*Next test, the one difference already known:* the smoke test creates a plain
-**visible** window and never asks for a surface; our SDL3 patch gives OpenLoco a
-**hidden** window whose framebuffer the AROS backend builds on demand. Build a
-variant that creates the window visible, without the framebuffer-on-demand
-path, asking for `opengl` by name, everything else unchanged, and compare the
-two in one guest session. **The visible window is an experiment, not a
-candidate fix**: if it changes the answer, the next step is to find the
-difference inside the SDL3 backend, not to ship a visible window.
+Incidentally: **two starts in one guest boot, both clean**, both leaving no
+window behind and one unfreed signal - item 21 not reproduced again.
 
 ## 2. ANSWERED for this configuration - gameplay holds the game's own 40 fps cap
 
