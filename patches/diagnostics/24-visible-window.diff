@@ -1,0 +1,62 @@
+# visible-window
+#
+# Diagnostic, not a fix. A file named "visible-window" next to the binary makes
+# OpenLoco create its window visible instead of hidden.
+#
+# Why: on AROS the SDL3 smoke test is granted an OpenGL renderer while the game,
+# in the same guest session and on the same SDL3 build, is given software. The
+# one difference already known between the two programs is that the game asks
+# for a renderer while its window is still hidden - our SDL3 patch has the AROS
+# backend build the framebuffer on demand for exactly that case - whereas the
+# smoke test creates a plain visible window. This switch isolates that
+# difference inside one binary, so both paths can be compared without rebooting
+# the guest or rebuilding. Pair it with the "renderer-driver" file from patch 22
+# holding "opengl".
+#
+# If the visible window does get OpenGL, the answer is not to ship a visible
+# window: it is to find what the backend does differently. Backlog item 1.
+#
+# Against OpenLoco 7f8c90cfb44e12d8b47e73e69edc5cb0d5ee7b1e, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-20.
+
+diff --git a/src/OpenLoco/src/Ui.cpp b/src/OpenLoco/src/Ui.cpp
+index 54e2ba3..7335b66 100644
+--- a/src/OpenLoco/src/Ui.cpp
++++ b/src/OpenLoco/src/Ui.cpp
+@@ -31,7 +31,9 @@
+ #include "Ui/WindowManager.h"
+ #include "World/CompanyManager.h"
+ #include <OpenLoco/Core/Exception.hpp>
++#include <OpenLoco/Core/FileSystem.hpp>
+ #include <OpenLoco/Diagnostics/Logging.h>
++#include <OpenLoco/Environment.h>
+ #include <OpenLoco/Engine/Ui/Point.hpp>
+ #include <SDL3/SDL_error.h>
+ #include <SDL3/SDL_init.h>
+@@ -221,7 +223,25 @@ namespace OpenLoco::Ui
+         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, pos.y);
+         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
+         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+-        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
++        // Diagnostic switch: a file named "visible-window" next to the binary
++        // makes the window be created visible instead of hidden. The SDL3 smoke
++        // test, which creates a plain visible window, is granted an OpenGL
++        // renderer on AROS where the game is not; the game asks for a renderer
++        // while its window is still hidden, and the AROS backend only builds
++        // the framebuffer on demand. This isolates that one difference.
++        // A file and not an environment variable: the AROS Shell's setenv does
++        // not reach getenv(). Backlog item 1.
++        bool hidden = true;
++        {
++            std::error_code ec;
++            auto marker = Environment::getPathNoWarning(Environment::PathId::openlocoYML).parent_path() / "visible-window";
++            if (fs::exists(marker, ec))
++            {
++                hidden = false;
++                Logging::info("Window created visible [asked for by the visible-window file]");
++            }
++        }
++        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, hidden);
+         SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
+ 
+         return props;

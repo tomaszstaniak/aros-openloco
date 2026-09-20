@@ -34,8 +34,23 @@ fi
 [ -f "$(abi_deps "$ABI")/lib/libSDL3_static.a" ] || {
     echo "no SDL3 for $ABI - run scripts/build-sdl3.sh $ABI" >&2; exit 1; }
 
+# What the title screen and the log will show. Left to itself, CMake reads the
+# commit hash of the work tree bootstrap.sh generates - a number that changes on
+# every bootstrap and names neither upstream nor the port, and that has already
+# sent one investigation down the wrong path. Name both revisions instead:
+#
+#   OpenLoco, 7f8c90cf+aros (383e679 on openloco-next+19)
+#             ^ upstream      ^ this repository  ^ patch set and patch count
+PATCH_COUNT=$(ls "$PATCH_DIR"/*.diff 2>/dev/null | wc -l | tr -d ' ')
+VERSION_TAG="$(echo "$UPSTREAM_COMMIT" | cut -c1-8)+aros"
+VERSION_BRANCH="$(basename "$PATCH_DIR")+$PATCH_COUNT"
+VERSION_SHA="$(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
 # -S is not optional: without it cmake silently does nothing in this layout.
 cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
+    -DOPENLOCO_VERSION_TAG="$VERSION_TAG" \
+    -DOPENLOCO_BRANCH="$VERSION_BRANCH" \
+    -DOPENLOCO_COMMIT_SHA1_SHORT="$VERSION_SHA" \
     -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
     -DCMAKE_BUILD_TYPE=Release \
     -DSTRICT=NO \
@@ -62,8 +77,11 @@ if [ -f "$OUT" ]; then
             echo "abi:         $ABI"
             echo "work commit: $(git -C "$WORK_DIR" rev-parse --short HEAD 2>/dev/null)"
             echo "work dirty:  $(git -C "$WORK_DIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ') file(s)"
-            echo "patches:     $(ls "$PORT_ROOT"/patches/openloco/*.diff 2>/dev/null | wc -l | tr -d ' ')"
+            # $PATCH_DIR, not patches/openloco: variant builds use another set,
+            # and the hardcoded path reported 19 patches for a 18-patch build.
+            echo "patches:     $PATCH_COUNT in $(basename "$PATCH_DIR")"
             echo "port commit: $(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null)"
+            echo "version:     $VERSION_TAG ($VERSION_SHA on $VERSION_BRANCH)"
         } > "$ARCHIVE/BUILD-INFO.txt"
         # The patch set with checksums, not just its directory name: patches
         # are edited, and symlinked sets share files with other variants, so a

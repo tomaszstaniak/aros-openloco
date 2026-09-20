@@ -132,18 +132,30 @@ clean (0 `._*` files) - the debris appears only when writing to the image. Fix:
 `dot_clean /Volumes/LOCODATA` before detaching the image. **The removal itself
 is unverified in the game.**
 
-## 17. The version shown in the game is not the upstream version
+## 17. ANSWERED - the version shown in the game names upstream and the port
 
-The title screen shows, for example, `OpenLoco, 1339e69 (1339e69 on baseline)`.
-That is the commit hash of the **private `work/` repository** created by
-`bootstrap.sh` - different on every bootstrap (in the return test: `12cdfa3`).
-It says nothing about OpenLoco upstream or about the state of the patches, yet
-it looks like a version identifier.
+The title screen used to show, for example, `OpenLoco, 1339e69 (1339e69 on
+baseline)`: the commit hash of the **private `work/` repository** created by
+`bootstrap.sh`, different on every bootstrap and saying nothing about OpenLoco
+upstream or about the state of the patches - while looking exactly like a
+version identifier. It was filed as low priority, "affects bug reports, not
+behaviour". That was wrong twice over: on 2026-09-20 the number was read as an
+upstream commit while attributing a measurement, and a wrong provenance on a
+piece of evidence is worse than no provenance.
 
-**What would close it:** passing the upstream commit (`UPSTREAM_COMMIT` from
-`scripts/env.sh`) and the patch count into CMake as `OPENLOCO_VERSION_TAG`,
-instead of taking them from the git repository in `work/`. Low priority - it
-affects bug reports, not behaviour.
+Fixed 2026-09-20. `build-openloco.sh` now passes the identifiers to CMake, and
+`cmake/OpenLocoVersion.cmake` only falls back to reading git when none are
+given, so upstream behaviour is unchanged (patch `23-aros-version-identifier`).
+The title bar and the log now read:
+
+```
+OpenLoco, 7f8c90cf+aros (b23ac93 on openloco-next+19)
+          ^ upstream      ^ this repository  ^ patch set + patch count
+```
+
+The build archive records the same string, and its `patches:` line now counts
+`$PATCH_DIR` - it had the default set hardcoded, and so reported 19 patches for
+an 18-patch `openloco-next` build.
 
 ## 21. The second OpenLoco start in one guest boot wedges the whole guest
 
@@ -712,8 +724,15 @@ driver can render on the CPU too. Nothing here has measured acceleration.
 on the same machine configuration and the same SDL3 3.4.12 build, the freshly
 rebuilt `sdl3-smoke` reported `video driver: aros`, `renderer: opengl`,
 `VIDEO: PASS`; the game started minutes later in that same session and got
-`software`. **So the Mac, QEMU and the SDL3 build are all excluded as the
-explanation: the difference lies in the program.**
+`software`.
+
+**What that excludes, stated exactly:** the general claim "OpenGL does not work
+in this configuration" is refuted - the same Mac, the same QEMU and the same
+SDL3 build did hand out an OpenGL renderer in that session. It does **not**
+clear QEMU or SDL3 of taking part in the failure: the difference may lie in how
+the SDL3 AROS backend serves what the game asks for, and the hidden window is
+the most obvious such request. The two programs differ; which difference
+matters is exactly what is not yet known.
 Evidence: `../evidence/gameplay-abiv11/34-smoke-test-opengl-same-session.png`,
 `32-renderer-default-frames.png`, `33-renderer-opengl-refused.png`.
 
@@ -726,7 +745,10 @@ it, or it was set somewhere that does not reach here.
 **visible** window and never asks for a surface; our SDL3 patch gives OpenLoco a
 **hidden** window whose framebuffer the AROS backend builds on demand. Build a
 variant that creates the window visible, without the framebuffer-on-demand
-path, and compare the two in one guest session.
+path, asking for `opengl` by name, everything else unchanged, and compare the
+two in one guest session. **The visible window is an experiment, not a
+candidate fix**: if it changes the answer, the next step is to find the
+difference inside the SDL3 backend, not to ship a visible window.
 
 ## 2. ANSWERED for this configuration - gameplay holds the game's own 40 fps cap
 
@@ -738,10 +760,32 @@ user's instruction: the measurement is confined to fixed 30-second windows and
 counts **actual presentations** (`SDL_RenderPresent` in
 `SoftwareDrawingEngine::present()`), not iterations of the message loop.
 
-| stretch | frames / 30 s | fps | median | p90 | max |
-|---|---|---|---|---|---|
-| title screen | 960 | **32.0** | 24.4 ms | 27.0 ms | 533 ms |
-| gameplay, map loaded, 8 consecutive windows | 1,202 | **40.0** | 24.8-25.0 ms | 26.4 ms | 29.7 ms |
+**Every window is listed**, because a summary row hid the autosaves. Each row
+is one 30-second window; the gameplay rows are eight consecutive windows,
+four minutes of continuous play on a loaded map.
+
+| # | stretch | frames / 30 s | fps | median | p90 | max | autosave in this window |
+|---|---|---|---|---|---|---|---|
+| - | title screen | 960 | **32.0** | 24.4 ms | 27.0 ms | 533 ms | no (startup, scene transition) |
+| 1 | gameplay | 1202 | 40.0 | 24.9 ms | 26.4 ms | 29.7 ms | no |
+| 2 | gameplay | 1201 | 40.0 | 24.9 ms | 26.3 ms | **461.5 ms** | **yes** |
+| 3 | gameplay | 1201 | 40.0 | 24.9 ms | 26.4 ms | 29.0 ms | no |
+| 4 | gameplay | 1202 | 40.0 | 24.9 ms | 26.4 ms | 28.8 ms | no |
+| 5 | gameplay | 1201 | 40.0 | 24.8 ms | 26.2 ms | **450.2 ms** | **yes** |
+| 6 | gameplay | 1202 | 40.0 | 25.0 ms | 26.7 ms | 49.9 ms | no |
+| 7 | gameplay | 1202 | 40.0 | 25.0 ms | 26.2 ms | **472.6 ms** | **yes** |
+| 8 | gameplay | 1201 | 40.0 | 25.0 ms | 26.3 ms | 30.1 ms | no |
+
+The spread between windows is negligible: **1201-1202 frames, 40.0 fps in all
+eight**, median 24.8-25.0 ms, p90 26.2-26.7 ms. The maxima split cleanly in
+two: **28.8-49.9 ms without an autosave, 450-473 ms with one**, and the three
+long ones are exactly the three windows whose `[INF] Autosaving game ...` lines
+fall inside them. Nothing else in the log moves with them.
+
+That correlation says the hitch belongs to the autosave **operation**; it does
+not say the time is spent writing to disk. Serialising and compressing the map
+happen in the same operation and have not been timed separately. Item 22 is
+open for that measurement.
 
 **40.0 fps is the game's own ceiling, not the machine's.** `tickWait()` in
 `OpenLoco.cpp` idles until `Engine::UpdateRateInMs` has passed, and
@@ -757,14 +801,16 @@ counts **actual presentations** (`SDL_RenderPresent` in
     }
 ```
 
-So the result reads: **the software renderer at 640x480 under emulation keeps
-up with the cap during play, with a tight distribution** (p90 26.4 ms against a
-25 ms budget). It does **not** measure how fast the port could draw - the cap
-would have to be raised for that. The title screen's 32 fps sits below the cap
-and is the one stretch where drawing did not keep up.
-
-Occasional maxima of ~450-470 ms appear next to `Autosaving game ...` in the
-log, so the visible hitch during play is the save, not the renderer.
+So the result reads: **the software renderer at 640x480 under emulation sustains
+the capped rate during play** - 40.0 fps in every window, with a tight
+distribution. It is a statement about the average, **not about every frame
+meeting its deadline**: p90 sits at 26.2-26.7 ms against a 25 ms budget, so at
+least a tenth of the frames arrive late, and the rate is held because early
+frames make up for them. It does **not** measure how fast the port could draw;
+the cap would have to be raised for that, which is deliberately **not** the next
+step - a bigger map and a higher resolution at the present 40 Hz cap say more.
+The title screen's 32 fps sits below the cap and is the one stretch where
+drawing did not keep up.
 
 **Superseded:** the earlier "median 21.2 ms over 7,639 iterations" figures
 counted main-loop iterations, mixed startup, title screen and modal dialogs into
@@ -773,11 +819,44 @@ that measurement were the modal file dialog's nested loop, not drawing.
 
 **Conditions this number belongs to**: emulation (TCG, no KVM), the software
 renderer, 640x480, and a small map with one vehicle.
-Evidence: `../evidence/gameplay-abiv11/35-present-title-and-gameplay.png`.
+Evidence: `../evidence/gameplay-abiv11/36-present-all-windows.png` - the eight
+gameplay windows with the autosave lines between them, which is where the table
+above comes from. `35-present-title-and-gameplay.png` shows the title-screen
+window but the game window covers the right-hand half of the later lines, so
+**36 is the readable one**.
 
-*What is still missing:* a bigger map, a busier company, a higher resolution,
-and a run with the cap lifted to find the actual ceiling; and the same
-measurement on real hardware, which cannot be done from here.
+*What is still missing, in order of value:* a higher resolution and a bigger,
+busier map at the present 40 Hz cap (item 23); a separate timing of the
+autosave (item 22); and the same measurement on real hardware, which cannot be done from here.
+Lifting the cap to find the ceiling is deliberately last - it answers a
+question nobody is asking yet.
+
+## 22. How long does an autosave take, and where does the time go
+
+Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
+them had frame maxima of 450-473 ms; the seven without had 28.8-49.9 ms. That
+pins the hitch on the autosave operation and nothing else.
+
+**What is not known:** whether the time is the write to FAT32, the serialisation
+of the map, the compression, or the directory work around it (the log shows an
+old autosave being deleted in the same breath). The number above is the longest
+*frame*, not the length of the operation - the operation may well span several
+frames, or block for less than the frame it lands in.
+
+*To close it:* time the autosave from entry to return, and time its inner stages
+separately. Both ends belong in the same diagnostic patch.
+
+## 23. The measurement has only been made at 640x480 on a small map
+
+Opened 2026-09-20 out of item 2. The 40.0 fps result belongs to a small map with
+one vehicle at 640x480. **The cap is not to be lifted to chase a ceiling** -
+what matters is whether the port still holds 40 Hz when the work grows:
+
+1. the same map at a higher resolution;
+2. a large, busy map at 640x480;
+3. both together.
+
+The presentation counter from diagnostic patch 22 measures all three unchanged.
 
 ## 3. SDL3 as `sdl3.library`, not a static build alongside
 
