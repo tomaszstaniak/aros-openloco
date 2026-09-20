@@ -700,10 +700,14 @@ that logs the renderer once and times the message loop into memory.
 [INF] Renderer: software (640x480) [asked for by the renderer-driver file]
 ```
 
-So the software renderer is not a fallback nobody exercised - **it is the only
-path this program gets**, and the first run's "SDL's default choice" was not a
-choice. The two rows are the same path twice, which is why the numbers match;
-a renderer comparison cannot be made until OpenGL can be obtained at all.
+**What is established: `opengl` was refused in these runs.** That is narrower
+than "software is the only path available" - two runs on one machine
+configuration do not establish what the program can never get. The two rows are
+the same path twice, which is why the numbers match, so no renderer comparison
+was made.
+
+Note also that the name `opengl` would not have meant GPU acceleration: that
+driver can render on the CPU too. Nothing here has measured acceleration.
 Evidence: `../evidence/gameplay-abiv11/32-renderer-default-frames.png`,
 `33-renderer-opengl-refused.png`.
 
@@ -714,19 +718,33 @@ framebuffer for the window on demand - if that marks the window as a surface
 window, a GL renderer afterwards cannot be created. The SDL3 smoke test, which
 did get `opengl`, created a plain visible window and never asked for a surface.
 
-*What would close it:* print `SDL_GetError()` right after the failed
-`SDL_CreateRenderer` (it was logged but empty - check whether anything cleared
-it first), and try a build where the window is created visible, without the
-framebuffer-on-demand path, to see whether `opengl` becomes available.
+The error **was** read immediately after the failed call, before the fallback
+attempt, and came back empty - so "SDL cleared it later" is not the
+explanation; either nothing set it, or it was set somewhere that does not reach
+here.
+
+*What would close it, and it is the comparison we can actually run:* the SDL3
+smoke test **did** get `opengl`, on this same Mac under QEMU - so QEMU is not
+an explanation by itself. Run the smoke test and the game **on the same guest,
+the same session and the same SDL3 build**, then vary the one difference
+already known: a visible window against the hidden-window-plus-framebuffer path
+that our SDL3 patch introduced.
 
 ## 2. Performance - the first real frame times
 
 Measured 2026-09-20, variant F (upstream 7f8c90cf + our patches + the frame
-timer), AROS One / ABIv11 under QEMU TCG, **software renderer at 640x480**, on
-a loaded save with a running train, the same save and view in both runs:
+timer), AROS One / ABIv11 under QEMU TCG, **software renderer at 640x480**:
 
-- **median 21.2 ms (~47 fps)**, p90 38.1 ms (~26 fps), min 1.1 ms, 7,639 frames
+- **median 21.2 ms**, p90 38.1 ms, min 1.1 ms, over 7,639 iterations
 - the second run agreed: median 21.6 ms, p90 37.6 ms
+
+**These are iterations of the main loop, not rendered frames, and the
+distinction matters.** The patch times `while (Input::processMessages())
+update()` across the whole run - startup, the title screen, the file dialogs -
+so the median is a mixture, and it does **not** establish ~47 rendered frames
+per second during play. It also does not count presentations: an iteration may
+draw nothing. A number about gameplay needs the measurement confined to a fixed
+stretch after the map is loaded, counting actual frame presentations.
 
 **Read the mean and the maximum as artefacts, not results**: mean 52 ms and max
 236 s come from the game's modal file dialog, which runs its own nested loop -
@@ -803,11 +821,13 @@ Two different rates for the two phases, both in a tonal range (white noise at
 44.1 kHz would be an order of magnitude higher), so the content changes with
 what the game is doing.
 
-**What is still missing: somebody has to listen.** Numbers show a signal with
-structure; they cannot tell correct audio from distorted audio. What the
-listening has to cover: the music itself, the effects, crackle, dropouts and
-tempo - a recording can be continuous and still be wrong in every one of
-those. Files for that, outside the repository because of their size:
+**The music has been listened to** (the user, 2026-09-20, the title and
+in-game excerpts): no problems noticed. That closes the music half of this
+item - numbers alone could never have.
+
+**Sound effects are a separate check and have not been made.** The excerpts
+cover the title screen and a quiet map with one train; vehicle noise, ambient
+sound and UI clicks under load are not in them. Files for that, outside the repository because of their size:
 
 - `~/Work/AROS/loco-variants/loco-audio-2026-09-20.wav` - the whole session
 - `…/loco-audio-title-20s.wav`, `…/loco-audio-ingame-20s.wav` - 20-second
