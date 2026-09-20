@@ -76,6 +76,39 @@ the point where it killed one of the driving scripts. That is a plausible
 contributor to slowness but not to a four-minute freeze with the pointer dead
 at 1% CPU.
 
+## Session 6, 2026-09-20: sound, and a save that survives a guest reboot
+
+Variant **E** (upstream `7f8c90cf` 26.09+, patches 01-17 and 21, SHA-256
+`4f5e3a5e…`).
+
+**Sound.** `AUDIO=wav` records only while the guest holds the audio device, and
+the recording is 428 s against about 425 s of game run time. Peak 11,976 of
+32,767, signal in 402 of 429 seconds, and zero-crossing rates that differ by
+phase - 2,366/s at the title screen, 1,365/s in game. So the game produces
+structured audio that changes with what it is doing. **Nobody has listened
+yet**; the files for that are in `~/Work/AROS/loco-variants/`. See backlog
+item 6, including the trap that QEMU writes a WAV header with zero sizes.
+
+**A save that survives a reboot of the guest**, end to end:
+
+| step | evidence |
+|---|---|
+| load the earlier save | train on its track, $5,986, 2nd September 1901 |
+| let it run | the train moves; the clock advances |
+| save under a **typed** name | `30-save-named-before-reboot.png`: "Sandbox Settlerarostrain**reboot**", $5,986, 12th September 1901 - text input works on this build too |
+| quit, **stop the guest**, boot it again | the save is listed after the reboot |
+| load it | `31-save-restored-after-guest-reboot.png`: the train is there with its smoke, 17th October 1901, $5,878 |
+
+The arithmetic holds: 35 days of running costs between 12 September and 17
+October account for the $108 difference, so the game resumed from the saved
+state rather than from something else.
+
+**One thing to note about the volume.** `fsck_msdos` after that session found
+**1 orphaned cluster** - no `FAT[0]` damage this time. The guest was stopped
+without a clean shutdown right after a 954 KB save, so an unreferenced chain is
+what one would expect; it is recorded because item 18b is about exactly this
+kind of damage.
+
 ## The freeze: one occurrence, and it did not come back
 
 **What happened.** Saving over an existing file: Save Game -> OK -> "Replace
