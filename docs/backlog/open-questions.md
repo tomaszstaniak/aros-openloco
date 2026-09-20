@@ -684,33 +684,63 @@ produced no requesters at all, because the four directories already existed and
 needs a volume where those directories are absent. Worth sending upstream: any filesystem without
 POSIX permissions hits this, not only AROS.
 
-## 1. The software renderer has never been exercised
+## 1. ANSWERED - OpenLoco only gets the software renderer; OpenGL is refused
 
-SDL3 selected `opengl` and `setenv SDL_RENDER_DRIVER software` in the Shell did
-not change that (run 2 still reported `renderer: opengl`). It is not known
-whether the AROS `setenv` fails to reach posixc's `getenv()`, or SDL3 reads the
-hint differently.
+Measured 2026-09-20 with a diagnostic build (variant F/G, upstream 7f8c90cf)
+that logs the renderer once and times the message loop into memory.
 
-OpenLoco keeps the software path as its fallback
-(`SoftwareDrawingEngine.cpp:60`), so it is the path some users will actually
-take.
+| run | what the game got | frames | median | p90 | min |
+|---|---|---|---|---|---|
+| `SDL_CreateRenderer(window, nullptr)` | **software, 640x480** | 7,639 | 21.2 ms | 38.1 ms | 1.1 ms |
+| `"opengl"` asked for by name | **refused** → software, 640x480 | 7,274 | 21.6 ms | 37.6 ms | 1.1 ms |
 
-**What would close it:** forcing it with
-`SDL_SetHint(SDL_HINT_RENDER_DRIVER, ...)` in the test code and a comparison run
-of both renderers under the same load.
+```
+[ERR] Renderer 'opengl' was asked for and refused:
+[WRN] Hardware acceleration not available, falling back to software renderer.
+[INF] Renderer: software (640x480) [asked for by the renderer-driver file]
+```
 
-## 2. Performance - the one number that says whether the game is usable
+So the software renderer is not a fallback nobody exercised - **it is the only
+path this program gets**, and the first run's "SDL's default choice" was not a
+choice. The two rows are the same path twice, which is why the numbers match;
+a renderer comparison cannot be made until OpenGL can be obtained at all.
+Evidence: `../evidence/gameplay-abiv11/32-renderer-default-frames.png`,
+`33-renderer-opengl-refused.png`.
 
-6.1 fps at 320x240. Measured under QEMU/TCG, through the OpenGL renderer
-probably going over software Mesa, and it includes the test own overhead
-(76 800 pixels generated in C++ per frame). It is not a number about hardware or
-about SDL3.
+**Why it is refused is open.** `SDL_GetError()` came back empty. The obvious
+suspect, untested: SDL3 does not allow a window to have both a surface and a
+renderer, and our hidden-window patch makes the AROS backend build a
+framebuffer for the window on demand - if that marks the window as a surface
+window, a GL renderer afterwards cannot be created. The SDL3 smoke test, which
+did get `opengl`, created a plain visible window and never asked for a surface.
 
-OpenLoco runs at a higher resolution and needs many times more.
+*What would close it:* print `SDL_GetError()` right after the failed
+`SDL_CreateRenderer` (it was logged but empty - check whether anything cleared
+it first), and try a build where the window is created visible, without the
+framebuffer-on-demand path, to see whether `opengl` becomes available.
 
-**What would close it:** a measurement on a real machine, both renderers, at a
-resolution close to the target, with the pixel-generation overhead separated
-out.
+## 2. Performance - the first real frame times
+
+Measured 2026-09-20, variant F (upstream 7f8c90cf + our patches + the frame
+timer), AROS One / ABIv11 under QEMU TCG, **software renderer at 640x480**, on
+a loaded save with a running train, the same save and view in both runs:
+
+- **median 21.2 ms (~47 fps)**, p90 38.1 ms (~26 fps), min 1.1 ms, 7,639 frames
+- the second run agreed: median 21.6 ms, p90 37.6 ms
+
+**Read the mean and the maximum as artefacts, not results**: mean 52 ms and max
+236 s come from the game's modal file dialog, which runs its own nested loop -
+one outer iteration spans the whole time the dialog is open. The median and p90
+are what describe drawing.
+
+**Conditions this number belongs to**: emulation (TCG, no KVM), a host running
+two to five QEMU guests, the software renderer, 640x480, and a small map with
+one vehicle. It says nothing about hardware, and nothing about the OpenGL path,
+which could not be obtained (item 1).
+
+*What is still missing:* a bigger map, a busier company, and a higher
+resolution; and the same measurement on real hardware, which cannot be done
+from here.
 
 ## 3. SDL3 as `sdl3.library`, not a static build alongside
 

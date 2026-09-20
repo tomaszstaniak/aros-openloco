@@ -3,7 +3,8 @@
 #
 #   scripts/save-patch.sh <short-name> ["why this patch exists"] [path...]
 #
-# Writes patches/openloco/NN-<short-name>.diff, where NN keeps the apply order,
+# Writes $PATCH_DIR/NN-<short-name>.diff (patches/openloco by default, or the
+# variant set OPENLOCO_PATCH_DIR points at), where NN keeps the apply order,
 # and folds the change into work/'s baseline so `git status` there goes quiet
 # again. That is the whole contract: what is in patches/ is saved, what shows
 # up in `git -C work/OpenLoco status` is not.
@@ -30,7 +31,7 @@ if [ -z "$(git -C "$WORK_DIR" status --porcelain)" ]; then
     exit 0
 fi
 
-DEST=$PORT_ROOT/patches/openloco
+DEST=$PATCH_DIR
 mkdir -p "$DEST"
 NN=$(printf '%02d' $(( $(ls "$DEST"/*.diff 2>/dev/null | wc -l | tr -d ' ') + 1 )))
 OUT=$DEST/$NN-$NAME.diff
