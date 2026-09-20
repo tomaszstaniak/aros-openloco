@@ -65,6 +65,14 @@ if [ -f "$OUT" ]; then
             echo "patches:     $(ls "$PORT_ROOT"/patches/openloco/*.diff 2>/dev/null | wc -l | tr -d ' ')"
             echo "port commit: $(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null)"
         } > "$ARCHIVE/BUILD-INFO.txt"
+        # The patch set with checksums, not just its directory name: patches
+        # are edited, and symlinked sets share files with other variants, so a
+        # later edit must not silently change how today's build is reproduced.
+        {
+            echo "patch set: $PATCH_DIR"
+            shasum -a 256 "$PATCH_DIR"/*.diff 2>/dev/null | sed "s|$PATCH_DIR/||"
+            echo "upstream:  $UPSTREAM_COMMIT"
+        } > "$ARCHIVE/PATCHES.txt"
         echo "archived: $ARCHIVE"
     else
         echo "already archived: $ARCHIVE"

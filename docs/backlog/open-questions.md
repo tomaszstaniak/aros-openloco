@@ -774,8 +774,10 @@ Two different rates for the two phases, both in a tonal range (white noise at
 what the game is doing.
 
 **What is still missing: somebody has to listen.** Numbers show a signal with
-structure; they do not show that the music is the right music or that it is
-not distorted. Files for that, outside the repository because of their size:
+structure; they cannot tell correct audio from distorted audio. What the
+listening has to cover: the music itself, the effects, crackle, dropouts and
+tempo - a recording can be continuous and still be wrong in every one of
+those. Files for that, outside the repository because of their size:
 
 - `~/Work/AROS/loco-variants/loco-audio-2026-09-20.wav` - the whole session
 - `…/loco-audio-title-20s.wav`, `…/loco-audio-ingame-20s.wav` - 20-second

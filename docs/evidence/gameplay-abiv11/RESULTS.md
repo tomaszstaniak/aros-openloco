@@ -81,13 +81,16 @@ at 1% CPU.
 Variant **E** (upstream `7f8c90cf` 26.09+, patches 01-17 and 21, SHA-256
 `4f5e3a5e…`).
 
-**Sound.** `AUDIO=wav` records only while the guest holds the audio device, and
-the recording is 428 s against about 425 s of game run time. Peak 11,976 of
-32,767, signal in 402 of 429 seconds, and zero-crossing rates that differ by
-phase - 2,366/s at the title screen, 1,365/s in game. So the game produces
-structured audio that changes with what it is doing. **Nobody has listened
-yet**; the files for that are in `~/Work/AROS/loco-variants/`. See backlog
-item 6, including the trap that QEMU writes a WAV header with zero sizes.
+**Sound is recorded; whether it is correct is unverified.** `AUDIO=wav`
+records only while the guest holds the audio device, and the recording is 428 s
+against about 425 s of game run time. Peak 11,976 of 32,767, signal in 402 of
+429 seconds, zero-crossing rates of 2,366/s at the title screen and 1,365/s in
+game. That establishes a signal with structure that changes by phase - and
+**nothing about whether the music is the right music, in tempo, or free of
+crackle and gaps**: amplitude and zero crossings cannot tell correct audio from
+distorted audio. The audio stage closes when somebody listens to the excerpts
+in `~/Work/AROS/loco-variants/`. See backlog item 6, including the trap that
+QEMU writes a WAV header with zero sizes.
 
 **A save that survives a reboot of the guest**, end to end:
 
@@ -103,11 +106,19 @@ The arithmetic holds: 35 days of running costs between 12 September and 17
 October account for the $108 difference, so the game resumed from the saved
 state rather than from something else.
 
-**One thing to note about the volume.** `fsck_msdos` after that session found
-**1 orphaned cluster** - no `FAT[0]` damage this time. The guest was stopped
-without a clean shutdown right after a 954 KB save, so an unreferenced chain is
-what one would expect; it is recorded because item 18b is about exactly this
-kind of damage.
+**The volume did not come through clean, and that is a separate result.**
+`fsck_msdos` after the session found **1 orphaned cluster** (no `FAT[0]`
+damage). The guest was stopped without a clean shutdown right after a 954 KB
+save, which is a plausible cause - but it is a hypothesis, not an explanation,
+and calling it "expected" would settle the question by wording. Two findings,
+kept apart:
+
+- the save survived a guest reboot and restored correctly;
+- the volume did **not** pass its integrity check without a remark.
+
+What would separate them: repeat the same chain ending in an **orderly guest
+shutdown** with the flush verified, then `fsck`. If the orphan disappears, it
+belongs to the stop; if it stays, it belongs to the writing. See item 18b.
 
 ## The freeze: one occurrence, and it did not come back
 
