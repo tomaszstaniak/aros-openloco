@@ -44,6 +44,13 @@ fi
 PATCH_COUNT=$(ls "$PATCH_DIR"/*.diff 2>/dev/null | wc -l | tr -d ' ')
 VERSION_TAG="$(echo "$UPSTREAM_COMMIT" | cut -c1-8)+aros"
 VERSION_BRANCH="$(basename "$PATCH_DIR")+$PATCH_COUNT"
+# A build whose work tree carries changes that are in no patch file - a
+# diagnostic patch, or something half-written - must say so. Otherwise the
+# identifier names 19 patches while 21 are compiled in, which is the same kind
+# of quiet wrong number this whole change exists to remove.
+if [ -n "$(git -C "$WORK_DIR" status --porcelain 2>/dev/null)" ]; then
+    VERSION_BRANCH="$VERSION_BRANCH+dirty"
+fi
 VERSION_SHA="$(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 # -S is not optional: without it cmake silently does nothing in this layout.

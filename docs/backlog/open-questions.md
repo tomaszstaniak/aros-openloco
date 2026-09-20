@@ -157,7 +157,22 @@ The build archive records the same string, and its `patches:` line now counts
 `$PATCH_DIR` - it had the default set hardcoded, and so reported 19 patches for
 an 18-patch `openloco-next` build.
 
-## 21. The second OpenLoco start in one guest boot wedges the whole guest
+## 21. Previously observed, currently not reproducible - the second OpenLoco start in one guest boot wedges the whole guest
+
+**Standing as of 2026-09-20: observed earlier, not reproduced since.** Every
+attempt to provoke it recently has produced a clean second start instead. The
+running count of second starts that worked:
+
+| date | what was run | result |
+|---|---|---|
+| 2026-09-18 | A/B/A with and without the marker patches | clean |
+| 2026-09-19 | three build-cycle runs | clean |
+| 2026-09-20 | visible-window run, then hidden-window run, one boot | **both clean**, no window left behind, one unfreed signal each |
+
+The original observations stand as written below; they are not withdrawn. What
+has changed is that the defect cannot currently be summoned, so nothing about
+it can be tested. The controlled host-load experiment is still the next idea,
+and it waits for a free testbench.
 
 Reproduced four times, 2026-09-17 20:56 and 23:44, then twice deliberately on
 2026-09-18. The game opens its window, never reaches the title screen, and the
@@ -718,10 +733,15 @@ right.
 **And getting OpenGL would be a defeat, not a win.** In the same session, on
 the same screen, OpenGL ran the title screen at 1.3-1.6 fps against 32-34 fps
 for the software renderer: **about twenty times slower**, 630 ms per frame
-against 25 ms. AROS One's GL here is a software implementation running inside
-QEMU TCG, with no GPU behind it, so every frame is rasterised by the emulated
-CPU and then handed back. The name `opengl` never meant acceleration; this
-measures what it does mean on this machine.
+against 25 ms. That is the measurement, and it stands on its own.
+
+*Why* it is that slow is **not** established. The obvious explanation - that
+AROS One's GL is a software rasteriser with no GPU behind it under TCG - is a
+hypothesis, and being slow is not evidence for it: a badly routed hardware path
+would look the same from here. `tests/sdl3-renderer` prints `GL_VENDOR`,
+`GL_RENDERER` and `GL_VERSION` so the driver identifies itself; until that has
+been read in the guest, this paragraph says only "slow", not "software".
+What is certain is that the name `opengl` never promised acceleration.
 
 That reverses the standing of item 1. The software renderer is not a
 consolation prize this port is stuck with - on this configuration it is the
@@ -745,6 +765,27 @@ Evidence: `../evidence/gameplay-abiv11/40-software-same-session-34fps.png`
 `37-visible-window-gets-opengl.png`, `38-opengl-visible-window-1.6fps.png`,
 `39-hidden-window-opengl-refused-same-session.png`, and for the smoke test
 `34-smoke-test-opengl-same-session.png`.
+
+**The decision this settles:** on AROS One under QEMU the port stays on the
+software renderer. Not because OpenGL is unavailable - it is available, and it
+draws correctly - but because it is twenty times slower here. Two things follow
+that are deliberately *not* being done: the game is **not** being changed to
+create a visible window (nothing is gained by it), and `software` is **not**
+being forced globally for every AROS machine on the strength of one
+environment. The renderer stays selectable, as a diagnostic, through the
+`renderer-driver` file.
+
+**The reproducer reduced it to nine lines.** A hidden window can have
+`software` but never `opengl`; a visible one gets `opengl`; the refusal sets no
+error text. It also turned up a second, unrelated defect in the window-destroy
+path, which may be our own patch's fault. Both are item 24.
+
+**What is being prepared instead:** `tests/sdl3-renderer`, a minimal program
+that does nothing but this - visible window versus hidden, `opengl` asked for
+by name, `SDL_GetError()` read immediately - plus the GL identification
+strings. It is the attachment for a report of the two SDL3 problems, the
+refusal and the silence. **Whether to send it is a separate decision** and has
+not been taken.
 
 Incidentally: **two starts in one guest boot, both clean**, both leaving no
 window behind and one unfreed signal - item 21 not reproduced again.
@@ -829,6 +870,93 @@ busier map at the present 40 Hz cap (item 23); a separate timing of the
 autosave (item 22); and the same measurement on real hardware, which cannot be done from here.
 Lifting the cap to find the ceiling is deliberately last - it answers a
 question nobody is asking yet.
+
+## 24. SDL3 on AROS: two defects, and the destroy path is the suspect in both
+
+Found 2026-09-20 with `tests/sdl3-renderer`, run in the guest. **This item was
+rewritten an hour after it was first written**, because the second run
+contradicted the first and the first was wrong about the cause. The wrong
+version is not preserved; what follows is what the A/B/A run shows.
+
+### The clean result
+
+Three passes in one process - hidden first with nothing created before, then
+visible, then hidden again - **destroying nothing**:
+
+| pass | window | asked for | result |
+|---|---|---|---|
+| 1 | hidden | default | granted `software` |
+| 1 | hidden | `opengl` | **REFUSED**, error text empty |
+| 1 | hidden | `software` | granted `software` |
+| 2 | visible | default | granted **`opengl`** |
+| 2 | visible | `opengl` | granted `opengl` |
+| 2 | visible | `software` | granted `software` |
+| 3 | hidden | default | granted `software` |
+| 3 | hidden | `opengl` | **REFUSED**, error text empty |
+| 3 | hidden | `software` | granted `software` |
+
+Pass 3 repeats pass 1 exactly, so **the behaviour is deterministic and does not
+depend on what came before**. Both render drivers are compiled in (`opengl`,
+`software`). Evidence:
+`../evidence/gameplay-abiv11/43-sdl3-renderer-probe-aba.png`.
+
+**(a) A hidden window can have `software` but never `opengl`.** That is the
+whole of item 1's puzzle, stated minimally: nine lines of table, no game, no
+assets. The default request follows from it - with `opengl` unavailable SDL
+falls to `software` - which is why the game never saw an error at all.
+
+**(b) The refusal sets no error text.** `SDL_GetError()` is read on the line
+after the failed call, before anything else touches SDL, and is empty. Four
+sessions went into a question the error string should have answered in one.
+
+### (c) The destroy path - and why the first run misled me
+
+The first version of this program called `SDL_DestroyWindow()` after each case,
+and produced a **different and much worse table**: after the visible cases, every
+hidden request failed, `software` included, with invented reasons
+(`Couldn't find matching render driver`, `No hardware accelerated renderers
+available`). Removing the destroy calls - changing nothing else - made all of
+that disappear.
+
+So **destroying a window leaves this backend in a state where hidden windows
+get no renderer at all**. And destroying a *hidden* window is worse: it ends in
+`Error 0x80000003 - Illegal address access` in `AROS_CloseWindowSafely`, which
+closes an Intuition window that was never opened. The probe still hits that at
+`SDL_Quit()`, after all its output is flushed.
+Evidence: `../evidence/gameplay-abiv11/42-hidden-first-granted-then-destroy-crash.png`.
+
+**This one may be ours.**
+`patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff` is
+exactly the code deciding when the Intuition window is opened, so the null it
+dereferences may be a null this port introduced. **Nothing may be reported
+upstream about (c) until it has been reproduced against an unpatched SDL3
+3.4.12.** OpenLoco never hits it: it destroys its window once, at exit, long
+after the window was shown.
+
+*To close it:* build the reproducer against stock SDL3 and run the same passes.
+That separates our defect from theirs - for (c), and possibly for (a) as well.
+
+**The lesson for the method, since it cost an hour:** the first table was
+produced by a probe whose own cleanup was broken, and it read as a property of
+hidden windows. A/B/A caught it. A single pass would have been published.
+
+## 25. GL on this guest identifies itself as a software rasteriser
+
+Read 2026-09-20 from the driver rather than inferred from the frame rate:
+
+```
+GL_VENDOR   VMware, Inc.
+GL_RENDERER softpipe
+GL_VERSION  3.1 Mesa 20.0.8
+```
+
+`softpipe` is Mesa's reference software rasteriser. So the 630 ms frames in
+item 1 are a CPU drawing every pixel inside an emulator, and "the GL here is
+software" is now read from the implementation instead of guessed from its
+speed. **This is not a defect and nothing is open here** - it is recorded so
+that the next person does not re-measure it, and so that the claim in item 1
+has a source. It also bounds what could ever be expected: no configuration of
+this guest turns `softpipe` into acceleration.
 
 ## 22. How long does an autosave take, and where does the time go
 
