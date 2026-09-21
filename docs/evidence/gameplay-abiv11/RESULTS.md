@@ -120,6 +120,19 @@ What would separate them: repeat the same chain ending in an **orderly guest
 shutdown** with the flush verified, then `fsck`. If the orphan disappears, it
 belongs to the stop; if it stays, it belongs to the writing. See item 18b.
 
+**Still not done, and why (2026-09-20/22).** An orderly shutdown was attempted
+once through Wanderer's menu, driven from the host with `vmctl`: right button
+held on the screen title bar, pointer moved to *Wanderer > Shut down...*, right
+button released. The menu opened and followed the pointer - so the guest was
+alive and receiving pointer motion - but the release never selected the item
+and the menu stayed open through three further release events. What is
+established is only that **this input sequence did not produce a shutdown**.
+Not separated yet: whether QEMU delivered the release events, whether `vmctl`
+sent them in a form the device model passes on, and how Intuition treats a
+release it does get. Every guest since has been stopped from the host, so the
+`fsck` comparison above is still open. Keyboard shortcuts or a Shell command
+are the next routes to try, before blaming any one layer.
+
 ## The freeze: one occurrence, and it did not come back
 
 **What happened.** Saving over an existing file: Save Game -> OK -> "Replace

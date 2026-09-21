@@ -157,6 +157,30 @@ The build archive records the same string, and its `patches:` line now counts
 `$PATCH_DIR` - it had the default set hardcoded, and so reported 19 patches for
 an 18-patch `openloco-next` build.
 
+**Two follow-ups, 2026-09-22.**
+
+*A wrong upstream SHA, my own.* From 2026-09-20 the builds were given
+`OPENLOCO_UPSTREAM_COMMIT=7f8c90cfb44e12d8...`, typed from memory. The real
+commit is `7f8c90cf7b1127dd1113b904336bfda3d0f4ff00`: the first 8 characters
+match, nothing after them does. The compiled sources were always right - they
+come from the upstream checkout, not from that variable - and so is the title
+bar, which shows 8 characters. What was wrong is the record: the `upstream:`
+line of three build manifests (`74277abb`, `b52c49a2`, `88e78232`) and the
+headers of patches 23 and 24. The headers are corrected; each manifest keeps
+its wrong line with a dated CORRECTION appended below it. `build-openloco.sh`
+now resolves the commit in the checkout, refuses a mismatch, and records what
+git reports - so a mistyped SHA stops the build instead of entering a manifest.
+
+*What a "+dirty" build keeps.* The manifest said the work tree was dirty; it
+did not say with what. Every archived build now also holds `SOURCES.diff` (the
+whole difference between the upstream checkout and the compiled tree - upstream
+commit plus that one file is the complete source input), `WORK-DIRTY.diff`
+and `.txt` (the uncommitted part, readable), copies of the patch files, and
+`DEPENDENCIES.txt` with the SHA-256 of the statically linked SDL3 and copies
+of the dependency patches. The last was missing entirely, and an SDL3 fix had
+already gone into a build without leaving a trace in its manifest. The three
+builds above were back-filled, each marked as back-filled.
+
 ## 21. Previously observed, currently not reproducible - the second OpenLoco start in one guest boot wedges the whole guest
 
 **Standing as of 2026-09-20: observed earlier, not reproduced since.** Every
@@ -777,8 +801,8 @@ environment. The renderer stays selectable, as a diagnostic, through the
 
 **The reproducer reduced it to nine lines.** A hidden window can have
 `software` but never `opengl`; a visible one gets `opengl`; the refusal sets no
-error text. It also turned up a second, unrelated defect in the window-destroy
-path, which may be our own patch's fault. Both are item 24.
+error text. It also turned up a crash in the window-destroy path, which proved
+to be reachable only through our own SDL3 patch and is fixed. Both are item 24.
 
 **What is being prepared instead:** `tests/sdl3-renderer`, a minimal program
 that does nothing but this - visible window versus hidden, `opengl` asked for
@@ -871,74 +895,120 @@ autosave (item 22); and the same measurement on real hardware, which cannot be d
 Lifting the cap to find the ceiling is deliberately last - it answers a
 question nobody is asking yet.
 
-## 24. SDL3 on AROS: two defects, and the destroy path is the suspect in both
+## 24. SDL3 on AROS: the destroy crash was ours - FIXED; the silent refusal is not
 
-Found 2026-09-20 with `tests/sdl3-renderer`, run in the guest. **This item was
-rewritten an hour after it was first written**, because the second run
-contradicted the first and the first was wrong about the cause. The wrong
-version is not preserved; what follows is what the A/B/A run shows.
+Found 2026-09-20 with `tests/sdl3-renderer`; the crash located and fixed
+2026-09-22. This item was rewritten twice as the evidence came in; each earlier
+version is in git history.
 
-### The clean result
+### What the renderer probe shows (renderer creation only)
 
-Three passes in one process - hidden first with nothing created before, then
-visible, then hidden again - **destroying nothing**:
+`tests/sdl3-renderer`, one process, three passes - hidden with nothing created
+before, visible, hidden again - **leaking every window on purpose**:
 
 | pass | window | asked for | result |
 |---|---|---|---|
-| 1 | hidden | default | granted `software` |
+| 1 | hidden | default | `software` |
 | 1 | hidden | `opengl` | **REFUSED**, error text empty |
-| 1 | hidden | `software` | granted `software` |
-| 2 | visible | default | granted **`opengl`** |
-| 2 | visible | `opengl` | granted `opengl` |
-| 2 | visible | `software` | granted `software` |
-| 3 | hidden | default | granted `software` |
-| 3 | hidden | `opengl` | **REFUSED**, error text empty |
-| 3 | hidden | `software` | granted `software` |
+| 1 | hidden | `software` | `software` |
+| 2 | visible | default | **`opengl`** |
+| 2 | visible | `opengl` | `opengl` |
+| 2 | visible | `software` | `software` |
+| 3 | hidden | as pass 1 | identical to pass 1 |
 
-Pass 3 repeats pass 1 exactly, so **the behaviour is deterministic and does not
-depend on what came before**. Both render drivers are compiled in (`opengl`,
-`software`). Evidence:
-`../evidence/gameplay-abiv11/43-sdl3-renderer-probe-aba.png`.
+Evidence: `../evidence/gameplay-abiv11/43-sdl3-renderer-probe-aba.png`.
 
-**(a) A hidden window can have `software` but never `opengl`.** That is the
-whole of item 1's puzzle, stated minimally: nine lines of table, no game, no
-assets. The default request follows from it - with `opengl` unavailable SDL
-falls to `software` - which is why the game never saw an error at all.
+**Read it for what it is.** It is evidence about *creating renderers*, not about
+the window lifecycle - nothing is destroyed. Pass 3 matching pass 1 shows the
+answers **repeat within this sequence**; it does not make them deterministic
+in general. And every request gets a *new* window, but earlier windows - with
+their surfaces or renderers - are still alive when the next one is created, so
+each row's conditions include everything above it. Rows are not independent.
 
-**(b) The refusal sets no error text.** `SDL_GetError()` is read on the line
-after the failed call, before anything else touches SDL, and is empty. Four
-sessions went into a question the error string should have answered in one.
+**(a) On a hidden window, `opengl` is refused and `software` is granted**; on a
+visible one `opengl` is granted. With our patch set - see below for what the
+contrib base does with the same hidden window.
 
-### (c) The destroy path - and why the first run misled me
+**(b) The `opengl` refusal sets no error text.** `SDL_GetError()`, read on the
+line after the call, is empty. Unlike (c), this is not explained yet and is
+**not** known to be ours; it is the candidate for a contrib report.
 
-The first version of this program called `SDL_DestroyWindow()` after each case,
-and produced a **different and much worse table**: after the visible cases, every
-hidden request failed, `software` included, with invented reasons
-(`Couldn't find matching render driver`, `No hardware accelerated renderers
-available`). Removing the destroy calls - changing nothing else - made all of
-that disappear.
+### (c) The destroy crash: located, attributed, fixed
 
-So **destroying a window leaves this backend in a state where hidden windows
-get no renderer at all**. And destroying a *hidden* window is worse: it ends in
-`Error 0x80000003 - Illegal address access` in `AROS_CloseWindowSafely`, which
-closes an Intuition window that was never opened. The probe still hits that at
-`SDL_Quit()`, after all its output is flushed.
-Evidence: `../evidence/gameplay-abiv11/42-hidden-first-granted-then-destroy-crash.png`.
+The first probe destroyed its windows and crashed with `Error 0x80000003 -
+Illegal address access` in `AROS_CloseWindowSafely`, offset 0xE5.
 
-**This one may be ours.**
-`patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff` is
-exactly the code deciding when the Intuition window is opened, so the null it
-dereferences may be a null this port introduced. **Nothing may be reported
-upstream about (c) until it has been reproduced against an unpatched SDL3
-3.4.12.** OpenLoco never hits it: it destroys its window once, at exit, long
-after the window was shown.
+**Where exactly.** Disassembly puts the faulting PC on
+`cmpw $0x1,0x88(%rbx)` right after `mov 0x188(%r14),%rbx`: reading
+`data->menuactive` through `sdlwin->internal`. `AROS_DestroyWindow()` sets
+`window->internal = NULL` and *then* calls `AROS_CloseWindowSafely()`, which
+reads it. That code is contrib's, unchanged by us.
 
-*To close it:* build the reproducer against stock SDL3 and run the same passes.
-That separates our defect from theirs - for (c), and possibly for (a) as well.
+**Whose fault - measured, one process per case, guest rebooted after a crash**,
+`tests/sdl3-renderer/sdl3-lifecycle.cpp` linked against two SDL3 builds:
 
-**The lesson for the method, since it cost an hour:** the first table was
-produced by a probe whose own cleanup was broken, and it read as a property of
-hidden windows. A/B/A caught it. A single pass would have been published.
+- **base** = SDL3 3.4.12 + contrib's pinned AROS patch (commit `20049962`,
+  checksum verified) + our `langinfo` guard, which is needed to compile on the
+  ABIv11 SDK at all (it touches the time module only);
+- **ours** = base + our hidden-window and text-input patches.
+
+| case | base | ours, before the fix | ours, fixed |
+|---|---|---|---|
+| hidden window, no renderer, destroy | clean | clean | clean |
+| hidden window, `software` renderer, destroy renderer then window | renderer refused: `No system window`; clean | **crash** at `destroy window`, `AROS_CloseWindowSafely+0xE5` | clean |
+| visible window, `opengl`, destroy renderer then window | clean | clean | clean |
+| one process: visible `opengl`, then hidden `software` twice, all destroyed | hidden refused `No system window` twice; clean | *(not run: case 2 already crashes)* | all granted; clean |
+
+**So the crash is ours in the sense that matters.** The faulty order is in
+contrib's code, but on the base it is unreachable: a hidden window never gets
+an Intuition window, so there is nothing to close, and a shown window is closed
+by `AROS_HideWindow()` before `AROS_DestroyWindow()` runs (SDL hides a shown
+window first). Our patch created the missing state - a window SDL still calls
+hidden, whose Intuition window was opened on demand for a framebuffer - and
+that walked straight into it.
+
+**The fix** goes in our patch, as its second part: close the Intuition window
+before clearing `window->internal`. Verified three ways - the patch applied to a
+fresh tarball reproduces the working tree byte for byte; disassembly of the new
+OpenLoco binary shows `AROS_CloseWindowSafely` called before the
+`movq $0x0,0x188(...)` store, and the old one after; and every case above runs
+clean. The first probe's wrong table - every hidden request refused after a
+visible window was destroyed, with invented reasons - does **not** recur with
+the fix: the "sequence" case is exactly that order, and it passes.
+Evidence: `44-lifecycle-contrib-base.png`, `45-lifecycle-ours-hidden-software-crash.png`,
+`46-lifecycle-fixed-software-and-sequence.png`,
+`47-lifecycle-fixed-opengl-and-base-sequence.png`.
+
+**OpenLoco was never exposed in normal use**: it destroys its window once, at
+exit, after showing it. The fix is still required - it was a crash in our
+patch - and it is now in the build the game runs on.
+
+**The game on the fixed build** (`88e78232...`, title bar
+`7f8c90cf+aros (1c1b382 on openloco-next+19+dirty)`): three starts in one
+guest boot, each to the title screen and out through *Exit Game*. All three
+clean - window gone, prompt back, the usual single unfreed signal. Evidence:
+`48-fixed-build-cycles-1-2.png`, `49-fixed-build-cycles-2-3.png`,
+`50-fixed-build-version-in-title.png`.
+
+**The frame rates in those three runs are a warning, not a result.** Title
+screen, same binary, same boot, software renderer:
+
+| run | frames / 30 s | fps | median | what else was running on the host |
+|---|---|---|---|---|
+| 1 | 84, 91 | **2.8-3.0** | 328-333 ms | machine `onetwo` started 00:35:50, during this run |
+| 2 | 983, 848 | 32.8, 28.2 | 24.0, 34.8 ms | - |
+| 3 | 848, 730 | 28.3, 24.3 | 27.2, 38.7 ms | machine `burn` started 00:39:19 and kept running |
+
+Run 2 matches the 32-34 fps measured on 2026-09-20, so the fixed binary is not
+slower. Run 1 is ten times slower with nothing changed on our side. The
+coincidence with other sessions' machines starting is **observed, not proven
+as the cause** - but it is enough to say that on this shared host a frame rate
+means little without a record of what else ran. Item 23 needs that record
+taken with every measurement, or a quiet host.
+
+**Not preserved:** the unfixed `libSDL3_static.a` was overwritten by the fixed
+one. It is reproducible from the patch in git history, and every OpenLoco build
+archived before 2026-09-22 carries it statically linked.
 
 ## 25. GL on this guest identifies itself as a software rasteriser
 
@@ -984,6 +1054,12 @@ what matters is whether the port still holds 40 Hz when the work grows:
 3. both together.
 
 The presentation counter from diagnostic patch 22 measures all three unchanged.
+
+**Before any of it: record the host.** On 2026-09-22 the same binary in the
+same boot ran the title screen at 3.0, 32.8 and 24-28 fps in three consecutive
+starts while other sessions started and stopped their own AROS machines (item
+24). A number from this host is only comparable with the list of other QEMU
+processes and the load average captured next to it - or taken on a quiet host.
 
 ## 3. SDL3 as `sdl3.library`, not a static build alongside
 

@@ -41,6 +41,19 @@ fi
 #
 #   OpenLoco, 7f8c90cf+aros (383e679 on openloco-next+19)
 #             ^ upstream      ^ this repository  ^ patch set and patch count
+# Resolve the upstream commit against the checkout actually being built, and
+# refuse a mismatch. On 2026-09-20 a full SHA typed from memory - right in its
+# first 8 characters, wrong after them - went into three build manifests and two
+# patch headers unchecked. From here on the recorded commit is what git says the
+# checkout is, and a wrong one stops the build.
+UPSTREAM_HEAD=$(git -C "$UPSTREAM_DIR" rev-parse HEAD 2>/dev/null) || {
+    echo "cannot read the upstream checkout at $UPSTREAM_DIR" >&2; exit 1; }
+UPSTREAM_WANT=$(git -C "$UPSTREAM_DIR" rev-parse --verify --quiet "$UPSTREAM_COMMIT^{commit}") || {
+    echo "UPSTREAM_COMMIT=$UPSTREAM_COMMIT is not a commit in $UPSTREAM_DIR" >&2; exit 1; }
+[ "$UPSTREAM_HEAD" = "$UPSTREAM_WANT" ] || {
+    echo "upstream checkout is at $UPSTREAM_HEAD, but UPSTREAM_COMMIT resolves to $UPSTREAM_WANT" >&2; exit 1; }
+UPSTREAM_COMMIT=$UPSTREAM_HEAD
+
 PATCH_COUNT=$(ls "$PATCH_DIR"/*.diff 2>/dev/null | wc -l | tr -d ' ')
 VERSION_TAG="$(echo "$UPSTREAM_COMMIT" | cut -c1-8)+aros"
 VERSION_BRANCH="$(basename "$PATCH_DIR")+$PATCH_COUNT"
@@ -98,6 +111,41 @@ if [ -f "$OUT" ]; then
             shasum -a 256 "$PATCH_DIR"/*.diff 2>/dev/null | sed "s|$PATCH_DIR/||"
             echo "upstream:  $UPSTREAM_COMMIT"
         } > "$ARCHIVE/PATCHES.txt"
+        # The patch files themselves, not only their checksums: a checksum can
+        # prove a file changed, but it cannot give back the old one.
+        mkdir -p "$ARCHIVE/patches"
+        cp "$PATCH_DIR"/*.diff "$ARCHIVE/patches/" 2>/dev/null || true
+        # SDL3 is linked statically, so which SDL3 is part of what this binary
+        # is. Without this a fix in an SDL3 patch left no trace in the manifest
+        # of the build that carries it.
+        mkdir -p "$ARCHIVE/dependencies"
+        cp "$PORT_ROOT"/patches/dependencies/*.diff "$ARCHIVE/dependencies/" 2>/dev/null || true
+        {
+            echo "SDL3 static lib: $(abi_deps "$ABI")/lib/libSDL3_static.a"
+            echo "sha256:          $(shasum -a 256 "$(abi_deps "$ABI")/lib/libSDL3_static.a" | cut -d' ' -f1)"
+            echo "dependency patches (copied under dependencies/):"
+            shasum -a 256 "$PORT_ROOT"/patches/dependencies/*.diff | sed "s|$PORT_ROOT/patches/dependencies/|  |"
+        } > "$ARCHIVE/DEPENDENCIES.txt"
+        # The exact sources, whatever state the work tree was in: one diff from
+        # the pristine upstream checkout to the tree that was compiled. Upstream
+        # commit + SOURCES.diff is the whole input - it does not depend on the
+        # patch set having stayed as it was, nor on the work tree's own commits
+        # (which can include a patch saved after the baseline was made, so
+        # "patch set + diff against HEAD" would apply some changes twice).
+        diff -ruN -x .git "$UPSTREAM_DIR" "$WORK_DIR" \
+            | sed -e "s|$UPSTREAM_DIR|a|g" -e "s|$WORK_DIR|b|g" \
+            > "$ARCHIVE/SOURCES.diff" || true
+        # A "+dirty" build: say what made it dirty, readably. SOURCES.diff above
+        # already contains it, including untracked files.
+        if [ -n "$(git -C "$WORK_DIR" status --porcelain 2>/dev/null)" ]; then
+            git -C "$WORK_DIR" diff HEAD > "$ARCHIVE/WORK-DIRTY.diff"
+            {
+                echo "work tree HEAD: $(git -C "$WORK_DIR" log -1 --format='%h %s')"
+                echo "WORK-DIRTY.diff is against that HEAD, for reading."
+                echo "To rebuild, use upstream $UPSTREAM_COMMIT + SOURCES.diff (patch -p1)."
+                git -C "$WORK_DIR" status --porcelain
+            } > "$ARCHIVE/WORK-DIRTY.txt"
+        fi
         echo "archived: $ARCHIVE"
     else
         echo "already archived: $ARCHIVE"

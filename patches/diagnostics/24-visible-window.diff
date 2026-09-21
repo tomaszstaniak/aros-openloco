@@ -16,7 +16,7 @@
 # If the visible window does get OpenGL, the answer is not to ship a visible
 # window: it is to find what the backend does differently. Backlog item 1.
 #
-# Against OpenLoco 7f8c90cfb44e12d8b47e73e69edc5cb0d5ee7b1e, applied with -p1 by scripts/bootstrap.sh.
+# Against OpenLoco 7f8c90cf7b1127dd1113b904336bfda3d0f4ff00, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-20.
 
 diff --git a/src/OpenLoco/src/Ui.cpp b/src/OpenLoco/src/Ui.cpp

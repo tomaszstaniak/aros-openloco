@@ -14,7 +14,19 @@
 #
 # Applied by scripts/fetch-deps.sh after the contrib AROS patch.
 # Worth sending to aros-development-team/contrib.
-# Saved 2026-09-13.
+
+# Second part, added 2026-09-22: AROS_DestroyWindow() cleared window->internal
+# and then called AROS_CloseWindowSafely(), which reads the window's menu state
+# through that pointer. Stock SDL never reached that call with a window open -
+# SDL_DestroyWindow() hides a shown window first and AROS_HideWindow() closes
+# it - but the first part of this patch creates exactly that state: an SDL
+# window still flagged hidden, with its Intuition window opened on demand.
+# Destroying one crashed with "Illegal address access" in
+# AROS_CloseWindowSafely. Proved one process per case against the contrib base
+# and against this patch (backlog item 24). The fix closes the system window
+# before clearing the pointer.
+#
+# Saved 2026-09-13, second part 2026-09-22.
 
 --- a/src/video/aros/SDL_arosframebuffer.c
 +++ b/src/video/aros/SDL_arosframebuffer.c
@@ -38,3 +50,36 @@
  		D(bug("[SDL3:arosfb] %s: ERROR: no window ptr\n", __func__));
          return SDL_SetError("No system window");
      }
+--- a/src/video/aros/SDL_aroswindow.c
++++ b/src/video/aros/SDL_aroswindow.c
+@@ -777,7 +777,18 @@
+ 	D(bug("[SDL3:aroswindow] %s()\n", __func__));
+ 
+ 	SDL_WindowData *data = (SDL_WindowData *) window->internal;
+-	
++
++	/* Close the Intuition window while window->internal still points at data:
++	 * AROS_CloseWindowSafely() reads the menu state through it. Clearing the
++	 * pointer first made that a NULL dereference ("Illegal address access").
++	 * Stock SDL never got here with a window open - SDL_DestroyWindow() hides
++	 * a shown window first, and AROS_HideWindow() closes it - but a hidden
++	 * window whose system window was opened on demand for a framebuffer does. */
++	if (data && data->win) {
++		AROS_CloseWindowSafely(window, data->win);
++		data->win = NULL;
++	}
++
+ 	window->internal = NULL;
+ 
+ 	if (data) {
+@@ -785,10 +796,6 @@
+ 
+ 		REMOVE(&data->node);
+ 
+-		if (data->win) {
+-			AROS_CloseWindowSafely(window, data->win);
+-			data->win = NULL;
+-		}
+ 		if (data->region)
+ 			DisposeRegion(data->region);
+ 

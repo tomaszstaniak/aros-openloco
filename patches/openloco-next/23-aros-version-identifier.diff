@@ -12,7 +12,7 @@
 # Upstream behaviour is unchanged: with none of the three defined, git is read
 # exactly as before. Backlog item 17.
 #
-# Against OpenLoco 7f8c90cfb44e12d8b47e73e69edc5cb0d5ee7b1e, applied with -p1 by scripts/bootstrap.sh.
+# Against OpenLoco 7f8c90cf7b1127dd1113b904336bfda3d0f4ff00, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-20.
 
 diff --git a/cmake/OpenLocoVersion.cmake b/cmake/OpenLocoVersion.cmake
