@@ -89,6 +89,24 @@ ours.
 keymap and one ABI and has had no review against the backend's own event model.
 Not offered until that is done.
 
+## The build for users
+
+Assembled 2026-09-23 by `scripts/make-release.sh` into `release/abiv11/OpenLoco`:
+the binary, `openloco.yml`, `README.md` written for someone who has never seen
+this port, and the four provenance files. **Nothing is published** - the script
+makes no archive to upload, and the arospkg page is untouched.
+
+- version `7f8c90cf+aros (df805ab on openloco-next+19)`, SHA-256 `a68ee724...`
+- built from a work tree `bootstrap.sh` made from the patch set alone: **0
+  dirty files, no diagnostic patches**
+- the script refuses a binary whose work tree was dirty - checked by pointing
+  it at the diagnostic build, which it rejected
+- verified in the guest: starts, reaches the title screen, no `[PRESENT]` and
+  no `Renderer:` lines (both were diagnostics), exits through *Exit Game* with
+  the window gone and one unfreed signal. Evidence:
+  `../evidence/gameplay-abiv11/56-release-build-title.png`,
+  `57-release-build-clean-exit.png`
+
 ## AROS itself
 
 Nothing. No AROS source has been touched by this port. Two findings belong
