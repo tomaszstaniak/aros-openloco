@@ -1096,10 +1096,35 @@ more numbers of the same quality.
 and the protocol and its scripts now exist (`scripts/measure-variant.sh`,
 `scripts/host-state.sh`).
 
-**Before repeating:** the host must be quiet, and quiet must be *checked*, not
-assumed - the load average was 4 when this started. The heavier-map arm
-(`Lost Worlds`, 1.17 MB against `Sandbox Settler`'s 107 KB) was not run at all;
-it waits for the same conditions.
+**Deferred, not queued.** This machine is someone's working laptop and a shared
+testbench; a quiet host is not something to wait for. The measurement waits for
+an agreed window or a different machine, and it does not block anything else.
+Under load the port can still be checked for **function and correctness** - a
+slow run or a timeout there is not evidence about the port.
+
+**Three conditions before the next attempt**, each from how this one failed:
+
+1. **An agreed window in which no one starts machines**, not just a low load
+   average at the start. This run began at load 4 and was at 113 by the second
+   control - the check was done and was still worthless.
+2. **Host state sampled during the stretch**, every few seconds, not only
+   before and after. There is no host sample from inside R's window, so the
+   moment the contention began cannot be placed.
+3. **The same entry into the scene for every variant.** Manual driving is fine
+   - it was needed at 1264x844, where the title screen's layout moves - but the
+   measured stretch must not start until the same scene, zoom and game speed
+   are confirmed, not merely assumed from loading the same file.
+
+**Two things not to state carelessly when the heavier-map arm runs:**
+
+- A bigger save file is **not** a heavier simulation. `Lost Worlds` is 1.17 MB
+  against `Sandbox Settler`'s 107 KB, which says something about the map and
+  its objects, nothing about vehicles or what is on screen. Record the vehicle
+  count, the company count and what the viewport actually shows.
+- The config remembering the window size explains later runs, not this one:
+  **1280x960 was asked for and 1264x844 was what the game recorded.** Whether
+  that is the screen's usable area, a border subtraction or a clamp in
+  `getSaneWindowedResolution()` has not been checked.
 
 Evidence: `../evidence/gameplay-abiv11/53-measure-c1-640-40fps.png`,
 `54-measure-r1-1264x844.png`, `55-measure-c2-control-drifted.png`.

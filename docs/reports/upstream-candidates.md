@@ -15,6 +15,22 @@ things.
 | 01-17 | AROS paths, GCC 10 workarounds, socket and OpenAL shims, FAT32 overwrite | **no** - platform-specific to a platform upstream does not build for |
 | 20 | a verbatim backport of upstream's own `6072709d` | **no** - already upstream; it exists here only because our pin is older |
 
+### Checked against today's upstream, 2026-09-23
+
+In a **separate checkout** (`git clone --shared` of our pinned one, then
+fetched) at master `91c200dd`, two commits past our pin `7f8c90cf`. The pinned
+checkouts were not touched.
+
+| | |
+|---|---|
+| patch 21 | `git apply --check` clean on `91c200dd` |
+| patch 23 | `git apply --check` clean on `91c200dd` |
+| `SDL_Quit()` | still commented out, `OpenLoco.cpp:114` |
+| `SDL_DestroyWindow` | **does not appear anywhere in the source tree** - the window is never destroyed |
+| `OpenLocoVersion.cmake` | still reads git unconditionally |
+
+So both patches still apply and both still address something that is there.
+
 **Patch 21.** Upstream's `exitCleanly()` leaves the game window alive and has
 `SDL_Quit()` commented out. On AROS that left a stale Intuition window and five
 unfreed signal bits; with the patch, one. The argument for it is not "AROS
@@ -26,6 +42,11 @@ explicitly first, so no static destructor touches SDL after `SDL_Quit()`.
 What a maintainer would fairly ask, and we cannot answer: whether the commented
 `SDL_Quit()` was commented out **for a reason** on Windows or macOS. That
 question belongs in the offer, not in an answer we invent. Tested on AROS only.
+
+Tidied 2026-09-23 for the offer: the patch included all of `<SDL3/SDL.h>` at
+the very top of `OpenLoco.cpp`, above the local includes. `SDL_Quit()` is the
+only SDL call that file makes, so it now includes `<SDL3/SDL_init.h>`, in the
+block where the file's other angled includes already are.
 
 **Patch 23.** Small, opt-in, no behaviour change when the build passes nothing.
 Useful to anyone building OpenLoco from a generated or exported tree, where the

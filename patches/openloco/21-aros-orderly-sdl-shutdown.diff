@@ -16,6 +16,10 @@
 # is reported instead of five, and a second start works. Motivated by the stale
 # Intuition window; NOT claimed as the cause of backlog item 21.
 #
+# SDL_Quit() is the only SDL call this file makes, so it includes
+# <SDL3/SDL_init.h> rather than all of <SDL3/SDL.h>, in the block where the
+# file's other angled includes already are.
+#
 # Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
 # Saved 2026-09-20.
 
@@ -36,8 +40,8 @@ index 0b66c55..63682bf 100644
 --- a/src/OpenLoco/src/OpenLoco.cpp
 +++ b/src/OpenLoco/src/OpenLoco.cpp
 @@ -1,3 +1,4 @@
-+#include <SDL3/SDL.h>
  #include "Scenario/Scenario.h"
++#include <SDL3/SDL_init.h>
  #include <algorithm>
  #include <cassert>
 @@ -99,6 +100,11 @@ namespace OpenLoco
