@@ -120,7 +120,30 @@ What would separate them: repeat the same chain ending in an **orderly guest
 shutdown** with the flush verified, then `fsck`. If the orphan disappears, it
 belongs to the stop; if it stays, it belongs to the writing. See item 18b.
 
-**Still not done, and why (2026-09-20/22).** An orderly shutdown was attempted
+**Done 2026-09-23, and it came out clean.** The route the menu would not give
+is a Shell command: `Sys:C/Shutdown`. It halts AROS and leaves QEMU running
+with a black screen, so the host can then stop QEMU on a halted guest.
+
+The chain, on a volume `fsck_msdos` had just called clean:
+
+| step | |
+|---|---|
+| boot, start OpenLoco | build `88e78232...` |
+| Load Game -> `Sandbox Settlerarostrain` | 11th August 1901, $6,094, train on track |
+| play | **two autosaves written**, each deleting an older one |
+| Save Game under a new name `Sandbox Settlerarostrainfsck` | appears in the list |
+| Exit OpenLoco from the game's menu | window gone, prompt back, one unfreed signal |
+| `Shutdown` | screen black, guest halted at 10% CPU |
+| stop QEMU from the host, `fsck_msdos -n` | **no orphan clusters, no FAT damage**, 277 files |
+
+**So the orphan belongs to the stop, not to the writing** - as far as one run
+shows. Game writes (two autosaves, one named save, one deletion each time)
+came through an orderly shutdown with nothing left over, where the
+2026-09-17 session ended with a host-side stop and one orphan. One run does not
+make the write path safe in general - item 18's overwrite damage is a separate,
+still unexplained matter - but the specific question here is answered.
+
+**The earlier attempt, kept for the record (2026-09-20/22).** An orderly shutdown was attempted
 once through Wanderer's menu, driven from the host with `vmctl`: right button
 held on the screen title bar, pointer moved to *Wanderer > Shut down...*, right
 button released. The menu opened and followed the pointer - so the guest was

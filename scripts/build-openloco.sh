@@ -66,6 +66,13 @@ if [ -n "$(git -C "$WORK_DIR" status --porcelain 2>/dev/null)" ]; then
 fi
 VERSION_SHA="$(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
+# Kept in one variable so the archive can record exactly what configured this
+# build, including anything the caller added.
+CMAKE_ARGS="-DOPENLOCO_VERSION_TAG=$VERSION_TAG -DOPENLOCO_BRANCH=$VERSION_BRANCH \
+-DOPENLOCO_COMMIT_SHA1_SHORT=$VERSION_SHA -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN \
+-DCMAKE_BUILD_TYPE=Release -DSTRICT=NO -DOPENLOCO_BUILD_TESTS=NO \
+-DOPENLOCO_USE_CCACHE=NO $*"
+
 # -S is not optional: without it cmake silently does nothing in this layout.
 cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
     -DOPENLOCO_VERSION_TAG="$VERSION_TAG" \
@@ -126,6 +133,26 @@ if [ -f "$OUT" ]; then
             echo "dependency patches (copied under dependencies/):"
             shasum -a 256 "$PORT_ROOT"/patches/dependencies/*.diff | sed "s|$PORT_ROOT/patches/dependencies/|  |"
         } > "$ARCHIVE/DEPENDENCIES.txt"
+        # What it was built WITH, and - just as important - what this archive
+        # does not contain. A hash identifies a file; it does not stand in for
+        # it, and neither the toolchain nor the SDK is kept here.
+        {
+            echo "toolchain:  $(abi_toolchain "$ABI")"
+            echo "  g++:      $("$(abi_toolchain "$ABI")/x86_64-aros-g++" --version 2>/dev/null | head -1)"
+            echo "sdk:        $SDK"
+            echo "  version:  $(cat "$SDK/.version" 2>/dev/null || echo 'no .version file')"
+            echo "cmake:      $(cmake --version 2>/dev/null | head -1)"
+            echo "host:       $(sw_vers -productName 2>/dev/null) $(sw_vers -productVersion 2>/dev/null) $(uname -m)"
+            echo "cmake args: $CMAKE_ARGS"
+            echo
+            echo "To rebuild this binary you need, beyond what is in this directory:"
+            echo "  - the upstream checkout at the commit on PATCHES.txt's upstream line,"
+            echo "    with SOURCES.diff applied (that pair is the complete game source)"
+            echo "  - SDL3 3.4.12 plus contrib's pinned AROS diff, with the patches under"
+            echo "    dependencies/ applied; DEPENDENCIES.txt names the resulting library"
+            echo "    but does not contain it"
+            echo "  - the toolchain and SDK above, neither of which is archived here"
+        } > "$ARCHIVE/BUILT-WITH.txt"
         # The exact sources, whatever state the work tree was in: one diff from
         # the pristine upstream checkout to the tree that was compiled. Upstream
         # commit + SOURCES.diff is the whole input - it does not depend on the

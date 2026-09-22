@@ -662,6 +662,18 @@ create, delete and recreate files in a subdirectory, checking the volume after
 each stage; and check whether `FAT[0]` is zeroed by the handler's first write
 at all.
 
+**2026-09-23: deletion churn did NOT reproduce it.** A full game session on a
+volume `fsck` had just called clean - load a save, two autosaves each deleting
+an older file, one save under a new name, then *Exit OpenLoco* and
+`Sys:C/Shutdown` before stopping QEMU - left the volume **clean**: no orphans,
+no `FAT[0]` damage. That is the autosave rotation, on the real 512 MB volume
+with 277 files, which is what the earlier controls could not match.
+
+It does not explain 18b. It removes "deletion churn alone" as the candidate and
+shifts the suspicion back to what this run did *not* do: end without a guest
+shutdown, and hit the overwrite path of 18a. See
+`../evidence/gameplay-abiv11/RESULTS.md` for the chain.
+
 **Consequence now:** do not keep saved games only on a FAT32 volume. The
 options are the guest's own native filesystem, an upstream fix, or having the
 game write to a new file and swap - the last addresses 18a only.
@@ -851,7 +863,17 @@ not say the time is spent writing to disk. Serialising and compressing the map
 happen in the same operation and have not been timed separately. Item 22 is
 open for that measurement.
 
-**40.0 fps is the game's own ceiling, not the machine's.** `tickWait()` in
+**Correction, 2026-09-23: 40.0 fps is the ceiling of *plain gameplay*, not of
+the counter.** In a later session the same counter reported **46.5, 59.0, 68.3,
+73.5, 77.6 and 79.1 fps** in 30-second windows - while a scenario was loading,
+and while the Save and Load dialogs were open. So `present()` is called more
+often than once per game tick whenever the UI runs its own loop; `tickWait()`
+paces the **tick**, not every presentation. The gameplay rows above, taken with
+no dialog open, still read 40.0 fps and still match the cap, and the reasoning
+below still holds for them. What is wrong is the general phrasing "the counter
+cannot exceed 40": it can, and did.
+
+**40.0 fps is the game's own ceiling in plain gameplay, not the machine's.** `tickWait()` in
 `OpenLoco.cpp` idles until `Engine::UpdateRateInMs` has passed, and
 `UpdateRateInMs = 1000 / UpdateRateHz` with `UpdateRateHz = 40`
 (`OpenLoco/include/OpenLoco/OpenLoco.h:16`):
