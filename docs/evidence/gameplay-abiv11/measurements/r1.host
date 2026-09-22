@@ -1,0 +1,29 @@
+=== r1 before 2026-09-23 01:15:46 ===
+load:    1:15  up 3 days,  3:44, 4 users, load averages: 2.88 3.77 4.26
+mem:    Pages free:                                    18286.
+mem:    Pages active:                                1219812.
+mem:    Pageins:                                   132950352.
+mem:    Pageouts:                                      30222.
+mem:    Swapins:                                     4529169.
+mem:    Swapouts:                                    9059932.
+mem:    Pages tagged compressed:                       29197.
+mem:    Bytes of compressed tags:                    4602048.
+swap:   total = 16384.00M  used = 15522.69M  free = 861.31M  (encrypted)
+press:  System-wide memory free percentage: 79%
+qemu:   51287   4.8 qemu-system-x86_64 -name aros-pool-v11-1 -machine pc,accel=tcg -cpu qemu64 -smp 2 -m 2048 -hda ~/Work/AROS/vm-pool-data/machines/v11-1/disk.qcow2
+qemu:   51410   5.1 qemu-system-x86_64 -name aros-pool-v1-1 -machine pc,accel=tcg -cpu qemu64 -smp 2 -m 2048 -hda ~/Work/AROS/vm-pool-data/machines/v1-1/disk.qcow2
+qemu:   76743   1.8 qemu-system-x86_64 -machine pc,accel=tcg -cpu qemu64 -smp 2 -m 2048 -hda aros-onetwo-hd.qcow2
+=== r1 after 2026-09-23 01:23:26 ===
+load:    1:23  up 3 days,  3:52, 4 users, load averages: 71.68 39.67 19.98
+mem:    Pages free:                                    86209.
+mem:    Pages active:                                1160581.
+mem:    Pageins:                                   133676187.
+mem:    Pageouts:                                      30240.
+mem:    Swapins:                                     4541917.
+mem:    Swapouts:                                    9059932.
+mem:    Pages tagged compressed:                       31994.
+mem:    Bytes of compressed tags:                    5120448.
+swap:   total = 16384.00M  used = 15322.69M  free = 1061.31M  (encrypted)
+press:  System-wide memory free percentage: 79%
+qemu:   53816 102.8 qemu-system-x86_64 -machine pc,accel=tcg -cpu qemu64 -smp 2 -m 2048 -hda aros-loco-hd.qcow2
+qemu:   76743   1.2 qemu-system-x86_64 -machine pc,accel=tcg -cpu qemu64 -smp 2 -m 2048 -hda aros-onetwo-hd.qcow2

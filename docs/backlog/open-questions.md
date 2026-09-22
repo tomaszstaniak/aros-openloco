@@ -669,10 +669,12 @@ an older file, one save under a new name, then *Exit OpenLoco* and
 no `FAT[0]` damage. That is the autosave rotation, on the real 512 MB volume
 with 277 files, which is what the earlier controls could not match.
 
-It does not explain 18b. It removes "deletion churn alone" as the candidate and
-shifts the suspicion back to what this run did *not* do: end without a guest
-shutdown, and hit the overwrite path of 18a. See
-`../evidence/gameplay-abiv11/RESULTS.md` for the chain.
+**One run, and it says less than it looks.** Deletion churn was not reproduced
+here - it is not eliminated. That would be the same mistake the paragraph above
+warns about: three candidates were called "not reproduced" after one control
+each, and this is one control. What the run adds is that the autosave rotation,
+on the real volume with 277 files, can complete without damage when the guest
+is shut down properly. See `../evidence/gameplay-abiv11/RESULTS.md`.
 
 **Consequence now:** do not keep saved games only on a FAT32 volume. The
 options are the guest's own native filesystem, an upstream fix, or having the
@@ -1065,23 +1067,42 @@ frames, or block for less than the frame it lands in.
 *To close it:* time the autosave from entry to return, and time its inner stages
 separately. Both ends belong in the same diagnostic patch.
 
-## 23. The measurement has only been made at 640x480 on a small map
+## 23. INCONCLUSIVE - the resolution comparison, because the control drifted
 
-Opened 2026-09-20 out of item 2. The 40.0 fps result belongs to a small map with
-one vehicle at 640x480. **The cap is not to be lifted to chase a ceiling** -
-what matters is whether the port still holds 40 Hz when the work grows:
+Run 2026-09-23 with the protocol agreed beforehand: control at 640x480, the
+same scene at a higher resolution, control again. Same build
+(`88e78232...`), same software renderer, same saved game
+(`Sandbox Settlerarostrain`), same zoom, no dialogs and no loading inside a
+measured stretch, autosave windows marked. Host state captured before and
+after each variant (`../evidence/gameplay-abiv11/measurements/*.host`).
 
-1. the same map at a higher resolution;
-2. a large, busy map at 640x480;
-3. both together.
+| variant | window | gameplay windows, 30 s each | host load avg | our QEMU |
+|---|---|---|---|---|
+| C1 control | 640x480 | **40.0 fps**, median 25.0 ms, p90 26.3-26.5 ms | 3.8-4.5 | 66.8% |
+| R higher res | **1264x844** (the game's own record; ~3.5x the pixels) | 9.2-19.0 fps, median 32.2-97.3 ms, p90 107-206 ms | - | 102.8% |
+| C2 control | 640x480 | 11.5-22.2 fps, median 26.7-79.0 ms, p90 110-155 ms | **89-113** | 38.1% |
 
-The presentation counter from diagnostic patch 22 measures all three unchanged.
+**The control did not come back, so the comparison says nothing about
+resolution.** C2 lands inside R's range. Between C1 and C2 another session
+started a pool of AROS machines: the host load average went from about 4 to
+over 100, and our QEMU's share of a core fell from 67% to 38%. R sits between
+the two in time and had 103%, which is *suggestive* - it was working harder and
+still drawing fewer frames, as a bigger window should - but a suggestion is not
+the measurement, and adding runs into a host in that state would only produce
+more numbers of the same quality.
 
-**Before any of it: record the host.** On 2026-09-22 the same binary in the
-same boot ran the title screen at 3.0, 32.8 and 24-28 fps in three consecutive
-starts while other sessions started and stopped their own AROS machines (item
-24). A number from this host is only comparable with the list of other QEMU
-processes and the load average captured next to it - or taken on a quiet host.
+**What the run did establish:** C1 is a clean, repeatable 640x480 figure -
+40.0 fps, median 25.0 ms, p90 26.3-26.5 ms - matching 2026-09-20 to the digit,
+and the protocol and its scripts now exist (`scripts/measure-variant.sh`,
+`scripts/host-state.sh`).
+
+**Before repeating:** the host must be quiet, and quiet must be *checked*, not
+assumed - the load average was 4 when this started. The heavier-map arm
+(`Lost Worlds`, 1.17 MB against `Sandbox Settler`'s 107 KB) was not run at all;
+it waits for the same conditions.
+
+Evidence: `../evidence/gameplay-abiv11/53-measure-c1-640-40fps.png`,
+`54-measure-r1-1264x844.png`, `55-measure-c2-control-drifted.png`.
 
 ## 3. SDL3 as `sdl3.library`, not a static build alongside
 

@@ -136,12 +136,16 @@ The chain, on a volume `fsck_msdos` had just called clean:
 | `Shutdown` | screen black, guest halted at 10% CPU |
 | stop QEMU from the host, `fsck_msdos -n` | **no orphan clusters, no FAT damage**, 277 files |
 
-**So the orphan belongs to the stop, not to the writing** - as far as one run
-shows. Game writes (two autosaves, one named save, one deletion each time)
-came through an orderly shutdown with nothing left over, where the
-2026-09-17 session ended with a host-side stop and one orphan. One run does not
-make the write path safe in general - item 18's overwrite damage is a separate,
-still unexplained matter - but the specific question here is answered.
+**What this establishes.** One complete cycle of play, autosave rotation and a
+named save, ended with `Sys:C/Shutdown`, left the volume **structurally
+clean**. That is a positive result about this cycle, and it is the first time
+the whole chain has been checked end to end.
+
+**What it does not establish.** It *supports* the hypothesis that the
+2026-09-17 orphan was connected to stopping the guest without a shutdown; it
+does not assign that cause. The historical damage happened once, was never
+reproduced, and this run does not reach back to explain it. Item 18a's
+overwrite damage and the unexplained `FAT[0]` case stay where they are.
 
 **The earlier attempt, kept for the record (2026-09-20/22).** An orderly shutdown was attempted
 once through Wanderer's menu, driven from the host with `vmctl`: right button
