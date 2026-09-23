@@ -1077,15 +1077,45 @@ in this backlog before today was taken on that machine. This is the first thing
 the pool migration found, and it would have hit the first person who unpacked
 the release archive.
 
-**Worked around, not fixed.** The package now ships `Run-OpenLoco`, two lines
-that set the stack and start the game, and the README says to use it and what
-the crash looks like otherwise.
+**Worked around, not fixed.** The package ships `Run-OpenLoco`, which sets the
+stack and starts the game, and the README leads with it and shows the crash
+text.
+
+**The launcher itself was tested, not just the manual workaround** (2026-09-23,
+slot `v11-2`, fresh Shell, `stack` reporting 40960 before each attempt):
+
+| run | result |
+|---|---|
+| `cd AROS:OpenLoco` then `execute Run-OpenLoco` | title screen - the launcher raises the stack and starts the game |
+| `execute AROS:OpenLoco/Run-OpenLoco` from `AROS:` | **failed silently**: no game, no error, and the Shell's current directory quietly became `AROS:OpenLoco` |
+
+The second one is worth keeping in mind for any AmigaDOS script: a bare
+`OpenLoco` matched the **drawer** of that name rather than the program inside
+it, so the Shell just changed into it and the script ended. A user would see
+nothing at all.
+
+Fixed by making the script check `openloco.yml` in the current directory and
+say what to do:
+
+```
+Run-OpenLoco must be started from inside the OpenLoco drawer.
+Do:  cd <the drawer>   then   execute Run-OpenLoco
+```
+
+Retested from `AROS:` after the fix: that message, and the current directory
+left alone.
+
+**1 MB is a value that worked, not a measured minimum.** Nothing here
+established how much the game actually needs; 1 MB was chosen as comfortably
+large and the run succeeded. The real requirement is unmeasured, and so is
+whether it varies with resolution or map.
 
 *What a fix would look like:* the executable declaring its own stack
 requirement, the way AmigaOS binaries carry a `$STACK:` cookie and Workbench
-icons a `STACK` tooltype. Nothing in the ABIv11 SDK headers mentions such a
-mechanism, so whether the AROS Shell honours a cookie is **unknown and
-untested**. Until someone checks, the launcher stands.
+icons a `STACK` tooltype. A grep of the ABIv11 SDK headers found no such
+mechanism - which says the headers do not mention it, **not** that AROS lacks
+it. Whether the AROS Shell honours a cookie is untested. Until someone checks
+in the system's own sources or by experiment, the launcher stands.
 
 ## 27. The pool migration: what it changed, and what it exposed
 
@@ -1133,13 +1163,21 @@ installation.
 
 **Rough edges to report to the pool's owner**, both harmless here:
 
-- `collect` copied every file correctly but printed
-  `[Errno 1] Operation not permitted` for each one, which looks like a metadata
-  copy (`copy2`) onto a destination that would not take it.
+- `collect` printed `[Errno 1] Operation not permitted` for every file while
+  the files themselves appeared in the destination with the expected sizes.
+  **Cause undetermined** - "it looks like a metadata copy" is a guess, and the
+  names and sizes matching is not the same as the contents matching. What
+  would settle it is comparing checksums of the collected copies against the
+  files still on the results image, inside the same session, before releasing
+  the machine. That was not done and cannot be done after release.
 - `vmctl.py` keeps its pointer calibration in a file named after the **socket's
   basename**, and every pool machine's socket is `qmp.sock` - so all five slots
   share one calibration file, keyed only by screen size. Ours came up at
-  1024x768 against an existing 800x600 entry, so nothing collided this time.
+  1024x768 against an existing 800x600 entry, so nothing collided this time,
+  but two slots at the same screen size would silently share one calibration,
+  and a wrong one sends every click to the wrong place. The key should carry
+  the slot or the full socket path. Until it does, **calibrate on a still
+  desktop at the start of every run** rather than trusting the cached entry.
 
 ## 22. How long does an autosave take, and where does the time go
 

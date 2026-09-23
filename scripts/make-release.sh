@@ -64,9 +64,23 @@ EOF
 # ever reaches the title screen. Backlog item 26.
 cat > "$OUT/Run-OpenLoco" <<'LAUNCH'
 .key
-; Run this with:  execute Run-OpenLoco
-; The default Shell stack (40 KB on AROS One 1.3) is too small for OpenLoco:
-; it crashes in drawImage with "Stack extends out of range".
+; Run this from inside the OpenLoco drawer:
+;     cd <drawer>
+;     execute Run-OpenLoco
+;
+; Why it exists: the default Shell stack (40960 bytes on a stock AROS One 1.3)
+; is too small, and OpenLoco then dies inside drawImage with
+; "Stack extends out of range" before it draws its first screen.
+;
+; The check below is not decoration. Run from somewhere else, a bare "OpenLoco"
+; matches this DRAWER rather than the program inside it, and the Shell simply
+; changes directory and returns - no game, no error. Verified on a pool machine
+; 2026-09-23.
+if not exists openloco.yml
+    echo "Run-OpenLoco must be started from inside the OpenLoco drawer."
+    echo "Do:  cd <the drawer>   then   execute Run-OpenLoco"
+    quit 10
+endif
 stack 1048576
 OpenLoco
 LAUNCH
