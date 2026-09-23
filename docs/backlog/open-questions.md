@@ -1179,6 +1179,93 @@ installation.
   the slot or the full socket path. Until it does, **calibrate on a still
   desktop at the start of every run** rather than trusting the cached entry.
 
+## 28. Mainline v1: links and starts; blocked by C++ exceptions aborting
+
+Worked 2026-09-23 on pool slot `v1-1` (Kickstart 51.51, Workbench 40.0), with
+dependencies built separately under `deps/mainline-v1` and the build under
+`build/mainline-v1`. Four blockers, in the order they appeared. The first three
+are removed; the fourth is not ours to remove from here.
+
+| # | what stopped it | where it came from | status |
+|---|---|---|---|
+| 1 | `iconv.h` not found, first in SDL3, then in `Utility/String.cpp` | mainline keeps libiconv under `Developer/SDK/Extras` | **fixed**: build-sdl3.py and the v1 toolchain file add those directories |
+| 2 | link: exactly **23 undefined symbols, every one `al*`/`alc*`** | mainline has no `libopenal.a` and no `openal.library` - its tree unpacks openal-soft but never builds it; `LIBS:` on the slot has none | **fixed**: openal-soft 1.19.1 built statically from contrib's own recipe (see below) |
+| 3 | requester *"Unable to open bsdsocket.library version 4 or later"*, then after the first fix a crash in `strerror()` | `libnet.a`: its autoinit constructor opens bsdsocket at startup, and its `strerror()` calls bsdsocket through `SocketBase` | **fixed**: patch 25 opens bsdsocket on first use; `-lnet` no longer linked |
+| 4 | *"Caught Signal: Program 'OpenLoco' aborted."* after OpenAL initialises, nothing in the log | **C++ exceptions abort on mainline v1** - reproduced in 30 lines | **open**: toolchain/runtime, not the game |
+
+**Blocker 2 was isolated before anything was built for it.** Pointed at an
+empty archive, the link listed its undefined symbols: 23, all OpenAL. SDL3, GL,
+iconv, pthread, png, zlib and libstdc++ all resolved on mainline.
+
+**The static OpenAL** is contrib's own static variant - `mmakefile.src` builds
+`libopenal.static.a` beside the shared module - reproduced outside the AROS
+build system like SDL3: openal-soft 1.19.1, contrib's AROS diff and
+`config.h`, the AHI backend that diff adds, 55 of 55 objects. Pinned to the same
+contrib commit as SDL3 (`20049962`), where those files are byte-identical to the
+mainline tree's; the tarball from openal-soft.org is identical to the tree's
+cached copy. On the slot it reports `OpenAL 1.1 ALSOFT 1.19.1 ... initialized`
+and `EFX reverb initialized`. `fetch-deps.sh` and `make-cmake-packages.sh`
+choose stubs or the static build by what the SDK contains, so ABIv11 still
+links the SDK's stubs to `openal.library` 1.16.0.
+
+**Blocker 3 would have hit ABIv11 users too**, on any AROS One machine with its
+TCP/IP stack stopped. And the first fix for it caused the crash: with the
+library opened on demand, `libnet.a`'s `strerror()` - linked because it shadows
+the C library's for SDL3 - dereferenced a NULL `SocketBase` on the first failed
+file open. The game's own objects took nothing else from `libnet.a` (checked by
+intersecting symbol tables), so it is no longer linked; `strerror` in the
+binary is now the C library's stub. **Patch 25 and the toolchain change apply to
+ABIv11 as well, and the ABIv11 build has not yet been rebuilt or run with them.**
+
+### Blocker 4: the evidence
+
+`tests/cxx-runtime/cxx-runtime.cpp`, one source, built with each ABI's
+toolchain and SDK, run on each ABI's slot with `stack 1048576`:
+
+| step | ABIv11 (`v11-2`) | mainline v1 (`v1-1`) |
+|---|---|---|
+| static initialiser | runs, value 42 | runs, value 42 |
+| `throw` and `catch` in one frame | caught | **aborted** - *Caught Signal: Program 'cxx-runtime' aborted.* |
+| `throw` three frames down | caught | - |
+| `std::thread` start and join | works | - |
+| `std::filesystem` throwing overload | `filesystem_error` caught | - |
+
+The simplest possible exception does not survive on mainline v1. OpenLoco
+throws and catches in normal operation, so its first throw ends it - which fits
+what the game did: OpenAL initialised, several minutes of loading with nothing
+logged, then the same requester.
+
+What is established about the cause, and what is not:
+
+- both binaries contain one `.eh_frame` section and a `__eh_frame_start`
+  symbol, and in both the startup code `__startup_initexit` references it - so
+  frame registration is not simply missing on v1;
+- the v1 startup sets differ (`__posixc_startup`, `__stdcio_startup`,
+  `__stdc_setdefaultround` where v11 has `SysBase_autoinit`), which says the C
+  runtime is split differently, not that it is the cause;
+- **the cause is not located.** The candidates are the unwinder in the mainline
+  toolchain's libgcc, the way `collect-aros` lays out `.eh_frame` there, or the
+  mainline startup's registration call. Each is outside this repository.
+
+*To close it:* take `cxx-runtime` to whoever owns the mainline toolchain. It is
+the whole reproducer - thirty lines, no game, no SDL, no assets - and the v11
+column is its control.
+
+**v1 observations recorded separately, as asked:** the default Shell stack on
+`v1-1` is **40960 bytes**, the same as on the v11 slots; the game was started
+through `Run-OpenLoco`, which sets 1 MB. No `openal.library` in `LIBS:`,
+`gallium.library` present, `C:UnZip` present, 7.8 GB free.
+
+**Collect, checked by content this time.** The v1 test binary went host -> ISO ->
+guest RAM -> `Results:` (FAT32) -> `collect` -> host, and its SHA-256 matched the
+host build exactly (`16715141...`). `collect` again exited 1 with *Operation not
+permitted* for every file; for this file at least, the warning does not touch
+the contents. The cause of the warning remains undetermined.
+
+Side note from the v11 control: `std::filesystem::exists(".")` returned **false
+with no error** on AROS One. OpenLoco does not ask that question of `.`, but the
+next program might.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
