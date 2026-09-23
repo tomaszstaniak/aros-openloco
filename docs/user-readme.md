@@ -22,7 +22,21 @@ problem you find here is this port's to answer for until shown otherwise.
 1. Copy this drawer somewhere writable, for example `Work:Games/OpenLoco`.
 2. Put your Locomotion files where `openloco.yml` points, or edit that line.
    The default is `Locodata:Locomotion`.
-3. From a Shell: `cd` into the drawer and run `OpenLoco`.
+3. From a Shell: `cd` into the drawer and run
+
+       execute Run-OpenLoco
+
+**Start it with `Run-OpenLoco`, not by typing `OpenLoco`.** The default Shell
+stack is too small - 40 KB on a stock AROS One 1.3 - and the game then dies
+part-way through drawing its first screen with
+
+    Error: 0x8100000E - Stack extends out of range
+    Function ... SoftwareDrawingContext::drawImage ...
+
+`Run-OpenLoco` is two lines: it raises the stack to 1 MB and starts the game.
+If you prefer to type it yourself, `stack 1048576` once per Shell does the
+same. This is not a crash you did anything to cause, and it is not a data
+problem - it is the stack.
 
 The first run writes the rest of `openloco.yml` itself. Log lines go to the
 Shell; redirect them with `OpenLoco >run.log` if you want to keep them, but

@@ -1052,6 +1052,95 @@ that the next person does not re-measure it, and so that the claim in item 1
 has a source. It also bounds what could ever be expected: no configuration of
 this guest turns `softpipe` into acceleration.
 
+## 26. ANSWERED and worked around - the default Shell stack is too small
+
+Found 2026-09-23 on pool machine `v11-1`, a **fresh** AROS One 1.3 install, with
+the release build that had run for weeks on our own machine:
+
+```
+Program failed
+Task : OpenLoco
+Error: 0x8100000E - Stack extends out of range
+PC   : 0x4B437F6B
+Module OpenLoco Segment 4225 .text Offset 0x1AC8AB
+Function OpenLoco::Gfx::SoftwareDrawingContext::drawImage(...)
+Stack: 0x4A827D80 - 0x4A831D80
+```
+
+`stack` in that Shell reports **40960 bytes**. `stack 1048576` and the same
+binary reaches the title screen, loads a scenario and plays. Nothing else was
+changed.
+
+**Why it never appeared here before:** our own guest is a copy of a machine
+that has been used for months, and its Shell has a larger default. Every result
+in this backlog before today was taken on that machine. This is the first thing
+the pool migration found, and it would have hit the first person who unpacked
+the release archive.
+
+**Worked around, not fixed.** The package now ships `Run-OpenLoco`, two lines
+that set the stack and start the game, and the README says to use it and what
+the crash looks like otherwise.
+
+*What a fix would look like:* the executable declaring its own stack
+requirement, the way AmigaOS binaries carry a `$STACK:` cookie and Workbench
+icons a `STACK` tooltype. Nothing in the ABIv11 SDK headers mentions such a
+mechanism, so whether the AROS Shell honours a cookie is **unknown and
+untested**. Until someone checks, the launcher stands.
+
+## 27. The pool migration: what it changed, and what it exposed
+
+Done 2026-09-23. The project ran on its own QEMU launcher
+(`scripts/run-loco-vm.sh`) with its own disks and raw QMP - which the pool
+documentation names as exactly what not to do. That launcher is **retired**:
+kept in the tree for reading, but no longer used and no longer referenced as
+the way to run anything.
+
+The full chain was proved on slot `v11-1`, headless, through `vm.sh` only:
+
+| step | result |
+|---|---|
+| `acquire --abi v11 --project aros-openloco` | `v11-1`, reservation recorded |
+| free space and libraries | 10.3 GB free on `AROS:`, `openal.library` and `C:UnZip` present |
+| `stage` of a 524 MB payload (assets + build) | 522 MB `input.iso`, no symlinks rejected |
+| extraction in the guest | ~3 minutes, log free of errors, +0.5 GB used |
+| first run | **failed**: no `data/` in the package (see below) |
+| second run | **failed**: 40 KB Shell stack (item 26) |
+| third run | title screen, scenario list, `Aerophobia` loaded, company named by keyboard |
+| save under a unique name | `Aerophobia-pool-2026-09-23` |
+| orderly exit | window gone, prompt back |
+| guest restart through `stop`/`start` | clean |
+| reload the save | **£357,272, 11th March 1975 - the saved state** |
+| `collect` | both logs and the 1.19 MB save |
+| `release` | slot free |
+
+**Two package defects it found**, neither visible on our own machine because
+that machine had been filled in by hand months ago:
+
+1. `data/` - the game's own language files and objects, 29 MB - was missing
+   from the release package. Without it the game throws
+   `OpenLoco data path could not be found!` from `getDataDirectory()` and never
+   opens a window. `make-release.sh` now copies it and fails the build if it is
+   not there.
+2. an empty `objects/` drawer is expected next to the binary; without it the
+   game warns on every start.
+
+**Assets on the slot:** the 510 MB `Locomotion` directory from
+`~/Work/AROS/assets-staging/Locomotion` (642 files, no resource-fork debris) is
+extracted to `AROS:Locomotion` on `v11-1` and **left there**. It is not in this
+repository and not in the release package - it is a copyrighted game's data.
+A later user of that slot will find it; a reused machine is not a clean
+installation.
+
+**Rough edges to report to the pool's owner**, both harmless here:
+
+- `collect` copied every file correctly but printed
+  `[Errno 1] Operation not permitted` for each one, which looks like a metadata
+  copy (`copy2`) onto a destination that would not take it.
+- `vmctl.py` keeps its pointer calibration in a file named after the **socket's
+  basename**, and every pool machine's socket is `qmp.sock` - so all five slots
+  share one calibration file, keyed only by screen size. Ours came up at
+  1024x768 against an existing 800x600 entry, so nothing collided this time.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in

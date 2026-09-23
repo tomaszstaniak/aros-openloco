@@ -32,6 +32,16 @@ VERSION=$(awk -F': *' '/^version/{print $2}' "$ARCHIVE/BUILD-INFO.txt")
 OUT=$PORT_ROOT/release/$ABI/OpenLoco
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp "$BIN" "$OUT/OpenLoco"
+# The game's own data directory - language files and the objects it ships -
+# lives next to the binary. Leaving it out cost a full pool run: the game
+# starts, finds no data directory and throws
+# "OpenLoco data path could not be found!" from getDataDirectory().
+[ -d "$BUILD/data" ] || { echo "no $BUILD/data - the build is incomplete" >&2; exit 1; }
+cp -R "$BUILD/data" "$OUT/data"
+# The game looks for a user objects drawer next to itself and warns when it is
+# missing. Empty, and created here so a fresh install does not start with a
+# warning; the game fills it if the player adds custom objects.
+mkdir -p "$OUT/objects"
 cp "$ARCHIVE/BUILD-INFO.txt" "$ARCHIVE/PATCHES.txt" "$ARCHIVE/BUILT-WITH.txt" \
    "$ARCHIVE/DEPENDENCIES.txt" "$OUT/"
 sed -e "s|@VERSION@|$VERSION|" -e "s|@SHA@|$SHA|" \
@@ -47,6 +57,19 @@ display:
     width: 640
     height: 480
 EOF
+
+# A launcher, because the default Shell stack is not enough. On a pool machine
+# with AROS One 1.3 it is 40960 bytes, and the game dies inside
+# SoftwareDrawingContext::drawImage with "Stack extends out of range" before it
+# ever reaches the title screen. Backlog item 26.
+cat > "$OUT/Run-OpenLoco" <<'LAUNCH'
+.key
+; Run this with:  execute Run-OpenLoco
+; The default Shell stack (40 KB on AROS One 1.3) is too small for OpenLoco:
+; it crashes in drawImage with "Stack extends out of range".
+stack 1048576
+OpenLoco
+LAUNCH
 
 echo "$SHA  OpenLoco" > "$OUT/SHA256"
 echo "prepared $OUT"

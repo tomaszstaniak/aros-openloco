@@ -1,4 +1,16 @@
 #!/bin/zsh
+# RETIRED 2026-09-23 - do not use. The AROS test VM pool
+# (AROS/documentation/vm-pool.md) is how machines are started now, and this
+# script is exactly what its rules call a project's own launcher: it starts
+# QEMU directly, with its own disks and raw QMP, outside the pool's ownership
+# and its five-machine limit.
+#
+# Kept in the tree because every result in docs/evidence up to 2026-09-23 was
+# produced with it, and those records refer to it. Use ./vm.sh in ~/Work/AROS.
+echo "run-loco-vm.sh is retired - use the VM pool (AROS/documentation/vm-pool.md)." >&2
+echo "Set LOCO_LEGACY_VM=1 to run it anyway, knowing it bypasses the pool." >&2
+[ "$LOCO_LEGACY_VM" = 1 ] || exit 1
+
 # Launch machine `loco`: AROS One 64-bit (ABIv11) on its OWN copy of the disk,
 # with loco-assets.img (the original Locomotion assets) as a 4th IDE disk.
 #
