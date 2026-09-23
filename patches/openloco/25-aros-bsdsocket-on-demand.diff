@@ -1,0 +1,102 @@
+# aros-bsdsocket-on-demand
+#
+# Open bsdsocket.library when a socket is first needed, not at program start.
+#
+# The network code references SocketBase, and on AROS that pulls libnet.a's
+# autoinit.o into the link. Its constructor opens bsdsocket.library before
+# main() and, when no TCP/IP stack is running, shows "Unable to open
+# bsdsocket.library version 4 or later" with a single "Exit OpenLoco" button -
+# so a single-player game would not start without a network it never uses.
+# Found on the pool's mainline v1 machines, which run no TCP/IP stack; AROS One
+# has one running by default, which is why ABIv11 never showed it.
+#
+# This defines SocketBase and FDBase in Socket.cpp, which keeps autoinit.o out
+# of the link, and gives initialiseWSA() - upstream's hook for "prepare the
+# network stack", called by both public entry points - an AROS branch that does
+# what that constructor did (workbench/network/common/lib/net/autoinit.c): open
+# bsdsocket.library v4 and fd.library, hand the library our errno pointer, and
+# close both at exit. When the library is missing it throws instead of going on
+# with a NULL base, and Network.cpp's catch (...) around connect and listen
+# turns that into a failed connection rather than a crash.
+#
+# Checked on the binary: the openSockets constructor and the requester string
+# are gone; SocketBase is ours.
+#
+# Against OpenLoco 7f8c90cf7b1127dd1113b904336bfda3d0f4ff00, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-23.
+
+diff --git a/src/OpenLoco/src/Network/Socket.cpp b/src/OpenLoco/src/Network/Socket.cpp
+index 0ce135c..3bf5f22 100644
+--- a/src/OpenLoco/src/Network/Socket.cpp
++++ b/src/OpenLoco/src/Network/Socket.cpp
+@@ -51,6 +51,15 @@
+         // AROS has the BSD 4.3 socket API but not RFC 3493 name resolution;
+         // see the header for exactly what is and is not provided.
+         #include "ArosNetCompat.hpp"
++        #include <bsdsocket/socketbasetags.h>
++        #include <cstdlib>
++        #include <proto/exec.h>
++        #include <proto/socket.h>
++        // Defined here so libnet.a's autoinit.o, which would otherwise define
++        // them and open bsdsocket.library at startup, is never linked in. See
++        // initialiseWSA() below.
++        struct Library* SocketBase = nullptr;
++        struct Library* FDBase = nullptr;
+     #endif
+     using SOCKET = int32_t;
+     #define SOCKET_ERROR -1
+@@ -119,6 +128,54 @@ namespace OpenLoco::Network
+         static WSA wsa;
+         return wsa.initialise();
+     }
++#elif defined(__AROS__)
++    // bsdsocket.library is opened here, on first use, not at program start.
++    //
++    // Referencing SocketBase would otherwise pull libnet.a's autoinit.o into the
++    // link, whose constructor opens bsdsocket.library before main() and, if no
++    // TCP/IP stack is running, puts up "Unable to open bsdsocket.library
++    // version 4 or later" and ends the program - a single-player game refusing
++    // to start for want of a network it never uses. Defining the library bases
++    // here keeps autoinit.o out; this function then does what its constructor
++    // did (workbench/network/common/lib/net/autoinit.c), when a socket is
++    // actually needed. A failure throws, and Network.cpp turns that into a
++    // failed connect or listen instead of a crash on a NULL library base.
++    static void closeSocketLibrary()
++    {
++        if (SocketBase != nullptr)
++        {
++            CloseLibrary(SocketBase);
++            SocketBase = nullptr;
++        }
++        if (FDBase != nullptr)
++        {
++            CloseLibrary(FDBase);
++            FDBase = nullptr;
++        }
++    }
++
++    static bool initialiseWSA()
++    {
++        if (SocketBase != nullptr)
++        {
++            return true;
++        }
++        SocketBase = OpenLibrary("bsdsocket.library", 4);
++        if (SocketBase == nullptr)
++        {
++            throw std::runtime_error("bsdsocket.library version 4 is not available - no TCP/IP stack is running");
++        }
++        FDBase = OpenLibrary("fd.library", 0);
++        // As autoinit.c does: tell the library where this program's errno is,
++        // so LAST_SOCKET_ERROR() reads what the socket call set.
++        if (SocketBaseTags(SBTM_SETVAL(SBTC_ERRNOPTR(sizeof(errno))), reinterpret_cast<IPTR>(&errno), TAG_END) != 0)
++        {
++            closeSocketLibrary();
++            throw std::runtime_error("bsdsocket.library refused the errno pointer");
++        }
++        std::atexit(closeSocketLibrary);
++        return true;
++    }
+ #else
+     static bool initialiseWSA()
+     {
