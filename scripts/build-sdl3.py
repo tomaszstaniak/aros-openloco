@@ -40,6 +40,13 @@ adate = datetime.date.today().strftime('%d.%m.%Y')
 
 INCLUDES = [f'-I{src}/include', f'-I{src}/include/build_config',
             f'-I{src}', f'-I{src}/src', f'-I{sdk}/include']
+# Mainline AROS keeps libiconv apart from the SDK's own headers and libraries,
+# under SDK/Extras; ABIv11 has both in include/ and lib/. Use the directories
+# where they exist rather than branching on the ABI name.
+extras_inc = sdk / 'SDK/Extras/include'
+extras_lib = sdk / 'SDK/Extras/lib'
+if extras_inc.is_dir():
+    INCLUDES.append(f'-I{extras_inc}')
 CFLAGS = ['-std=gnu99', '-O2', '-DSDL3_AROS_STATIC', f'-DADATE="{adate}"',
           '-Wno-stringop-truncation', '-w']
 
@@ -92,7 +99,8 @@ if(NOT TARGET SDL3::SDL3)
     set_target_properties(SDL3::SDL3 PROPERTIES
         IMPORTED_LOCATION "{lib}"
         INTERFACE_INCLUDE_DIRECTORIES "{prefix / 'include'}"
-        INTERFACE_LINK_LIBRARIES "GL;iconv;pthread;m")
+        INTERFACE_LINK_LIBRARIES "GL;iconv;pthread;m"{f'''
+        INTERFACE_LINK_DIRECTORIES "{extras_lib}"''' if extras_lib.is_dir() else ''})
 endif()
 # OpenLoco links SDL3::SDL3; these aliases exist because upstream projects vary.
 if(NOT TARGET SDL3::SDL3-static)

@@ -40,6 +40,38 @@ SDL3_VER=3.4.12
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-text-input.diff"
 }
 
+# OpenAL, only where the SDK has none. ABIv11's SDK ships libopenal.a - link
+# stubs into the shared openal.library 1.16.0 that AROS One installs. Mainline
+# has neither the stubs nor the library: its build tree unpacks openal-soft but
+# never builds it, and LIBS:openal.library is absent on the pool's v1 machines.
+# So there OpenAL is built statically into the game, from the same recipe
+# contrib uses for its own libopenal.static.a (MultiMedia/libs/OpenAL), at the
+# same contrib commit as SDL3.
+if [ ! -f "$(abi_sdk "$ABI")/lib/libopenal.a" ]; then
+    OPENAL_VER=1.19.1
+    OPENAL_TAR_SHA256=5c2f87ff5188b95e0dc4769719a9d89ce435b8322b4478b95dd4b427fe84b2e9
+    CONTRIB_OPENAL_COMMIT=200499623c8be1f65a7567fcb4c8f62b343936e4
+    CONTRIB_OPENAL_DIFF_SHA256=505a2c57ad539019
+    CONTRIB_OPENAL_CONFIG_SHA256=8e579634a46a0f44
+    [ -f "openal-soft-$OPENAL_VER.tar.bz2" ] || curl -fsSL -o "openal-soft-$OPENAL_VER.tar.bz2" \
+        "https://openal-soft.org/openal-releases/openal-soft-$OPENAL_VER.tar.bz2"
+    got=$(shasum -a 256 "openal-soft-$OPENAL_VER.tar.bz2" | cut -d' ' -f1)
+    [ "$got" = "$OPENAL_TAR_SHA256" ] || {
+        echo "openal-soft-$OPENAL_VER.tar.bz2: checksum $got - refusing" >&2; exit 1; }
+    mkdir -p contrib-openal
+    for f in "openal-soft-$OPENAL_VER-aros.diff" config.h; do
+        [ -f "contrib-openal/$f" ] || curl -fsSL -o "contrib-openal/$f" \
+            "https://raw.githubusercontent.com/aros-development-team/contrib/$CONTRIB_OPENAL_COMMIT/MultiMedia/libs/OpenAL/$f"
+    done
+    [ "$(shasum -a 256 "contrib-openal/openal-soft-$OPENAL_VER-aros.diff" | cut -c1-16)" = "$CONTRIB_OPENAL_DIFF_SHA256" ] &&
+    [ "$(shasum -a 256 contrib-openal/config.h | cut -c1-16)" = "$CONTRIB_OPENAL_CONFIG_SHA256" ] || {
+        echo "contrib OpenAL files do not match the pinned checksums - refusing" >&2; exit 1; }
+    [ -d "openal-soft-$OPENAL_VER" ] || {
+        tar xjf "openal-soft-$OPENAL_VER.tar.bz2"
+        patch -p1 -s -d "openal-soft-$OPENAL_VER" < "contrib-openal/openal-soft-$OPENAL_VER-aros.diff"
+    }
+fi
+
 # Versions pinned by upstream's thirdparty/CMakeLists.txt. Changing one here
 # without changing it there makes every probe result meaningless.
 [ -d fmt ] || {

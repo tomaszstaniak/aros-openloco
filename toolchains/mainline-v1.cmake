@@ -12,9 +12,13 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-set(CMAKE_C_FLAGS_INIT   "-I${AROS_ROOT}/build/bin/pc-x86_64/AROS/Developer/include")
-set(CMAKE_CXX_FLAGS_INIT "-I${AROS_ROOT}/build/bin/pc-x86_64/AROS/Developer/include")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-L${AROS_ROOT}/build/bin/pc-x86_64/AROS/Developer/lib")
+# Mainline keeps libiconv (iconv.h, libiconv.a) apart from the rest of the SDK,
+# under SDK/Extras; ABIv11 has them with everything else. Both SDL3 and
+# OpenLoco's Utility/String.cpp include <iconv.h>.
+set(AROS_V1_DEV "${AROS_ROOT}/build/bin/pc-x86_64/AROS/Developer")
+set(CMAKE_C_FLAGS_INIT   "-I${AROS_V1_DEV}/include -I${AROS_V1_DEV}/SDK/Extras/include")
+set(CMAKE_CXX_FLAGS_INIT "-I${AROS_V1_DEV}/include -I${AROS_V1_DEV}/SDK/Extras/include")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-L${AROS_V1_DEV}/lib -L${AROS_V1_DEV}/SDK/Extras/lib")
 # try_compile MUST link, not just compile. With STATIC_LIBRARY every link test
 # passes vacuously, and CMake then believes things that are false: that this
 # GCC accepts -pthread (it does not) and that -lpthreads exists (it is
