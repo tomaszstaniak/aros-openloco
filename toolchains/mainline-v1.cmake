@@ -77,15 +77,17 @@ set(THREADS_HAVE_PTHREAD_ARG FALSE CACHE INTERNAL "the AROS GCC does not know -p
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF CACHE BOOL "GCC 10 LTO ICE on AROS")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "")
 
-# --- bsdsocket: SocketBase -------------------------------------------------
-# Calls into bsdsocket.library reference the global SocketBase, which the autoinit
-# in libnet.a defines and opens. Without it the link ends with a single
-# unresolved symbol and looks like a defect in the networking code.
-# It has to land at the END of the link line, not the start: it is a static
-# archive, and the linker takes from it only what is still missing in the objects
-# seen so far. CMAKE_*_STANDARD_LIBRARIES is appended last.
-set(CMAKE_CXX_STANDARD_LIBRARIES "-lnet" CACHE STRING "")
-set(CMAKE_C_STANDARD_LIBRARIES "-lnet" CACHE STRING "")
+# --- bsdsocket: SocketBase, and why libnet.a is NOT linked ----------------
+# Calls into bsdsocket.library reference the global SocketBase. libnet.a used to
+# be linked to provide it, and that brought two things with it:
+#   - autoinit.o, whose constructor opens bsdsocket.library before main() and
+#     ends the program with a requester when no TCP/IP stack runs;
+#   - strerror.o, a strerror() that shadows the C library's and calls into
+#     bsdsocket through SocketBase - fatal as soon as the base is not open.
+# Patch 25 defines SocketBase in the game and opens the library on first use,
+# so nothing from libnet.a is needed any more. Found on the pool's mainline v1
+# machine, which runs no TCP/IP stack: first the requester, and after patch 25
+# alone a crash in strerror() called from SDL_IOFromFile().
 
 # --- PIC disabled ----------------------------------------------------------
 # AROS links statically and has no GOT: objects built with -fPIC leave
