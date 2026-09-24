@@ -73,6 +73,24 @@ CMAKE_ARGS="-DOPENLOCO_VERSION_TAG=$VERSION_TAG -DOPENLOCO_BRANCH=$VERSION_BRANC
 -DCMAKE_BUILD_TYPE=Release -DSTRICT=NO -DOPENLOCO_BUILD_TESTS=NO \
 -DOPENLOCO_USE_CCACHE=NO $*"
 
+# A changed toolchain file means a fresh configure. CMake keeps every CACHE
+# variable it has seen, so deleting a set(... CACHE ...) line from the
+# toolchain file does NOT remove the setting from an existing build directory.
+# That is how -lnet stayed in the ABIv11 link after both toolchain files had
+# stopped asking for it, and the regression check caught a binary that still
+# carried libnet's strerror(). Also start fresh when the dependency packages
+# are newer than the cache, for the same reason.
+if [ -f "$BUILD/CMakeCache.txt" ]; then
+    for input in "$TOOLCHAIN" "$(abi_deps "$ABI")/lib/cmake/OpenAL/OpenALConfig.cmake" \
+                 "$(abi_deps "$ABI")/lib/cmake/SDL3/SDL3Config.cmake"; do
+        if [ -f "$input" ] && [ "$input" -nt "$BUILD/CMakeCache.txt" ]; then
+            echo "$input changed since $BUILD was configured - starting from a clean build directory"
+            rm -rf "$BUILD"
+            break
+        fi
+    done
+fi
+
 # -S is not optional: without it cmake silently does nothing in this layout.
 cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
     -DOPENLOCO_VERSION_TAG="$VERSION_TAG" \
