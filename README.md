@@ -131,6 +131,10 @@ LHA_WRITER=/path/to/jca02266-lha OPENLOCO_ARCHIVE_NAME=openloco.x86_64-aros-v11.
 together with the complete source diff, and `make-release.sh` refuses builds
 from a dirty tree or a reused CMake configuration. Do not fully strip the
 binary: AROS needs its relocations.
+Absolute source paths end up in the binary through `__FILE__` (upstream strips
+them at run time, so they cannot be remapped with `-ffile-prefix-map` - see
+backlog item 33); release builds are therefore made from a checkout whose path
+says nothing about the builder.
 
 A newer GCC (13.4) was evaluated and not adopted for the release; see
 `docs/reports/gcc13-evaluation.md`.

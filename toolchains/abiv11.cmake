@@ -17,12 +17,13 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-# -ffile-prefix-map: __FILE__ (asserts, log locations) would otherwise embed
-# this checkout's absolute path - and the builder's user name - in the binary.
-# With it they read work-release/OpenLoco/src/... Nothing else changes.
-get_filename_component(_AROS_PORT_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-set(CMAKE_C_FLAGS_INIT   "-I${AROS_ROOT}/sdk/include -ffile-prefix-map=${_AROS_PORT_ROOT}/=")
-set(CMAKE_CXX_FLAGS_INIT "-I${AROS_ROOT}/sdk/include -ffile-prefix-map=${_AROS_PORT_ROOT}/=")
+# No -ffile-prefix-map, although __FILE__ then carries the checkout's absolute
+# path: upstream's SourceLocation strips OPENLOCO_PROJECT_PATH from __FILE__
+# with substr(), and a mapped (shorter) __FILE__ made every save throw
+# "basic_string_view::substr: __pos ... > __size". Build releases from a
+# checkout whose path carries nothing personal instead.
+set(CMAKE_C_FLAGS_INIT   "-I${AROS_ROOT}/sdk/include")
+set(CMAKE_CXX_FLAGS_INIT "-I${AROS_ROOT}/sdk/include")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-L${AROS_ROOT}/sdk/lib")
 # try_compile MUST link, not just compile. With STATIC_LIBRARY every link test
 # passes vacuously, and CMake then believes things that are false: that this

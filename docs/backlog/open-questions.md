@@ -1438,6 +1438,26 @@ window's zoom. Seen once.
 game on its title screen plus the two zoom-gadget clicks, (B) the same without
 the game - and record whether and when Wanderer fails.
 
+## 33. CLOSED - a path-mapping flag broke saving; releases are built from a neutral path
+
+2026-09-25, slot `v11-1`, the first publication candidate `10ff5c44`
+(`e6382df`), unpacked from its `.lha` on a fresh boot. Menu and map worked;
+**saving under a new name threw**
+`basic_string_view::substr: __pos (which is 72) > __size (which is 58)`, the
+game ended, and an empty `rc1-test-01.SV5` was left in `save/`.
+
+Cause, found in the source: that build added `-ffile-prefix-map=<port>/=` so
+`__FILE__` would not carry the builder's home directory. Upstream's
+`SourceLocation` (`Core/SourceLocation.h`) removes `OPENLOCO_PROJECT_PATH` -
+the absolute source directory, 72 characters there - from `__FILE__` with
+`substr()`; the mapped `__FILE__` was shorter. The flag was withdrawn and the
+build marked defective in its archive. The personal path is instead kept out
+by building the release from a checkout under `/Users/Shared`.
+
+The lesson for the release rule: a change to compiler flags, even one "that
+only affects strings", is a new build and gets the whole check again. This one
+was caught only because the check includes saving.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
