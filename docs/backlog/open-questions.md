@@ -1405,6 +1405,32 @@ Upstream code and upstream gap - the functions do not check that recreating
 the surfaces worked. AROS triggers it by reporting a client height of 0 for a
 zoomed window. An upstream candidate alongside 21 and 23.
 
+## 32. OPEN - Wanderer crashed while the game idled; cause unknown
+
+2026-09-24, slot `v11-1`, between 22:22 and 22:30, with no input from the
+person at the machine. Build `24e7b3a1` (patch 26) was on its title screen; the
+only recent actions were two clicks on its window's zoom gadget (shrink, then
+restore), both at 22:20-22:22.
+
+`WANDERER:Wanderer` failed with *Illegal address access* in `Exec_42_Remove`
+(`mov rax,(rdx)` with RDX = 0 - a node whose predecessor pointer is null),
+called from `muimaster.library Family__MUIM_Remove` <- `Application_Dispatcher`
+<- `Wanderer IconWindow__MUIM_IconWindow_Remove`: Wanderer removing an icon
+window from its MUI application and hitting an unlinked or cleared node.
+
+**OpenLoco was not on that stack and survived:** afterwards it was still
+drawing, took input, and started a scenario. It was closed with its gadget and
+the guest restarted cleanly through the pool (evidence
+`91-game-alive-after-wanderer-crash.png`).
+
+**Not attributed.** Candidates, none tested: a Wanderer/MUI defect on its own;
+memory damage from another task, the game included; something tied to the game
+window's zoom. Seen once.
+
+*To separate them:* the same ten idle minutes twice on a fresh boot - (A) the
+game on its title screen plus the two zoom-gadget clicks, (B) the same without
+the game - and record whether and when Wanderer fails.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
