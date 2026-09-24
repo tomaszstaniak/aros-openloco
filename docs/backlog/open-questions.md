@@ -1263,7 +1263,11 @@ cause undetermined. **Exit code 1 still needs explaining on the pool tool's
 side** - a collect that succeeds but reports failure trains everyone to ignore
 its exit code.
 
-**Observed, not attributed:** with the view scrolled to the edge of the map,
+**Update 2026-09-24: not a regression of patch 25 or of dropping `-lnet`.** The
+older build `a68ee724` logs the same 30 lines, with identical coordinates, on
+the same save and view - see `tests/map-edge-tile-warnings/README.md`.
+
+**Observed, not attributed (original note):** with the view scrolled to the edge of the map,
 the log fills with `[ERR] Attempted to get tile out of bounds! (-1, 84)` and
 similar negative x coordinates - 30 lines in each run's log, and they resumed
 the moment the reloaded save restored that same view. The message is upstream's,
@@ -1323,6 +1327,36 @@ the contents. The cause of the warning remains undetermined.
 Side note from the v11 control: `std::filesystem::exists(".")` returned **false
 with no error** on AROS One. OpenLoco does not ask that question of `.`, but the
 next program might.
+
+## 29. The v11 release candidate, checked as a user would get it
+
+2026-09-24, slot `v11-2`, one boot. Binary `a558320d`,
+`7f8c90cf+aros (777be8e on openloco-next+20)`, configured in a clean build
+directory (`configure: fresh` in its BUILD-INFO) - `make-release.sh` now
+refuses anything else. The package's launcher was produced at `840f19a`; the
+binary is unchanged by that commit.
+
+**Launcher.** It now checks, in order, and names the specific thing missing:
+the program; the program not being a drawer of the same name; 
+`data/language/en-GB.yml`; `data/objects` as a drawer. The first version
+tested `exists OpenLoco/` for "is a drawer" - on AROS that is true for a plain
+file too, and a fresh-package test caught it misreporting two good installs;
+`list` returns OK whether or not anything matches, so it cannot decide either.
+The launcher now uses `cd`, which fails on a file and succeeds on a drawer,
+undoes it, and runs under `failat 21`. Five negative installs, each missing one
+thing, each printed its own message.
+
+**Fresh package, default stack.** The archive's `OpenLoco` drawer unpacked
+into a new directory, never used before, from a fresh Shell reporting a 40960
+byte stack. The only step taken outside the package was the one its README asks
+of every user: making `Locodata:Locomotion` exist (`assign Locodata: AROS:` on
+this slot, where the assets are). `execute Run-OpenLoco` reached the title
+screen; the save from the regression run then loaded and played.
+
+**Configure invalidation** is decided by a stamp over the toolchain file's
+contents, the configure arguments, and the SDL3/OpenAL packages and libraries
+- tested by appending a comment to the toolchain file and dating it 2020,
+which forced a clean configure. The binary check stays in the procedure.
 
 ## 22. How long does an autosave take, and where does the time go
 

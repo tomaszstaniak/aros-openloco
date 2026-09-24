@@ -42,3 +42,21 @@ changes. If it does not, it is.
 
 After that, and only if the lines are still unexplained: whether upstream on
 another platform logs the same at a map edge.
+
+## Result of the first test (2026-09-24, slot v11-2, one boot)
+
+| build | patch 25 / `-lnet` | lines after loading this save, 60 s, no input |
+|---|---|---|
+| `a68ee724` (`df805ab on openloco-next+19`) | before both | **30** |
+| `a558320d` (`777be8e on openloco-next+20`) | after both | **30** |
+
+The coordinate sets in the two logs are identical, line for line after
+sorting. **The warnings predate patch 25 and the removal of `-lnet`; they are
+not a regression of those changes.** A title-screen-only run of the new build
+logged none. Why the game asks for tiles at x = -1..-3 at this view is still
+not known; the next step, if it matters, is the same save on upstream OpenLoco
+on another platform. The message was not silenced.
+
+The save itself was also checked on this run: host -> ISO -> guest -> copied
+into the game drawer -> loaded -> copied to `Results:` -> `collect`, and its
+SHA-256 came back identical (`40fdd1ab...`).
