@@ -1,0 +1,22 @@
+[2026-09-25 00:12:08] [INF] OpenLoco, 7f8c90cf+aros (5c0eaac on openloco-next+21)
+[2026-09-25 00:12:08] [INF] AROS (x86-64)
+[2026-09-25 00:12:08] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 00:12:08] [INF] Creating directory: AROS:olrc2/OpenLoco/save/
+[2026-09-25 00:12:08] [INF] Using save path: AROS:olrc2/OpenLoco/save/
+[2026-09-25 00:12:08] [INF] Creating directory: AROS:olrc2/OpenLoco/landscape/
+[2026-09-25 00:12:08] [INF] Using landscape path: AROS:olrc2/OpenLoco/landscape/
+[2026-09-25 00:12:08] [INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+[2026-09-25 00:12:08] [INF] OpenAL EFX reverb initialized.
+[2026-09-25 00:12:08] [INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
+[2026-09-25 00:12:20] [ERR] Object has too few images for bogie sprites!
+[2026-09-25 00:12:20] [ERR] Object has too few images for bogie sprites!
+[2026-09-25 00:12:22] [ERR] Warning: file AROS:olrc2/OpenLoco/scores.dat could not be found
+[2026-09-25 00:12:23] [ERR] Warning: file AROS:olrc2/OpenLoco/scores.dat could not be found
+[2026-09-25 00:12:23] [INF] Scene transition: boot -> title
+[2026-09-25 00:13:24] [INF] Scene transition: title -> gameplay
+[2026-09-25 00:14:45] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 00:14:45] [INF] Using save path: AROS:olrc2/OpenLoco/save/
+[2026-09-25 00:14:45] [INF] Using landscape path: AROS:olrc2/OpenLoco/landscape/
+[2026-09-25 00:15:10] [ERR] Warning: file AROS:olrc2/OpenLoco/save/autosave could not be found
+[2026-09-25 00:15:10] [INF] Creating directory: AROS:olrc2/OpenLoco/save/autosave
+[2026-09-25 00:15:10] [INF] Autosaving game to AROS:olrc2/OpenLoco/save/autosave/autosave_2026-09-25_00-15-10.SV5

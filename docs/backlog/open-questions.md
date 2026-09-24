@@ -1458,6 +1458,10 @@ The lesson for the release rule: a change to compiler flags, even one "that
 only affects strings", is a new build and gets the whole check again. This one
 was caught only because the check includes saving.
 
+The replacement, `a84e3709` (`5c0eaac`), built from `/Users/Shared` without
+the flag, passed the whole check from its published `.lha`: menu, map, save
+under a new name, clean exit, reboot, reload - `docs/evidence/release-rc1/`.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in

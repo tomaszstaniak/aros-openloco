@@ -1,0 +1,14 @@
+[2026-09-25 00:20:18] [INF] OpenLoco, 7f8c90cf+aros (5c0eaac on openloco-next+21)
+[2026-09-25 00:20:18] [INF] AROS (x86-64)
+[2026-09-25 00:20:18] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 00:20:18] [INF] Using save path: AROS:olrc2/OpenLoco/save/
+[2026-09-25 00:20:18] [INF] Using landscape path: AROS:olrc2/OpenLoco/landscape/
+[2026-09-25 00:20:18] [INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+[2026-09-25 00:20:18] [INF] OpenAL EFX reverb initialized.
+[2026-09-25 00:20:18] [INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
+[2026-09-25 00:20:20] [INF] Scene transition: boot -> title
+[2026-09-25 00:21:49] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 00:21:49] [INF] Using save path: AROS:olrc2/OpenLoco/save/
+[2026-09-25 00:21:49] [INF] Using landscape path: AROS:olrc2/OpenLoco/landscape/
+[2026-09-25 00:21:49] [INF] Scene transition: title -> gameplay
+[2026-09-25 00:22:16] [INF] Autosaving game to AROS:olrc2/OpenLoco/save/autosave/autosave_2026-09-25_00-22-16.SV5

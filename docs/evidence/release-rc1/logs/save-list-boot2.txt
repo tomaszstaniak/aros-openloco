@@ -1,0 +1,10 @@
+Directory "save" on Friday 09/25/26:
+autosave                     Dir ---rwed Today       00:22:16
+rc1-test-02.SV5          1499887 ---rwed Today       00:14:46
+1 file - 1 directory - 2931 blocks used
+Directory "save/autosave" on Friday 09/25/26:
+autosave_2026-09-25_00-22-16.SV5 1478905 ---rwed Today       00:22:17
+autosave_2026-09-25_00-15-10.SV5 1478905 ---rwed Today       00:15:11
+2 files - 5778 blocks used
+
+TOTAL: 3 files - 1 directories - 8709 blocks used
