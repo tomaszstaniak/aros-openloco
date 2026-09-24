@@ -24,8 +24,9 @@ Original assets: `Locodata:Locomotion` (`loco-assets.img`), unchanged.
 | **exit the program, restart, load** | `08-save-reloaded.png` | **the state comes back**: the same map, no track (the save predates it), 10th June 1900, **$9,590 - the same figure noted when that save was made** |
 | autosave | 9 files, every ~72 s | 919-958 KB each, all written without trouble |
 
-A copy of the reloaded save is kept in `saves/` next to this file - the
-artefact the claim rests on, and the only copy outside the disk image.
+A copy of the reloaded save was kept next to this file in the private
+working repository - the artefact the claim rests on. It is not published:
+saved games are built from the original Locomotion scenario data.
 
 ## Session 4, 21:16-21:35: a train runs, and typing works
 
@@ -224,8 +225,8 @@ with `O_TRUNC` - a difference worth isolating, which is what
 `tests/fat32-overwrite/` does in plain C. **It has not been run.**
 
 Until this is understood, **do not treat saved games on a FAT32 volume as
-safe**, and keep a host-side copy: the ones this run produced are in `saves/`
-next to this file.
+safe**, and keep a host-side copy (this run's copies are kept privately, not
+published).
 
 ## Two further defects found, both patched, neither rebuilt yet
 

@@ -24,7 +24,8 @@ not rule out every regression.
 
 ## The case
 
-- save: `map-edge-view.SV5` in this directory, SHA-256
+- save: `map-edge-view.SV5` (not published - saved games are built from
+  the original Locomotion scenario data; kept privately), SHA-256
   `40fdd1abc1c49174c2894047bab168f0021ca3bc8ceabfa9ee1edbba5a58efad`
   (the `Aerophobiax-reg-2026-09-24` save from that run; company "UnnamedReg
   Transport", GBP 357,272 on load, March 1975, view at the map's edge)
