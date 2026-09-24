@@ -1178,8 +1178,18 @@ installation.
   and a wrong one sends every click to the wrong place. The key should carry
   the slot or the full socket path. Until it does, **calibrate on a still
   desktop at the start of every run** rather than trusting the cached entry.
+  **Changed on the pool's side by 2026-09-24:** `vmctl.py` now names the file
+  after a SHA-256 of the socket's real path, so each slot has its own.
 
-## 28. Mainline v1: links and starts; blocked by C++ exceptions aborting
+## 28. DEFERRED - Mainline v1: links and starts; blocked by C++ exceptions aborting
+
+**Decision 2026-09-24: v1 is deferred; the v11 release comes first.**
+`tests/cxx-runtime` is kept as the gate: it passed on v11 and, on the v1
+configuration examined here, ended at the first `throw`/`catch`. It is to be
+rerun whenever the toolchain, SDK or runtime changes - on v1 to see whether the
+blocker has gone, and on v11 as the control. Nothing further is diagnosed on v1
+until then.
+
 
 Worked 2026-09-23 on pool slot `v1-1` (Kickstart 51.51, Workbench 40.0), with
 dependencies built separately under `deps/mainline-v1` and the build under
