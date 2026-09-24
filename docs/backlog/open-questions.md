@@ -1225,7 +1225,52 @@ the C library's for SDL3 - dereferenced a NULL `SocketBase` on the first failed
 file open. The game's own objects took nothing else from `libnet.a` (checked by
 intersecting symbol tables), so it is no longer linked; `strerror` in the
 binary is now the C library's stub. **Patch 25 and the toolchain change apply to
-ABIv11 as well, and the ABIv11 build has not yet been rebuilt or run with them.**
+ABIv11 as well** - checked on 2026-09-24, see "ABIv11 regression" below.
+
+### ABIv11 regression after patch 25 and the removal of -lnet (2026-09-24)
+
+**The first rebuild was defective, and the binary check caught it before any
+run.** `build-release/abiv11/openloco/CMakeCache.txt` still carried
+`CMAKE_CXX_STANDARD_LIBRARIES=-lnet` from its earlier configure: removing a
+`set(... CACHE ...)` line from a toolchain file does not remove the entry from
+an existing cache. That binary (`c6a69c9e`) linked `libnet.a`'s `strerror()`,
+which loads `SocketBase` and calls through it - the v1 crash, waiting for the
+first failed file open. Its archive is marked DEFECTIVE, and
+`build-openloco.sh` now starts from a clean build directory when the toolchain
+file or the OpenAL/SDL3 packages are newer than the cache.
+
+**The clean build, `be6964e1`**, `7f8c90cf+aros (2225f3d on openloco-next+20)`:
+no `openSockets` constructor, no requester text, no undefined symbols, and
+`strerror` is `libcrt`'s stub with no reference to `SocketBase`. OpenAL still
+links the SDK's stubs to `openal.library` 1.16.0.
+
+On slot `v11-2`, through `vm.sh` only, started with `Run-OpenLoco` from a fresh
+Shell:
+
+| step | result |
+|---|---|
+| title screen | version line as above |
+| scenario `Aerophobia` | loaded, company named by keyboard, clock running, autosave written |
+| save under a unique name | `Aerophobiax-reg-2026-09-24`, 1,204,327 bytes |
+| exit through the close gadget | window gone, prompt back, one unfreed signal |
+| guest restart with `stop`/`start` | clean |
+| reload the save | same company, GBP 357,272, March 1975, same view |
+| `collect`, compared before release | game binary SHA-256 identical to the archive (`be6964e1`); save and log sizes identical to the guest listing; the first log, collected twice under two names, byte-identical |
+
+**No regression found** in that chain. `collect` again exited 1 with
+*Operation not permitted*; contents intact, cause undetermined.
+
+**Observed, not attributed:** with the view scrolled to the edge of the map,
+the log fills with `[ERR] Attempted to get tile out of bounds! (-1, 84)` and
+similar negative x coordinates - 30 lines in each run's log, and they resumed
+the moment the reloaded save restored that same view. The message is upstream's,
+from `Map/TileManager.cpp:327` and `:384`; patch 25 touches only the network
+initialisation in `Socket.cpp`. Whether the previous build or upstream on other
+platforms logs the same at the map edge has not been checked.
+
+The pointer calibration for this run was the per-slot file written at 11:06 by
+an earlier session on `v11-2` - values identical to those measured before at
+1024x768 - and was not re-measured; every click was verified by screenshot.
 
 ### Blocker 4: the evidence
 
