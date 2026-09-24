@@ -1,0 +1,275 @@
+# Pool maintenance, 2026-09-24 - the changes made by the OpenLoco port session
+# while acting as pool maintainer, and nothing else.
+#
+# Why a diff and not a commit: the pool's files (tools/vm_pool.py,
+# tests/test_vm_pool.py, documentation/vm-pool.md, tools/vm_pool.example.json)
+# are untracked in this repository, so any commit of them would also commit
+# the pool author's own uncommitted work. This diff is taken against the copies
+# saved in this directory immediately before the changes; apply with
+#   patch -p1 < backups/pool-maint-20260924/pool-maintenance-20260924.diff
+# on top of those copies.
+#
+# Contents:
+#   - collect: copy contents, mode and times, not file flags (AROS's FAT archive
+#     bit maps to SF_ARCHIVED, which a user cannot set; copy2 failed with EPERM
+#     after the data was in place, and collect exited 1); hash every file
+#     against its source and write COLLECT-MANIFEST.sha256
+#   - audio: "audio" setting none|wav|coreaudio, pool-wide or per machine;
+#     absent means none, the previous behaviour
+#   - 7 tests; documentation
+#   - tools/vm_pool.local.json (ignored, not in this diff): "audio": "wav" added
+#
+--- a/tools/vm_pool.py
++++ b/tools/vm_pool.py
+@@ -19,6 +19,12 @@
+ import zipfile
+ 
+ NAMES = {'v11-1':'v11', 'v11-2':'v11', 'v11-3':'v11', 'v1-1':'v1', 'v1-2':'v1'}
++# Where a guest's sound goes. 'none' gives the guest no sound card at all -
++# what every machine had before this setting existed, and still the default
++# when a configuration does not name one. 'wav' records the machine's output
++# to <machine>/audio.wav, overwritten at each start; 'coreaudio' plays it on
++# the host's speakers. Both use an AC97 card, which AROS One's AHI drives.
++AUDIO_MODES = ('none', 'wav', 'coreaudio')
+ DEFAULT_CONFIG = Path(__file__).with_name('vm_pool.local.json')
+ 
+ class Busy(RuntimeError): pass
+@@ -71,6 +77,60 @@
+         return {'visibility':'known','processes':processes}
+     except (OSError, ValueError, subprocess.SubprocessError, Unknown) as exc:
+         return {'visibility':'unknown','processes':[], 'reason':str(exc)}
++
++
++MANIFEST='COLLECT-MANIFEST.sha256'
++
++
++def _sha256(path):
++    import hashlib
++    h=hashlib.sha256()
++    with open(path,'rb') as f:
++        for block in iter(lambda:f.read(1<<20),b''): h.update(block)
++    return h.hexdigest()
++
++
++def copy_results(source, destination):
++    """Copy a mounted results volume and verify every file.
++
++    Contents, permission bits and times are copied; file flags are not. AROS
++    sets FAT's archive attribute on files it writes, which macOS reports as
++    SF_ARCHIVED - a super-user flag, so copystat()'s chflags() fails with EPERM
++    after the contents are already in place. shutil.copytree() collected those
++    and made collect exit 1 while every file had arrived intact.
++
++    Each copy is hashed against its source on the read-only mount, and the
++    hashes are written to COLLECT-MANIFEST.sha256 in the destination, so a
++    later reader can check what arrived without the machine. Returns a list of
++    (path, problem); empty means everything copied and matched."""
++    source=Path(source);destination=Path(destination)
++    problems=[];manifest=[]
++    destination.mkdir(parents=True)
++    for root,dirs,files in os.walk(source):
++        dirs.sort();rel=Path(root).relative_to(source)
++        for name in dirs:
++            if (Path(root)/name).is_symlink(): problems.append((str(rel/name),'symlink not copied'));continue
++            (destination/rel/name).mkdir()
++        for name in sorted(files):
++            src=Path(root)/name;dst=destination/rel/name
++            if rel==Path('.') and name==MANIFEST:
++                problems.append((name,'the results volume holds a file with the manifest name; not copied'));continue
++            if not stat.S_ISREG(src.lstat().st_mode):
++                problems.append((str(rel/name),'not a regular file; not copied'));continue
++            shutil.copyfile(src,dst)
++            st=src.stat()
++            os.chmod(dst,stat.S_IMODE(st.st_mode))
++            os.utime(dst,ns=(st.st_atime_ns,st.st_mtime_ns))
++            digest=_sha256(dst)
++            if digest!=_sha256(src): problems.append((str(rel/name),'checksum differs from the source after copy'))
++            manifest.append(digest+'  '+str(rel/name))
++    # Directory times last: writing into a directory changes its mtime.
++    for root,dirs,files in os.walk(source,topdown=False):
++        rel=Path(root).relative_to(source)
++        if (destination/rel).is_dir():
++            st=Path(root).stat();os.utime(destination/rel,ns=(st.st_atime_ns,st.st_mtime_ns))
++    (destination/MANIFEST).write_text(''.join(line+'\n' for line in manifest))
++    return problems
+ 
+ 
+ def build_input_iso(source, output):
+@@ -99,6 +159,8 @@
+             m=self.config['machines'][name]
+             if m.get('abi') != abi or type(m.get('ready')) is not bool:
+                 raise ValueError('Invalid ABI or readiness for '+name)
++            if self.audio(name) not in AUDIO_MODES:
++                raise ValueError('Audio for '+name+' must be one of '+', '.join(AUDIO_MODES))
+         self.root=(self.config_path.parent / self.config['root']).resolve()
+         if ',' in str(self.root) or len(os.fsencode(self.root/'machines/v11-1/monitor.sock')) > 100:
+             raise ValueError('Use a shorter pool root (socket path <=100 bytes), without commas')
+@@ -107,6 +169,9 @@
+     def directory(self, name):
+         if name not in NAMES: raise ValueError('Unknown pool machine: '+name)
+         return self.root/'machines'/name
++    def audio(self, name):
++        # A machine's own setting wins over the pool-wide one.
++        return self.config['machines'][name].get('audio', self.config.get('audio','none'))
+     def _state(self):
+         path=self.root/'reservations.json'
+         if not path.exists(): return {}
+@@ -212,6 +277,11 @@
+               '-usb','-device','usb-tablet','-display',self.config.get('display','none'),'-rtc','base=localtime',
+               '-serial','file:'+str(d/'serial.log'),'-monitor','unix:'+str(d/'monitor.sock')+',server=on,wait=off',
+               '-qmp','unix:'+str(d/'qmp.sock')+',server=on,wait=off']
++        audio=self.audio(name)
++        if audio=='wav':
++            args+=['-audiodev','wav,id=snd0,path='+str(d/'audio.wav'),'-device','AC97,audiodev=snd0']
++        elif audio=='coreaudio':
++            args+=['-audiodev','coreaudio,id=snd0','-device','AC97,audiodev=snd0']
+         if (d/'results.img').exists():
+             args+=['-drive','file='+str(d/'results.img')+',format=raw,if=ide,index=1']
+         if install: args+=['-cdrom',str(Path(install).resolve()),'-boot','d']
+@@ -303,11 +373,15 @@
+             if len(mounted)!=1: raise Unknown('Results image attached unexpectedly; inspect '+str(marker))
+             atomic_json(marker,{'image':str(image),'mount':str(mount),'device':mounted[0]['dev-entry'],'phase':'mounted'})
+             try:
+-                shutil.copytree(mount,destination,symlinks=True)
++                problems=copy_results(mount,destination)
+             finally:
+                 subprocess.run(['hdiutil','detach',str(mount)],check=True,capture_output=True)
+                 marker.unlink()
+-            return {'machine':name,'destination':str(destination)}
++            if problems:
++                raise RuntimeError('Collected with problems (results are in '+str(destination)+'): '+
++                                   '; '.join(p+': '+why for p,why in problems))
++            files=sum(1 for _ in open(destination/MANIFEST))
++            return {'machine':name,'destination':str(destination),'files':files,'manifest':str(destination/MANIFEST)}
+ 
+     def recover(self,name,owner,reservation):
+         # Explicit same-owner recovery only; abandoned owners require operator review.
+--- a/tests/test_vm_pool.py
++++ b/tests/test_vm_pool.py
+@@ -310,6 +310,56 @@
+                 captured['empty']=z.read('empty');captured['hello']=z.read('folder/hello.txt')
+         with patch('vm_pool.subprocess.run',side_effect=build):build_input_iso_impl(src,self.root/'input.iso')
+         self.assertEqual(captured,{'files':['payload.zip'],'empty':b'','hello':b'hello'})
++
++    def test_audio_default_is_no_sound_card(self):
++        # A configuration without an audio key behaves as every machine did
++        # before the setting existed: no -audiodev, no emulated sound card.
++        command=' '.join(self.pool.command('v11-1'))
++        self.assertNotIn('-audiodev',command);self.assertNotIn('AC97',command)
++
++    def test_audio_wav_records_into_the_machine_directory(self):
++        cfg=json.loads(self.cfg.read_text());cfg['audio']='wav';self.cfg.write_text(json.dumps(cfg))
++        pool=vm_pool.Pool(self.cfg);args=pool.command('v11-2')
++        self.assertEqual(args[args.index('-audiodev')+1],'wav,id=snd0,path='+str(pool.directory('v11-2')/'audio.wav'))
++        self.assertEqual(args[args.index('-device',args.index('-audiodev'))+1],'AC97,audiodev=snd0')
++
++    def test_audio_machine_setting_overrides_pool_setting(self):
++        cfg=json.loads(self.cfg.read_text());cfg['audio']='wav';cfg['machines']['v1-2']['audio']='coreaudio'
++        self.cfg.write_text(json.dumps(cfg));pool=vm_pool.Pool(self.cfg)
++        self.assertIn('coreaudio,id=snd0',pool.command('v1-2'))
++        self.assertIn('wav,id=snd0,path='+str(pool.directory('v1-1')/'audio.wav'),pool.command('v1-1'))
++
++    def test_audio_rejects_unknown_mode(self):
++        cfg=json.loads(self.cfg.read_text());cfg['machines']['v11-3']['audio']='alsa';self.cfg.write_text(json.dumps(cfg))
++        with self.assertRaises(ValueError):vm_pool.Pool(self.cfg)
++
++    def test_collect_copy_skips_file_flags_and_writes_verified_manifest(self):
++        src=self.root/'mounted';(src/'sub').mkdir(parents=True)
++        (src/'run.log').write_text('log');(src/'sub'/'save.SV5').write_bytes(b'\x00save')
++        os.utime(src/'run.log',(1_000_000_000,1_000_000_000))
++        # AROS marks written files archived; setting that flag as a user fails.
++        with patch('vm_pool.os.chflags',side_effect=PermissionError(1,'Operation not permitted')) as chflags:
++            problems=vm_pool.copy_results(src,self.root/'out')
++        self.assertEqual(problems,[]);chflags.assert_not_called()
++        self.assertEqual((self.root/'out'/'sub'/'save.SV5').read_bytes(),b'\x00save')
++        self.assertEqual(int((self.root/'out'/'run.log').stat().st_mtime),1_000_000_000)
++        import hashlib
++        manifest=(self.root/'out'/vm_pool.MANIFEST).read_text().splitlines()
++        self.assertEqual(manifest,[hashlib.sha256(b'log').hexdigest()+'  run.log',
++                                   hashlib.sha256(b'\x00save').hexdigest()+'  sub/save.SV5'])
+ 
++    def test_collect_copy_reports_content_that_did_not_arrive_intact(self):
++        src=self.root/'mounted';src.mkdir();(src/'a.bin').write_bytes(b'original')
++        def damaged(s,d):Path(d).write_bytes(b'damaged')
++        with patch('vm_pool.shutil.copyfile',side_effect=damaged):
++            problems=vm_pool.copy_results(src,self.root/'out')
++        self.assertEqual([p for p,_ in problems],['a.bin'])
++
++    def test_collect_copy_refuses_a_guest_file_named_like_the_manifest(self):
++        src=self.root/'mounted';src.mkdir();(src/vm_pool.MANIFEST).write_text('forged')
++        problems=vm_pool.copy_results(src,self.root/'out')
++        self.assertEqual([p for p,_ in problems],[vm_pool.MANIFEST])
++        self.assertEqual((self.root/'out'/vm_pool.MANIFEST).read_text(),'')
++
+ if __name__=='__main__':unittest.main()
+ 
+--- a/documentation/vm-pool.md
++++ b/documentation/vm-pool.md
+@@ -40,6 +40,13 @@
+ 8. Run `./vm.sh collect <machine> /absolute/new-results-directory`. It mounts
+    only that stopped machine's results image, read-only, copies the files,
+    and detaches it. The destination must be new and outside the pool storage.
++   Every copied file is hashed against its source on the mount, and the hashes
++   go to `COLLECT-MANIFEST.sha256` in the destination; check later with
++   `shasum -a 256 -c COLLECT-MANIFEST.sha256`. Exit 0 means every file copied
++   and matched; any other exit lists what did not. (Before 2026-09-24 collect
++   exited 1 with "Operation not permitted" while the files were intact: AROS
++   sets FAT's archive bit, macOS maps it to the super-user flag `SF_ARCHIVED`,
++   and copying file flags failed. Collect no longer copies flags.)
+ 9. Run `./vm.sh release <machine>` while stopped. Release preserves the guest
+    installation, dependencies, settings and results. A reused machine is not
+    a clean installation; record your changes and use unique result names.
+@@ -63,6 +70,43 @@
+ manual use, but needs validation on the host and may reintroduce those delays.
+ Change configuration only with affected machines stopped.
+ 
++### Audio
++
++`"audio"` decides where a guest's sound goes - pool-wide, or per machine under
++`machines.<name>.audio`, which wins:
++
++| value | guest hardware | where the sound goes |
++|---|---|---|
++| `none` | **no sound card at all** | nowhere. The default when the key is absent - what every machine had until 2026-09-24 |
++| `wav` | AC97 | recorded to `vm-pool-data/machines/<name>/audio.wav`, **overwritten at every start**. Nothing reaches the speakers |
++| `coreaudio` | AC97 | the host's speakers, live |
++
++**Set to `wav` pool-wide on 2026-09-24.** Chosen because the pool is headless
++and shared: a recording can be checked by an agent, and five machines do not
++play into the speakers at once. To listen live, stop that machine and set its
++own `audio` to `coreaudio`. Silence from a `wav` machine is expected - check the
++file, not the speakers.
++
++Validated on 2026-09-24: `v1-1` boots with the card, and mainline AROS lists
++`ac97.audio` in `DEVS:AHI`. A 3-second 440 Hz tone played with
++`SYS:Utilities/MultiView` (double-click the waveform to play) put real samples
++into `audio.wav` (44.1 kHz stereo 16-bit).
++
++**Known problems, not yet solved:**
++
++- only about 50 ms of the 3-second tone reached the file (9,536 bytes where
++  about 530 KB were due). Whether the guest's AHI stops early, the AC97
++  emulation starves under TCG, or the `wav` backend drops data is not known;
++- the file's RIFF and data sizes stayed 0 after `vm.sh stop`, so ordinary WAV
++  readers refuse it. The samples start at byte 44 and can be read as raw
++  44.1 kHz stereo signed 16-bit;
++- the v11 machines have not been started with the card yet. They are expected
++  to behave like the OpenLoco project's own AC97 machine, where music was heard
++  on 2026-09-20, but that is an expectation, not a check.
++
++Growth: at 44.1 kHz stereo 16-bit a machine playing continuously writes about
++10 MB a minute to its `audio.wav`.
++
+ This implementation uses macOS, Python 3, QEMU and the existing `hdiutil` image
+ tools. It adds no service. Copy `tools/vm_pool.example.json` to the ignored
+ `tools/vm_pool.local.json`, or point `AROS_VM_POOL_CONFIG` at a local file.
+--- a/tools/vm_pool.example.json
++++ b/tools/vm_pool.example.json
+@@ -29,5 +29,6 @@
+       "baseline": null
+     }
+   },
+-  "display": "none"
++  "display": "none",
++  "audio": "wav"
+ }
