@@ -219,7 +219,7 @@
  9. Run `./vm.sh release <machine>` while stopped. Release preserves the guest
     installation, dependencies, settings and results. A reused machine is not
     a clean installation; record your changes and use unique result names.
-@@ -63,6 +70,43 @@
+@@ -63,6 +70,54 @@
  manual use, but needs validation on the host and may reintroduce those delays.
  Change configuration only with affected machines stopped.
  
@@ -253,9 +253,20 @@
 +- the file's RIFF and data sizes stayed 0 after `vm.sh stop`, so ordinary WAV
 +  readers refuse it. The samples start at byte 44 and can be read as raw
 +  44.1 kHz stereo signed 16-bit;
-+- the v11 machines have not been started with the card yet. They are expected
-+  to behave like the OpenLoco project's own AC97 machine, where music was heard
-+  on 2026-09-20, but that is an expectation, not a check.
++- **v11 (checked 2026-09-24 on `v11-2`): nothing leaves the guest.** With
++  `coreaudio`, QEMU confirmed `-audiodev coreaudio` and `-device AC97`, the
++  host output was the MacBook Pro Speakers at volume 56, unmuted, and a person
++  listening heard nothing. With `wav` on the same slot, both MultiView and a
++  plain `copy tone440.wav AUDIO:` (AHI's own handler, which returned without
++  error) left `audio.wav` at **0 bytes**. So the silence is decided inside the
++  guest, before the host path is ever used: AHI on this AROS One install does
++  not send its output to `ac97.audio`, although the driver and its audio mode
++  are installed. The install has no saved AHI settings (`ENV:Sys` and
++  `ENVARC:Sys` hold no `ahi.prefs`) and **no AHI preferences program** to set
++  them. The host `coreaudio` path is therefore still untested, not failed;
++- QEMU logs `Can not open 'ac97.pi'` and `'ac97.mc'` (no host audio driver) at
++  every start with a sound card: those are the card's recording and microphone
++  inputs. The output voice is not in those messages.
 +
 +Growth: at 44.1 kHz stereo 16-bit a machine playing continuously writes about
 +10 MB a minute to its `audio.wav`.
