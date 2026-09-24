@@ -47,8 +47,11 @@ extras_inc = sdk / 'SDK/Extras/include'
 extras_lib = sdk / 'SDK/Extras/lib'
 if extras_inc.is_dir():
     INCLUDES.append(f'-I{extras_inc}')
+# -ffile-prefix-map keeps this checkout's absolute path (and the builder's user
+# name) out of __FILE__ strings, which end up in the game binary.
+port_root = deps.resolve().parent.parent
 CFLAGS = ['-std=gnu99', '-O2', '-DSDL3_AROS_STATIC', f'-DADATE="{adate}"',
-          '-Wno-stringop-truncation', '-w']
+          '-Wno-stringop-truncation', '-w', f'-ffile-prefix-map={port_root}/=']
 
 units = [(src / (f + '.c'), objdir / (f.replace('/', '_') + '.o')) for f in files]
 units.append((deps / 'src/contrib-sdl3/SDL3_static.c', objdir / 'SDL3_static.o'))
