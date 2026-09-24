@@ -90,13 +90,19 @@ if not exists openloco.yml
 endif
 ; openloco.yml only says this looks like the drawer. Check the things the game
 ; itself cannot start without, and name the one that is missing.
+; File or drawer is told apart by cd, not by "exists": on AROS "exists name/"
+; is true for a plain file too (tested 2026-09-24), and list returns OK whether
+; or not anything matched. cd into a file fails; cd into a drawer succeeds and
+; is undone at once. failat keeps a failed cd from ending the script.
+failat 21
 if not exists OpenLoco
     echo "The program OpenLoco is missing from this drawer."
     echo "Copy the whole OpenLoco drawer again from the archive."
     quit 10
 endif
-; A path ending in "/" can only be locked if it is a drawer.
-if exists OpenLoco/
+cd OpenLoco >NIL:
+if not error
+    cd /
     echo "OpenLoco in this drawer is a drawer, not the program."
     echo "Copy the whole OpenLoco drawer again from the archive."
     quit 10
@@ -107,11 +113,13 @@ if not exists data/language/en-GB.yml
     echo "Copy the whole OpenLoco drawer again from the archive."
     quit 10
 endif
-if not exists data/objects/
+cd data/objects >NIL:
+if error
     echo "The drawer data/objects is missing - the objects the game ships with."
     echo "Copy the whole OpenLoco drawer again from the archive."
     quit 10
 endif
+cd //
 stack 1048576
 OpenLoco
 LAUNCH

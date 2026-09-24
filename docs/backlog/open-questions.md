@@ -1255,10 +1255,13 @@ Shell:
 | exit through the close gadget | window gone, prompt back, one unfreed signal |
 | guest restart with `stop`/`start` | clean |
 | reload the save | same company, GBP 357,272, March 1975, same view |
-| `collect`, compared before release | game binary SHA-256 identical to the archive (`be6964e1`); save and log sizes identical to the guest listing; the first log, collected twice under two names, byte-identical |
+| `collect`, compared before release | game binary SHA-256 identical to the archive (`be6964e1`); the first log, collected twice under two names, byte-identical; the save: **size** identical to the guest listing and it loaded correctly after the restart - **no checksum comparison for the save**, because no guest-side checksum was taken |
 
 **No regression found** in that chain. `collect` again exited 1 with
-*Operation not permitted*; contents intact, cause undetermined.
+*Operation not permitted*: contents intact for the files that were compared,
+cause undetermined. **Exit code 1 still needs explaining on the pool tool's
+side** - a collect that succeeds but reports failure trains everyone to ignore
+its exit code.
 
 **Observed, not attributed:** with the view scrolled to the edge of the map,
 the log fills with `[ERR] Attempted to get tile out of bounds! (-1, 84)` and
