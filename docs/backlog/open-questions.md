@@ -1380,6 +1380,31 @@ emulated guest CPU is saturated; the host itself was at load 3.6 of 18 cores),
 and the Cocoa window then lagged badly enough to hide the game window from the
 person watching. It dropped to 4.7% when the game exited.
 
+## 31. FIXED - zooming the game window to its title bar crashed the game
+
+2026-09-24, slot `v11-1`, found by a person using the game on build `a558320d`.
+The Intuition zoom gadget shrank the window to its title bar; the log then
+printed, twice,
+
+    [ERR] SDL_CreateRGBSurface (_screenSurface) failed: Parameter 'height' is invalid
+
+and the game died with *Illegal address access* in
+`SoftwareDrawingEngine::present()` - `SDL_MUSTLOCK()` on a null `_screenSurface`
+(`mov 0x18(%rdi),%rdi; test $0x2,(%rdi)`, RDI = 0).
+
+**Patch 26** closes each step: `Ui::windowSizeChanged()` ignores a zero or
+negative size (which also keeps it out of `openloco.yml`), `resize()` nulls the
+surfaces it destroys, and `present()` returns while any surface is unset.
+
+**Verified** with build `24e7b3a1`, `7f8c90cf+aros (e351756 on openloco-next+21)`,
+same slot: zoom gadget to the title bar, no error in the log, no crash; zoom
+back, the title scene keeps drawing. The "before" case is the person's own run
+on `a558320d`, not the same scripted clicks repeated on the old build.
+
+Upstream code and upstream gap - the functions do not check that recreating
+the surfaces worked. AROS triggers it by reporting a client height of 0 for a
+zoomed window. An upstream candidate alongside 21 and 23.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
