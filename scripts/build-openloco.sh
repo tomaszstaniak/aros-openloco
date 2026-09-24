@@ -73,23 +73,39 @@ CMAKE_ARGS="-DOPENLOCO_VERSION_TAG=$VERSION_TAG -DOPENLOCO_BRANCH=$VERSION_BRANC
 -DCMAKE_BUILD_TYPE=Release -DSTRICT=NO -DOPENLOCO_BUILD_TESTS=NO \
 -DOPENLOCO_USE_CCACHE=NO $*"
 
-# A changed toolchain file means a fresh configure. CMake keeps every CACHE
-# variable it has seen, so deleting a set(... CACHE ...) line from the
-# toolchain file does NOT remove the setting from an existing build directory.
-# That is how -lnet stayed in the ABIv11 link after both toolchain files had
-# stopped asking for it, and the regression check caught a binary that still
-# carried libnet's strerror(). Also start fresh when the dependency packages
-# are newer than the cache, for the same reason.
-if [ -f "$BUILD/CMakeCache.txt" ]; then
-    for input in "$TOOLCHAIN" "$(abi_deps "$ABI")/lib/cmake/OpenAL/OpenALConfig.cmake" \
-                 "$(abi_deps "$ABI")/lib/cmake/SDL3/SDL3Config.cmake"; do
-        if [ -f "$input" ] && [ "$input" -nt "$BUILD/CMakeCache.txt" ]; then
-            echo "$input changed since $BUILD was configured - starting from a clean build directory"
-            rm -rf "$BUILD"
-            break
-        fi
-    done
+# When to throw the build directory away. CMake keeps every CACHE variable it
+# has seen, so a setting removed from the toolchain file survives in an
+# existing cache - that is how -lnet stayed in an ABIv11 link after both
+# toolchain files had stopped asking for it. Comparing file dates was the first
+# guard, and a weak one: a changed path, or a file restored with an older date,
+# walks straight past it. So the decision is made on content: a stamp over the
+# toolchain file, the configure arguments, and the dependency packages and
+# libraries they point at. Any difference, or a cache with no stamp, means a
+# clean directory.
+#
+# OPENLOCO_FRESH_CONFIGURE=1 always starts clean. Release builds use it, and
+# make-release.sh refuses a binary whose BUILD-INFO does not say "fresh".
+DEPS_DIR=$(abi_deps "$ABI")
+CONFIG_STAMP=$(
+    {
+        cat "$TOOLCHAIN"
+        echo "$CMAKE_ARGS"
+        for f in "$DEPS_DIR/lib/cmake/OpenAL/OpenALConfig.cmake" \
+                 "$DEPS_DIR/lib/cmake/SDL3/SDL3Config.cmake" \
+                 "$DEPS_DIR/lib/libSDL3_static.a" \
+                 "$DEPS_DIR/lib/libopenal.static.a"; do
+            [ -f "$f" ] && shasum -a 256 "$f"
+        done
+    } | shasum -a 256 | cut -d' ' -f1)
+CONFIGURE=reused
+if [ "${OPENLOCO_FRESH_CONFIGURE:-0}" = 1 ]; then
+    echo "OPENLOCO_FRESH_CONFIGURE=1 - configuring in a clean build directory"
+    rm -rf "$BUILD"
+elif [ -f "$BUILD/CMakeCache.txt" ] && [ "$(cat "$BUILD/.config-stamp" 2>/dev/null)" != "$CONFIG_STAMP" ]; then
+    echo "configuration inputs changed since $BUILD was configured - starting clean"
+    rm -rf "$BUILD"
 fi
+[ -f "$BUILD/CMakeCache.txt" ] || CONFIGURE=fresh
 
 # -S is not optional: without it cmake silently does nothing in this layout.
 cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
@@ -102,6 +118,8 @@ cmake -S "$WORK_DIR" -B "$BUILD" -G Ninja \
     -DOPENLOCO_BUILD_TESTS=NO \
     -DOPENLOCO_USE_CCACHE=NO \
     "$@"
+
+echo "$CONFIG_STAMP" > "$BUILD/.config-stamp"
 
 cmake --build "$BUILD" -j "$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
 
@@ -127,6 +145,7 @@ if [ -f "$OUT" ]; then
             echo "patches:     $PATCH_COUNT in $(basename "$PATCH_DIR")"
             echo "port commit: $(git -C "$PORT_ROOT" rev-parse --short HEAD 2>/dev/null)"
             echo "version:     $VERSION_TAG ($VERSION_SHA on $VERSION_BRANCH)"
+            echo "configure:   $CONFIGURE (stamp ${CONFIG_STAMP%${CONFIG_STAMP#????????????????}})"
         } > "$ARCHIVE/BUILD-INFO.txt"
         # The patch set with checksums, not just its directory name: patches
         # are edited, and symlinked sets share files with other variants, so a

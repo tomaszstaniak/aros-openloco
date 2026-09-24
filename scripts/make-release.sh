@@ -27,6 +27,13 @@ DIRTY=$(awk '/^work dirty/{print $3}' "$ARCHIVE/BUILD-INFO.txt")
     echo "refusing: that build came from a work tree with $DIRTY changed file(s)." >&2
     echo "A build for other people must be reproducible from the patch set alone." >&2
     exit 1; }
+# A release binary must come from a configure in a clean directory - see the
+# stamp logic in build-openloco.sh and why dates were not enough.
+CONFIGURE=$(awk '/^configure:/{print $2}' "$ARCHIVE/BUILD-INFO.txt")
+[ "$CONFIGURE" = fresh ] || {
+    echo "refusing: that build was not configured in a clean directory (configure: ${CONFIGURE:-not recorded})." >&2
+    echo "Build it with OPENLOCO_FRESH_CONFIGURE=1 scripts/build-openloco.sh $ABI" >&2
+    exit 1; }
 VERSION=$(awk -F': *' '/^version/{print $2}' "$ARCHIVE/BUILD-INFO.txt")
 
 OUT=$PORT_ROOT/release/$ABI/OpenLoco
@@ -79,6 +86,30 @@ cat > "$OUT/Run-OpenLoco" <<'LAUNCH'
 if not exists openloco.yml
     echo "Run-OpenLoco must be started from inside the OpenLoco drawer."
     echo "Do:  cd <the drawer>   then   execute Run-OpenLoco"
+    quit 10
+endif
+; openloco.yml only says this looks like the drawer. Check the things the game
+; itself cannot start without, and name the one that is missing.
+if not exists OpenLoco
+    echo "The program OpenLoco is missing from this drawer."
+    echo "Copy the whole OpenLoco drawer again from the archive."
+    quit 10
+endif
+; A path ending in "/" can only be locked if it is a drawer.
+if exists OpenLoco/
+    echo "OpenLoco in this drawer is a drawer, not the program."
+    echo "Copy the whole OpenLoco drawer again from the archive."
+    quit 10
+endif
+if not exists data/language/en-GB.yml
+    echo "data/language/en-GB.yml is missing - the game's own text files."
+    echo "Without data/ the game stops with: OpenLoco data path could not be found!"
+    echo "Copy the whole OpenLoco drawer again from the archive."
+    quit 10
+endif
+if not exists data/objects/
+    echo "The drawer data/objects is missing - the objects the game ships with."
+    echo "Copy the whole OpenLoco drawer again from the archive."
     quit 10
 endif
 stack 1048576
