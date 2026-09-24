@@ -1,123 +1,157 @@
-# aros-openloco
+# OpenLoco for AROS (x86_64, ABIv11)
 
-A port of OpenLoco (a reimplementation of Chris Sawyer's Locomotion) to native
-AROS x86_64. **Primary target: ABIv11** (AROS One). Second target: mainline v1.
+A port of [OpenLoco](https://github.com/OpenLoco/OpenLoco) - an open-source
+re-implementation of Chris Sawyer's Locomotion - to native 64-bit AROS.
+**Supported target: AROS One 1.3, x86_64, ABIv11.** Nothing else is supported:
+not 32-bit AROS, and not mainline ABI v1 (work on it is deferred).
 
-This repository holds only our own material - documentation, scripts, patches
-and tests. The game's code is not versioned here: a script fetches it at a
-pinned commit.
+This is an independent port. It is not made or endorsed by the OpenLoco
+project; problems found here belong to this port until shown otherwise.
+
+This repository holds only the port's own material: patches, build scripts,
+tests and documentation. The game's source is fetched from upstream at a pinned
+commit and patched at build time. **No game data is included** - you need your
+own copy of Locomotion.
+
+## Download
+
+Packages are on the [Releases](../../releases) page:
+`openloco.x86_64-aros-v11.lha` and its SHA-256. Current releases are
+**test releases** (prereleases); read the limitations below first.
+
+## Requirements
+
+- **AROS One 1.3, 64-bit (ABIv11).** Tested on emulated machines (QEMU) only.
+- **Your own copy of Chris Sawyer's Locomotion** - the installed game's files
+  (`Data`, `ObjData`, `Scenarios`, `g1.DAT` and the rest). They are commercial
+  and are not, and cannot be, part of this port.
+- About 2 GB of RAM for the machine and a writable disk: the game writes its
+  config, saved games and screenshots next to itself.
+
+## Installing and running
+
+1. Extract the archive somewhere writable, e.g. `Work:Games/`. It creates the
+   drawer `OpenLoco`.
+2. Put your Locomotion files where `OpenLoco/openloco.yml` points, or edit that
+   line. The default is `loco_install_path: Locodata:Locomotion`.
+3. From a Shell:
+
+       cd Work:Games/OpenLoco
+       execute Run-OpenLoco
+
+**Always start it through `Run-OpenLoco`.** The default Shell stack on
+AROS One 1.3 is 40 KB; the game needs more and otherwise dies while drawing its
+first screen with `Stack extends out of range`. The launcher sets
+`stack 1048576`. Before starting the game it checks that it is run from inside
+the drawer and that the program, `data/language` and `data/objects` are
+present; if something is missing it says what, instead of failing silently.
+
+**No sound?** AROS One may ship with its AHI units set to VOID. OpenLoco plays
+through OpenAL, which uses AHI **Unit 0**. In `Prefs/AHI` select `Unit 0` with
+the cycle gadget at the top, choose your card's mode (e.g.
+`ac97:16 bit stereo++`), and **Save**. Details are in the package's
+`README.md`.
+
+## Known limitations
+
+- **Saving over an existing file on FAT32.** On the FAT32 volume used for
+  testing, the AROS FAT handler has lost data when an existing file was
+  rewritten, and the volume was damaged twice. The port writes saves through a
+  safer path, but the underlying problem is **not solved**. **Save under a new
+  name** rather than over an old save, keep copies of saves you care about, and
+  shut AROS down properly (`Sys:C/Shutdown`) before closing the emulator.
+- **A second start in one boot froze the machine** four times early in the
+  port (2026-09-17/18). It has **not been reproduced since**, but the cause
+  was never found, so it is not known to be fixed. Rebooting between sessions
+  avoids the situation.
+- **Sound effects are unchecked.** Music has been heard playing; vehicle,
+  ambient and interface sounds have not been checked by ear.
+- **Performance is not characterised.** On one emulated machine the game held
+  its 40 fps cap at 640x480 on a small map; nothing else has been measured in
+  conditions worth quoting. The renderer is the software one.
+- Wanderer crashed once on a test machine while the game sat idle; the game
+  kept running and the cause is unknown.
+- One unfreed signal bit is reported on exit; harmless as far as seen.
+
+The full list, with evidence, is in `docs/backlog/open-questions.md`.
+
+## What the package contains
+
+The `OpenLoco` program (statically linked with SDL3, fmt, yaml-cpp, sfl,
+libpng and zlib), OpenLoco's `data/` (language files and the OpenGraphics
+objects), the `Run-OpenLoco` launcher, a default `openloco.yml`, a README,
+the build's provenance (`BUILD-INFO.txt`, `PATCHES.txt`, `BUILT-WITH.txt`,
+`DEPENDENCIES.txt`, `SHA256`) and `Licenses/`. OpenAL is the system's
+`openal.library`. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+The program prints its version first, e.g.
+`OpenLoco, 7f8c90cf+aros (<port revision> on openloco-next+21)`: the upstream
+commit, this repository's revision and the number of patches applied. Please
+include that line in any report.
+
+## Licence and credits
+
+- This repository (scripts, tests, documentation, patch headers): MIT, see
+  [LICENSE](LICENSE). The patches modify OpenLoco, SDL3, fmt and yaml-cpp and
+  are offered under the licence of the project they modify.
+- **OpenLoco** is © the OpenLoco developers, MIT licence; its contributors are
+  listed in upstream's `CONTRIBUTORS.md`.
+- SDL3 (with the AROS backend from aros-development-team/contrib), fmt,
+  yaml-cpp, sfl, libpng, zlib and the OpenGraphics objects: see
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); texts in `licenses/`.
+- Chris Sawyer's Locomotion is not included, not free, and not part of this
+  port.
+
+## Building
+
+Built on macOS with the AROS One ABIv11 SDK and its GCC 10.5.0 cross
+toolchain. Toolchain and SDK paths are set in `scripts/env.sh` and can be
+overridden through environment variables; the defaults describe the author's
+machine.
+
+The release is built from upstream `7f8c90cf` (v26.09 + 1 commit) with the
+patch set `patches/openloco-next`:
+
+```sh
+export OPENLOCO_UPSTREAM_COMMIT=7f8c90cf7b1127dd1113b904336bfda3d0f4ff00 \
+       OPENLOCO_UPSTREAM_DIR=$PWD/upstream-next/OpenLoco \
+       OPENLOCO_WORK_DIR=$PWD/work-release/OpenLoco \
+       OPENLOCO_PATCH_DIR=$PWD/patches/openloco-next \
+       OPENLOCO_BUILD_ROOT=$PWD/build-release
+scripts/bootstrap.sh                 # upstream checkout + patched work tree
+scripts/fetch-deps.sh abiv11         # SDL3 + contrib AROS diff + our patches, fmt, sfl, yaml-cpp
+scripts/build-sdl3.sh abiv11         # libSDL3_static.a + CMake package
+scripts/make-cmake-packages.sh abiv11
+OPENLOCO_FRESH_CONFIGURE=1 scripts/build-openloco.sh abiv11
+LHA_WRITER=/path/to/jca02266-lha OPENLOCO_ARCHIVE_NAME=openloco.x86_64-aros-v11.lha \
+    scripts/make-release.sh abiv11   # -> release/abiv11/
+```
+
+`build-openloco.sh` stamps the version, archives every build by its SHA-256
+together with the complete source diff, and `make-release.sh` refuses builds
+from a dirty tree or a reused CMake configuration. Do not fully strip the
+binary: AROS needs its relocations.
+
+A newer GCC (13.4) was evaluated and not adopted for the release; see
+`docs/reports/gcc13-evaluation.md`.
 
 ## Layout
 
 ```
-docs/          documentation, evidence and backlog
-  AROS-ASSESSMENT.md   feasibility assessment for the port
-  evidence/            logs, results and screenshots the documentation cites
-  backlog/             open questions and next tasks
-  plans/               plans for longer changes
-scripts/       bootstrap, dependencies, probes, builds
-toolchains/    CMake toolchain files, one per ABI
-patches/
-  openloco/            our changes to the game's code (applied onto work/)
-  dependencies/        dependency patches, each justified in its header
-tests/         our own test code (not the game's)
-upstream/      clean checkout of the pinned commit - read-only, outside Git
-work/          working copy with the patches applied - outside Git
-build/<abi>/   build output - outside Git
-deps/<abi>/    external dependencies - outside Git
+patches/openloco/       changes to the game, each with a header saying why
+patches/openloco-next/  the patch set applied to the pinned upstream commit
+patches/dependencies/   changes to SDL3, fmt and yaml-cpp
+patches/diagnostics/    instrumentation used in investigations - never in a release
+scripts/                bootstrap, dependencies, builds, packaging
+toolchains/             CMake toolchain files, one per ABI
+tests/                  the port's own reproducers and runtime tests
+licenses/               licence texts of everything in the package
+docs/                   assessment, backlog, reports and the evidence they cite
 ```
 
-`upstream/` is the reference and we never edit it - that way it is always clear
-what is ours and what is the game's. Changes to the game's code are made in
-`work/` and made permanent as patches:
+`upstream*/`, `work*/`, `build*/`, `deps/` and `release/` are generated and
+not versioned. Upstream checkouts are never edited; changes are made in the
+work tree and saved as patches with `scripts/save-patch.sh`.
 
-```sh
-scripts/save-patch.sh <name> "why this patch exists"
-```
-
-`work/` has its own private Git repository whose first commit is upstream plus
-all patches. That is not the port's history - it is the mechanism that lets
-`git -C work/OpenLoco status` answer exactly one question: what have I changed
-and not yet saved as a patch. **`bootstrap.sh --reset` refuses to delete `work/`
-if it holds unsaved changes**; only `--force` throws them away.
-
-We commit only to this repository. Sending anything to OpenLoco upstream would
-be a separate, deliberate step (a pull request adding AROS support) - a local
-commit never sends anything there.
-
-## From scratch - the full path to a running game
-
-After a longer break, **start with `docs/backlog/open-questions.md`, section
-"Returning after a break"** - it lists the things outside this repository
-without which the steps below will not work.
-
-```sh
-# 0. preconditions (outside the repo) - see the backlog, "Returning after a break"
-hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage   # collect-aros needs this
-
-# 1. sources and dependencies
-scripts/bootstrap.sh                 # upstream/ at the pinned commit + work/ with patches
-scripts/fetch-deps.sh abiv11         # SDL3 (contrib + our patches), fmt, sfl, yaml
-
-# 2. libraries and CMake packages the SDK does not have
-scripts/build-sdl3.sh abiv11         # libSDL3_static.a + SDL3Config.cmake -> deps/abiv11
-scripts/make-cmake-packages.sh abiv11  # OpenALConfig.cmake -> deps/abiv11
-
-# 3. the game
-scripts/build-openloco.sh abiv11     # -> build/abiv11/openloco/OpenLoco (~14 MB, do NOT strip)
-
-# optional: platform tests
-scripts/compile-probe.py             # compile probe, both ABIs -> docs/evidence/
-scripts/build-smoke.sh abiv11        # SDL3 + std::thread
-scripts/build-png-smoke.sh abiv11    # PNG/zlib without the stubs
-scripts/build-fat32-overwrite.sh abiv11   # POSIX O_TRUNC on a FAT32 volume
-```
-
-### Running it on AROS One
-
-The install lives on `loco-home.img` and is put there **from the host**, with
-QEMU stopped: copying its 170 files inside the guest is slow, and a directory
-of that size has hung AROS before.
-
-```sh
-cd ~/Work/AROS
-hdiutil attach loco-home.img -nobrowse
-cp <port>/build/abiv11/openloco/OpenLoco /Volumes/LOCOHOME/loco/
-dot_clean -m /Volumes/LOCOHOME                 # macOS ._* files load as objects
-hdiutil detach /Volumes/LOCOHOME
-
-AROS_VM_OWNER=<your-session> GFX=std ./vm.sh start loco
-```
-
-In the guest, one Shell (`meta_r-w` from Wanderer):
-
-```
-cd Locohome:loco
-OpenLoco >run.log
-```
-
-`Locohome:loco/openloco.yml` must contain
-`loco_install_path: Locodata:Locomotion`. Note that the AROS Shell does not
-understand `2>&1` - it returns to the prompt at once - so `[ERR]` lines stay on
-screen while the log keeps only stdout.
-
-**Saved games on that FAT32 volume are not safe yet**: on AROS a POSIX rewrite
-of an existing file silently loses the data, and the volume twice acquired a
-zeroed `FAT[0]`. Keep a host-side copy. See
-`docs/evidence/fat32-corruption/RESULTS.md` and backlog item 18.
-
-Details and evidence: `docs/evidence/gameplay-abiv11/RESULTS.md`, and
-`docs/evidence/menu-abiv11/RESULTS.md` for how the assets disk was built.
-
-The ABI names (`abiv11`, `mainline-v1`) and the toolchain and SDK paths live in
-one place: `scripts/env.sh`. They can be overridden through environment
-variables.
-
-## State
-
-The game is playable on ABIv11: menu, scenario, construction, a bought train
-running on the track, keyboard text entry, and a saved game that survives
-closing and restarting the program -
-`docs/evidence/gameplay-abiv11/RESULTS.md`. Nothing has been transported yet,
-and storage on FAT32 is unsafe (item 18). Assessment, numbers and remaining
-blockers: `docs/AROS-ASSESSMENT.md`. Open items: `docs/backlog/`.
+Testing used a shared pool of QEMU machines on the author's machine; the
+procedures and evidence in `docs/` refer to it.

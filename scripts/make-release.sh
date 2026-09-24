@@ -8,8 +8,8 @@
 # config pointing at the game's assets, and a README saying what the program
 # expects and what is known to be wrong with it.
 #
-# It deliberately does NOT produce an archive to upload anywhere. Publishing is
-# a separate decision and is not taken here.
+# With OPENLOCO_ARCHIVE_NAME set it also packs the drawer into that .lha and
+# writes its SHA-256 next to it. It uploads nothing; publishing is separate.
 set -e
 . "$(dirname "$0")/env.sh"
 
@@ -49,8 +49,16 @@ cp -R "$BUILD/data" "$OUT/data"
 # missing. Empty, and created here so a fresh install does not start with a
 # warning; the game fills it if the player adds custom objects.
 mkdir -p "$OUT/objects"
-cp "$ARCHIVE/BUILD-INFO.txt" "$ARCHIVE/PATCHES.txt" "$ARCHIVE/BUILT-WITH.txt" \
-   "$ARCHIVE/DEPENDENCIES.txt" "$OUT/"
+# Provenance for the user, with this build machine's home directory replaced
+# by ~ - the paths say which tree, the user name adds nothing.
+for f in BUILD-INFO.txt PATCHES.txt BUILT-WITH.txt DEPENDENCIES.txt; do
+    sed "s|$HOME|~|g" "$ARCHIVE/$f" > "$OUT/$f"
+done
+# Licences of everything the binary contains or ships with.
+mkdir -p "$OUT/Licenses"
+cp "$PORT_ROOT"/licenses/*.txt "$OUT/Licenses/"
+cp "$PORT_ROOT/THIRD-PARTY-NOTICES.md" "$OUT/Licenses/"
+cp "$PORT_ROOT/LICENSE" "$OUT/Licenses/aros-openloco-LICENSE.txt"
 sed -e "s|@VERSION@|$VERSION|" -e "s|@SHA@|$SHA|" \
     "$PORT_ROOT/docs/user-readme.md" > "$OUT/README.md"
 cat > "$OUT/openloco.yml" <<'EOF'
@@ -125,6 +133,23 @@ OpenLoco
 LAUNCH
 
 echo "$SHA  OpenLoco" > "$OUT/SHA256"
+
+# The archive for publication: an LhA of the drawer, as AROS users expect, plus
+# a SHA-256 of that archive. lha stores the drawer name, so it extracts as
+# OpenLoco/. Its name carries the ABI; the version is in BUILD-INFO.txt inside.
+if [ -n "${OPENLOCO_ARCHIVE_NAME:-}" ]; then
+    # Homebrew's lha is Lhasa, which only extracts. Use jca02266's LHa for
+    # UNIX - the one AROS itself builds (tools/lha in the AROS sources).
+    : "${LHA_WRITER:?set LHA_WRITER to a create-capable lha (jca02266/lha)}"
+    "$LHA_WRITER" --help 2>&1 | grep -q 'a   Add' ||
+        { echo "$LHA_WRITER cannot create archives" >&2; exit 1; }
+    LHA=$PORT_ROOT/release/$ABI/$OPENLOCO_ARCHIVE_NAME
+    rm -f "$LHA" "$LHA.sha256"
+    (cd "$PORT_ROOT/release/$ABI" && "$LHA_WRITER" -aq "$OPENLOCO_ARCHIVE_NAME" OpenLoco)
+    (cd "$PORT_ROOT/release/$ABI" && shasum -a 256 "$OPENLOCO_ARCHIVE_NAME" > "$OPENLOCO_ARCHIVE_NAME.sha256")
+    echo "archive: $LHA"
+    cat "$LHA.sha256"
+fi
 echo "prepared $OUT"
 echo "  version: $VERSION"
 echo "  sha256:  $SHA"

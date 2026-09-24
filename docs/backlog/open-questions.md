@@ -1375,6 +1375,13 @@ which forced a clean configure. The binary check stays in the procedure.
   unit 0.
 - The release README now has a "No sound?" section with these steps.
 
+**Music heard live** (the user, 2026-09-24): after the fix above, OpenLoco's
+title music played through the host speakers. Environment: slot `v11-1`,
+AROS One 1.3 ABIv11, pool `audio: coreaudio` (QEMU AC97), AHI **Unit 0** and
+**Music unit** both `ac97:16 bit stereo++`, saved; build `a558320d`. It kept
+playing while the window was zoomed to its title bar (item 31). This confirms
+music output only - **sound effects were not checked** in this run (see item 6).
+
 Also recorded: while OpenLoco runs, QEMU holds one host core at 100% (the
 emulated guest CPU is saturated; the host itself was at load 3.6 of 18 cores),
 and the Cocoa window then lagged badly enough to hide the game window from the
@@ -1572,6 +1579,10 @@ what the game is doing.
 **The music has been listened to** (the user, 2026-09-20, the title and
 in-game excerpts): no problems noticed. That closes the music half of this
 item - numbers alone could never have.
+
+**Live on a pool machine** (the user, 2026-09-24, `v11-1`, `coreaudio`,
+build `a558320d`): title music heard through the host speakers once AHI Unit 0
+was set (item 30).
 
 **Sound effects are a separate check and have not been made.** The excerpts
 cover the title screen and a quiet map with one train; vehicle noise, ambient

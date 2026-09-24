@@ -57,8 +57,10 @@ work on the music unit while unit 0 is still silent. Ignore the modes named
 ## What works
 
 Menu, scenarios, building track and stations, buying and running vehicles,
-keyboard text entry, saving and loading, music and sound through OpenAL. Saved
-games survive closing the program and rebooting the machine.
+keyboard text entry, saving and loading. Saved games survive closing the
+program and rebooting the machine. **Music** plays through OpenAL and has been
+listened to; **sound effects** (vehicles, ambience, interface clicks) have not
+been checked by ear yet - report what you hear.
 
 ## What to expect, honestly
 
@@ -77,6 +79,14 @@ games survive closing the program and rebooting the machine.
 - **Shut the machine down properly.** `Sys:C/Shutdown`, or the menu, before
   you close the emulator or cut the power. One session that ended without it
   left an orphaned cluster on the volume.
+- **A second start that froze the machine.** Early in the port, starting the
+  game a second time in the same boot froze the whole AROS machine, four times
+  on 2026-09-17/18. It has not happened in any test since, but its cause was
+  never found, so it is **not known to be fixed**. Rebooting between sessions
+  avoids the situation; if it happens to you, please report it.
+- **Wanderer crashed once while the game sat idle** on a test machine. The game
+  itself kept running; whether the game had anything to do with it is not
+  known.
 - The program leaves one unfreed signal bit on exit. It is reported by the
   Shell and is harmless as far as anything here has shown.
 
@@ -84,7 +94,7 @@ games survive closing the program and rebooting the machine.
 
 Please include **the first line the program prints**, which looks like
 
-    [INF] OpenLoco, 7f8c90cf+aros (df805ab on openloco-next+19)
+    [INF] OpenLoco, @VERSION@
 
 That names the upstream commit it was built from, this port's revision, and
 how many patches were applied - which is what anyone will ask for first.
@@ -93,7 +103,9 @@ this drawer say the same thing in full, including the exact toolchain.
 
 ## Licence and credit
 
-OpenLoco is licensed under the MIT licence; see the OpenLoco project for its
-terms and its authors. This port adds the AROS changes listed in
-`PATCHES.txt`. Chris Sawyer's Locomotion itself is not included, not free, and
-not ours.
+OpenLoco is licensed under the MIT licence by the OpenLoco developers; see
+github.com/OpenLoco/OpenLoco for its authors. This port adds the AROS changes
+listed in `PATCHES.txt`. The drawer `Licenses/` holds the licence of every
+component the program contains, with a summary in
+`Licenses/THIRD-PARTY-NOTICES.md`. Chris Sawyer's Locomotion itself is not
+included, not free, and not ours.
