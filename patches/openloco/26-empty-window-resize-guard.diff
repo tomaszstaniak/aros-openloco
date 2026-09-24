@@ -1,0 +1,81 @@
+# empty-window-resize-guard
+#
+# Ignore a window size change to an empty client area, and never present with
+# surfaces a failed resize left unset.
+#
+# Found 2026-09-24 on pool slot v11-1 by a person using the game: zooming the
+# OpenLoco window to its title bar with the Intuition zoom gadget crashed it.
+# The log said, twice,
+#   [ERR] SDL_CreateRGBSurface (_screenSurface) failed: Parameter 'height' is invalid
+# and the crash was "Illegal address access" in SoftwareDrawingEngine::present(),
+# at `mov 0x18(%rdi),%rdi; test $0x2,(%rdi)` with RDI = 0 - SDL_MUSTLOCK() on a
+# null _screenSurface.
+#
+# Three changes, each closing one step of that chain:
+#   - Ui::windowSizeChanged() returns early for a zero or negative size. That
+#     also keeps the degenerate size out of openloco.yml, which the same
+#     function would otherwise have saved.
+#   - resize() nulls the surfaces it destroys, so a later failure cannot leave
+#     a freed pointer behind (upstream destroyed them without clearing).
+#   - present() returns while any of the three surfaces/textures is unset.
+#
+# The code is upstream's and so is the gap; AROS only triggers it, because an
+# Intuition window zoomed to its title bar reports a client height of 0 where
+# other systems usually report a minimised window. An upstream candidate.
+#
+# Against OpenLoco 7f8c90cf7b1127dd1113b904336bfda3d0f4ff00, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-09-24.
+
+diff --git a/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp b/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
+index 421b205..1a7fe2f 100644
+--- a/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
++++ b/src/OpenLoco/src/Graphics/SoftwareDrawingEngine.cpp
+@@ -104,10 +104,12 @@ namespace OpenLoco::Gfx
+         if (_screenSurface != nullptr)
+         {
+             SDL_DestroySurface(_screenSurface);
++            _screenSurface = nullptr;
+         }
+         if (_screenRGBASurface != nullptr)
+         {
+             SDL_DestroySurface(_screenRGBASurface);
++            _screenRGBASurface = nullptr;
+         }
+ 
+         if (_screenTexture != nullptr)
+@@ -324,6 +326,13 @@ namespace OpenLoco::Gfx
+ 
+     void SoftwareDrawingEngine::present()
+     {
++        // resize() can fail part-way and leave these unset; there is then
++        // nothing valid to present until a later resize succeeds.
++        if (_screenSurface == nullptr || _screenRGBASurface == nullptr || _screenTexture == nullptr)
++        {
++            return;
++        }
++
+         // Lock the surface before setting its pixels
+         if (SDL_MUSTLOCK(_screenSurface))
+         {
+diff --git a/src/OpenLoco/src/Ui.cpp b/src/OpenLoco/src/Ui.cpp
+index 54e2ba3..f067901 100644
+--- a/src/OpenLoco/src/Ui.cpp
++++ b/src/OpenLoco/src/Ui.cpp
+@@ -497,6 +497,17 @@ namespace OpenLoco::Ui
+             pixelHeight = height;
+         }
+ 
++        // A window can report an empty client area - on AROS, zooming the
++        // window to its title bar gives a height of 0. There is nothing to
++        // draw into then, and resizing to it makes every surface fail to
++        // create, after which the next frame dereferences a null surface.
++        // Keep the current buffers and the saved size; a later event with a
++        // real size resizes as usual.
++        if (width <= 0 || height <= 0 || pixelWidth <= 0 || pixelHeight <= 0)
++        {
++            return;
++        }
++
+         auto& drawingEngine = Gfx::getDrawingEngine();
+         drawingEngine.resize(pixelWidth, pixelHeight);
+ 
