@@ -43,6 +43,17 @@ Shell; redirect them with `OpenLoco >run.log` if you want to keep them, but
 note that AROS's Shell does not understand `2>&1`, so error lines still appear
 on screen.
 
+## No sound?
+
+AROS One can ship with its AHI audio units set to **VOID** - silent. OpenLoco
+plays through OpenAL, and OpenAL uses AHI **unit 0**, not the music unit. Open
+`Prefs/AHI`, use the cycle gadget at the top to select **Unit 0**, pick your
+sound card's mode in the list (for example `ac97:16 bit stereo++`), and press
+**Save**. Do the same for the **Music unit** if other programs are silent too.
+The "Play a test sound" button tests only the unit currently selected, so it can
+work on the music unit while unit 0 is still silent. Ignore the modes named
+`Unit 0:...` - those are not the unit selector.
+
 ## What works
 
 Menu, scenarios, building track and stations, buying and running vehicles,

@@ -1358,6 +1358,28 @@ contents, the configure arguments, and the SDL3/OpenAL packages and libraries
 - tested by appending a comment to the toolchain file and dating it 2020,
 which forced a clean configure. The binary check stays in the procedure.
 
+## 30. Sound on the pool's v11 machines: AHI unit 0 was set to VOID
+
+2026-09-24, slot `v11-1`, `audio: coreaudio`, with a person listening.
+
+- The pool had no sound card at all until the pool driver gained an `audio`
+  setting (see `docs/reports/pool-maintenance-20260924.diff`).
+- With the card present, silence was decided in the guest: AROS One's AHI units
+  were on **VOID**. Setting the **Music unit** to `ac97:16 bit stereo++` made the
+  AHI prefs test sound audible, but OpenLoco stayed silent - OpenAL opens
+  `ahi.device` unit **0** (`AHI_DEFAULT_UNIT` in openal-soft's AHI backend,
+  read in the 1.19.1 source; the system's 1.16.0 `openal.library` behaves the
+  same in this run). Setting **Unit 0** to the same mode and saving fixed it.
+- A confusing trap on the way: modes named `Unit 0:...` belong to `device.audio`
+  and forward to unit 0; choosing one for the music unit does not configure
+  unit 0.
+- The release README now has a "No sound?" section with these steps.
+
+Also recorded: while OpenLoco runs, QEMU holds one host core at 100% (the
+emulated guest CPU is saturated; the host itself was at load 3.6 of 18 cores),
+and the Cocoa window then lagged badly enough to hide the game window from the
+person watching. It dropped to 4.7% when the game exited.
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in
