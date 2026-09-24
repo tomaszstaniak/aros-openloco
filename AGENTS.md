@@ -3,6 +3,21 @@
 The shared rules are in `../AGENTS.md` and apply here in full. Below is only
 what is specific to this port.
 
+## This is the working repository
+
+Since the first public release (2026-09-25) this checkout -
+`~/Work/AROS-dev/aros-openloco-publish`, remote
+`github.com/tomaszstaniak/aros-openloco` - is the **only** place where the port
+is developed. `~/Work/AROS-dev/aros-openloco` is the archive of the history
+before publication and of evidence that was not published; its history
+diverged when this copy was cleaned for publication. Do not develop in both.
+
+Releases: a published tag and its assets are never replaced. A fix ships as
+the next release candidate (`v0.1.0-rc2`, ...), tested again from its own
+published archive. Release builds are made from `/Users/Shared/aros-openloco`
+(a clone of this repository), never with `-ffile-prefix-map` (backlog item 33).
+Commits here carry no tool or AI attribution lines.
+
 ## ABI choice - in line with the shared rule
 
 The shared rule (the testbench's shared rules, §Scope decisions, clarified

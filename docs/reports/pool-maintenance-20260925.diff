@@ -1,0 +1,74 @@
+--- a/tools/vm_pool.py
++++ b/tools/vm_pool.py
+@@ -161,6 +161,11 @@
+                 raise ValueError('Invalid ABI or readiness for '+name)
+             if self.audio(name) not in AUDIO_MODES:
+                 raise ValueError('Audio for '+name+' must be one of '+', '.join(AUDIO_MODES))
++            # Free-text record of changes made inside the guest (settings, installed
++            # software) that the next session should know before it starts.
++            notes=m.get('notes',[])
++            if not isinstance(notes,list) or not all(isinstance(n,str) for n in notes):
++                raise ValueError('Notes for '+name+' must be a list of strings')
+         self.root=(self.config_path.parent / self.config['root']).resolve()
+         if ',' in str(self.root) or len(os.fsencode(self.root/'machines/v11-1/monitor.sock')) > 100:
+             raise ValueError('Use a shorter pool root (socket path <=100 bytes), without commas')
+@@ -280,7 +285,7 @@
+                 lease=state.get(name)
+                 # Status is not a token distribution endpoint.
+                 public={k:v for k,v in lease.items() if k!='reservation'} if lease else None
+-                machines[name]={'abi':m['abi'],'ready':m['ready'],'state':phase,'reservation':public,'processes':matches}
++                machines[name]={'abi':m['abi'],'ready':m['ready'],'state':phase,'audio':self.audio(name),'notes':m.get('notes',[]),'reservation':public,'processes':matches}
+             return {'visibility':obs['visibility'],'reason':obs.get('reason'),'machines':machines,'processes':obs['processes']}
+     def command(self,name,install=None):
+         d=self.directory(name)
+--- a/tests/test_vm_pool.py
++++ b/tests/test_vm_pool.py
+@@ -330,6 +330,19 @@
+         self.assertIn('coreaudio,id=snd0',pool.command('v1-2'))
+         self.assertIn('wav,id=snd0,path='+str(pool.directory('v1-1')/'audio.wav'),pool.command('v1-1'))
+ 
++    def test_status_shows_effective_audio_and_guest_notes(self):
++        # A released machine keeps its sound output and guest settings; the
++        # next session must see them in status, not discover them by ear.
++        cfg=json.loads(self.cfg.read_text());cfg['audio']='wav';cfg['machines']['v11-1']['audio']='coreaudio'
++        cfg['machines']['v11-1']['notes']=['AHI Unit 0 set to ac97']
++        self.cfg.write_text(json.dumps(cfg));machines=vm_pool.Pool(self.cfg,observer=self.pool.observer).status()['machines']
++        self.assertEqual((machines['v11-1']['audio'],machines['v11-1']['notes']),('coreaudio',['AHI Unit 0 set to ac97']))
++        self.assertEqual((machines['v11-2']['audio'],machines['v11-2']['notes']),('wav',[]))
++
++    def test_notes_must_be_a_list_of_strings(self):
++        cfg=json.loads(self.cfg.read_text());cfg['machines']['v1-1']['notes']='one string';self.cfg.write_text(json.dumps(cfg))
++        with self.assertRaises(ValueError):vm_pool.Pool(self.cfg)
++
+     def test_audio_rejects_unknown_mode(self):
+         cfg=json.loads(self.cfg.read_text());cfg['machines']['v11-3']['audio']='alsa';self.cfg.write_text(json.dumps(cfg))
+         with self.assertRaises(ValueError):vm_pool.Pool(self.cfg)
+--- a/documentation/vm-pool.md
++++ b/documentation/vm-pool.md
+@@ -119,13 +119,24 @@
+   `ahi.device` unit 0 (`AHI_DEFAULT_UNIT`), not the music unit. Beware the
+   modes named `Unit 0:...`: they belong to `device.audio` and forward *to*
+   unit 0 - they are not the unit selector.
+-  Done on `v11-1` only so far (its `ahi.prefs` is saved); the other v11 slots
+-  and both v1 slots still need it. An earlier note here said the install had
++  Done on `v11-1` only so far (its `ahi.prefs` is saved; recorded in its
++  `notes`); the other v11 slots and both v1 slots still need it. An earlier note here said the install had
+   no AHI preferences program: wrong - it is `AROS:Prefs/AHI`;
+ - QEMU logs `Can not open 'ac97.pi'` and `'ac97.mc'` (no host audio driver) at
+   every start with a sound card: those are the card's recording and microphone
+   inputs. The output voice is not in those messages.
+ 
++### What a released machine carries: `audio` and `notes` in status
++
++Release keeps the guest as it is, including settings made inside it. So that
++the next session sees this **before** it starts the machine, `./vm.sh status`
++shows for every machine its effective `audio` mode and a `notes` list, read
++from `machines.<name>.notes` (a list of strings) in the local configuration.
++Whoever changes something inside a guest that outlives the session - sound
++output, AHI or other preferences, installed software, data left on `SYS:` -
++adds a dated line there, with that machine stopped. Remove a line when the
++change is undone.
++
+ Growth: at 44.1 kHz stereo 16-bit a machine playing continuously writes about
+ 10 MB a minute to its `audio.wav`.
+ 

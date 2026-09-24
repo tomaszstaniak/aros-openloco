@@ -5,7 +5,12 @@
 The scripts, tests, documentation and the headers of the patches are under the
 MIT License ([LICENSE](LICENSE)). The patches themselves modify OpenLoco,
 SDL3, fmt and yaml-cpp; their changes are offered under the licence of the
-project they modify.
+project they modify. The MIT licence of this repository covers only the
+port's own layer; it does not replace the licence of any component below.
+Patch `20-upstream-4018-drawing-engine-cleanup` is not ours: it is a verbatim
+copy of OpenLoco commit `6072709d` by MinerSheep (OpenLoco #4018), credited in
+its header. It is not part of the release patch set, whose upstream pin
+already contains it.
 
 ## What the AROS package contains
 

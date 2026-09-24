@@ -1,7 +1,9 @@
 # upstream-4018-drawing-engine-cleanup
 #
 # Verbatim backport of upstream OpenLoco 6072709d, "Software drawing engine
-# proper cleanup (#4018)", merged 2026-09-14 - four days after our pinned
+# proper cleanup (#4018)" by MinerSheep
+# <46878556+MinerSheep@users.noreply.github.com>, MIT like the rest of
+# OpenLoco, merged 2026-09-14 - four days after our pinned
 # af445f8. The drawing engine's destructor frees textures, surfaces, palette
 # and the renderer in reverse order of creation; it fixes the destructor
 # nulling _screenTexture where it meant _scaledScreenTexture; and

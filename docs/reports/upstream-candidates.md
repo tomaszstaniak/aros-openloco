@@ -1,6 +1,6 @@
 # Upstream candidates - reviewed, none sent
 
-Reviewed 2026-09-23. **Nothing has been sent anywhere.** Preparing a change and
+Reviewed 2026-09-23, updated 2026-09-25. **Nothing has been sent anywhere.** Preparing a change and
 offering it are separate decisions; this file records the first.
 
 Three projects could receive something from this port, and they want different
@@ -89,12 +89,29 @@ ours.
 keymap and one ABI and has had no review against the backend's own event model.
 Not offered until that is done.
 
+**Candidate, not yet a patch: `sanitizePath` trusts the prefix blindly**
+(found 2026-09-25, backlog item 33). `Core/SourceLocation.h` does
+`path.substr(OPENLOCO_PROJECT_PATH.size() + 1)` on every `__FILE__`. Nothing
+checks that the path is long enough or starts with that prefix, so any build
+where the two disagree - here `-ffile-prefix-map`, equally a ccache or
+distributed build that rewrites paths, or a symlinked source directory -
+throws `std::out_of_range` from a *default argument*, i.e. wherever a
+`SourceLocation` is made. Here that was every save. The fix is small: return
+the path unchanged unless `path.starts_with(projectPath)` and it is longer
+than the prefix plus the slash. It is `constexpr`, so it stays free at run
+time. Our release no longer needs it (built from a neutral path, without the
+flag), which is why it is not in the patch set; it is still worth offering,
+because the code is fragile for everyone. Write it against current upstream,
+with a test that a mapped `__FILE__` passes through unharmed.
+
 ## The build for users
 
 Assembled 2026-09-23 by `scripts/make-release.sh` into `release/abiv11/OpenLoco`:
 the binary, `openloco.yml`, `README.md` written for someone who has never seen
-this port, and the four provenance files. **Nothing is published** - the script
-makes no archive to upload, and the arospkg page is untouched.
+this port, and the four provenance files. (Superseded: since 2026-09-25 the
+script also packs an `.lha`, and 0.1.0-rc1 is published as a GitHub
+prerelease - see `../evidence/release-rc1/RESULTS.md`. Still nothing on the
+arospkg page or in AROS Archives.)
 
 - version `7f8c90cf+aros (df805ab on openloco-next+19)`, SHA-256 `a68ee724...`
 - built from a work tree `bootstrap.sh` made from the patch set alone: **0
