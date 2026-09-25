@@ -1462,6 +1462,19 @@ The replacement, `a84e3709` (`5c0eaac`), built from `/Users/Shared` without
 the flag, passed the whole check from its published `.lha`: menu, map, save
 under a new name, clean exit, reboot, reload - `docs/evidence/release-rc1/`.
 
+## 34. Recorded: pool configuration changed during another session's lease
+
+2026-09-25 ~01:45. While adding `notes` for `v11-1` to the pool's local
+configuration, that machine had been acquired and started (01:43) by the
+`aros-skia` session after this session released it. The pool rule is to change
+configuration only with the affected machine stopped; it was not checked
+first. The change was the `notes` list alone, which a running QEMU does not
+read, so that session was not disturbed; it was sent a message describing the
+slot's state. Nothing was undone - the information is correct and useful.
+Procedure from now on: `./vm.sh status` for the machine immediately before
+editing its configuration, and edit only when it is stopped and unleased (or
+leased to this session).
+
 ## 22. How long does an autosave take, and where does the time go
 
 Opened 2026-09-20 out of item 2. Three 30-second windows with an autosave in

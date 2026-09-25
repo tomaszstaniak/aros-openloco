@@ -101,8 +101,38 @@ the path unchanged unless `path.starts_with(projectPath)` and it is longer
 than the prefix plus the slash. It is `constexpr`, so it stays free at run
 time. Our release no longer needs it (built from a neutral path, without the
 flag), which is why it is not in the patch set; it is still worth offering,
-because the code is fragile for everyone. Write it against current upstream,
-with a test that a mapped `__FILE__` passes through unharmed.
+because the code is fragile for everyone.
+
+**Prepared 2026-09-25, not sent:**
+`upstream-patches/0001-Only-strip-the-project-path-from-source-locations-th.patch`,
+against upstream `b805fa1a` (2026-09-24; applies cleanly), kept on branch
+`source-location-prefix-check` in `~/Work/AROS-dev/openloco-upstream-fix`.
+It adds a two-argument `Detail::sanitizePath(path, projectPath)` that strips
+the prefix only when `path` starts with it and a separator follows (`/` and
+`\` treated as equal, because MSVC's `__FILE__` uses backslashes while
+`CMAKE_SOURCE_DIR` does not), and otherwise returns `path` unchanged. The
+one-argument form keeps its signature and calls it with `OPENLOCO_PROJECT_PATH`.
+
+Tests (`src/Core/tests/SourceLocationTests.cpp`, registered in
+`src/Core/CMakeLists.txt`): a path inside the project; a shorter path as left
+by `-ffile-prefix-map` (including one shorter than the prefix, the AROS
+failure); a path outside the project; a sibling directory whose name starts
+with the project's (`OpenLoco-fork`); the project path itself; backslash
+separators; and `static_assert`s that it stays `constexpr`.
+
+How it was checked, and what was not:
+- written test-first: with the old logic extracted unchanged, four runtime
+  tests failed (`"p"`, `"string_view"`, `"fork/src/..."`, an
+  `out_of_range`) and the `constexpr` test did not compile; the backslash
+  test passed before and after, guarding Windows;
+- all 7 pass with the fix, built standalone with Apple clang 21 and
+  googletest 1.15.2 (`-Wall -Wextra -Werror`), because upstream's full CMake
+  build needs SDL3/OpenAL on the host and was not run;
+- the header compiles with the AROS ABIv11 GCC 10.5.0, including the
+  `static_assert`s;
+- **not** run through upstream's CI, and not formatted with their pinned
+  `clang-format` (none on this host) - do both before a pull request, and add
+  a `CHANGELOG.md` line once the PR number exists.
 
 ## The build for users
 

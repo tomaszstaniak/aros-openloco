@@ -1,0 +1,133 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: tomaszstaniak <68373859+tomaszstaniak@users.noreply.github.com>
+Date: Fri, 25 Sep 2026 08:47:50 +0200
+Subject: [PATCH] Only strip the project path from source locations that are
+ inside it
+
+Detail::sanitizePath removed OPENLOCO_PROJECT_PATH from __FILE__ by length
+alone. When __FILE__ does not start with that path - a build using
+-ffile-prefix-map, a compiler cache that rewrites paths, a header outside the
+project - it returned a wrong suffix, or threw std::out_of_range when __FILE__
+was shorter. Because the path is computed in a default argument, that throw
+happened wherever a SourceLocation was made; in a -ffile-prefix-map build it
+made every save fail.
+
+Check the prefix and the directory separator after it, treating / and \ as
+equal (MSVC's __FILE__ and CMAKE_SOURCE_DIR differ), and return the path
+unchanged otherwise. Still constexpr.
+---
+ src/Core/CMakeLists.txt                       |  1 +
+ .../include/OpenLoco/Core/SourceLocation.h    | 30 +++++++++++--
+ src/Core/tests/SourceLocationTests.cpp        | 43 +++++++++++++++++++
+ 3 files changed, 71 insertions(+), 3 deletions(-)
+ create mode 100644 src/Core/tests/SourceLocationTests.cpp
+
+diff --git a/src/Core/CMakeLists.txt b/src/Core/CMakeLists.txt
+index 117234e7..8ead6b45 100644
+--- a/src/Core/CMakeLists.txt
++++ b/src/Core/CMakeLists.txt
+@@ -30,6 +30,7 @@ set(test_files
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/MemoryStreamTests.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/NumericsTests.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/PrngTests.cpp"
++    "${CMAKE_CURRENT_SOURCE_DIR}/tests/SourceLocationTests.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/StoreTests.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/TimerTest.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/TraitsTest.cpp"
+diff --git a/src/Core/include/OpenLoco/Core/SourceLocation.h b/src/Core/include/OpenLoco/Core/SourceLocation.h
+index 3c97e4ca..7b8bb60e 100644
+--- a/src/Core/include/OpenLoco/Core/SourceLocation.h
++++ b/src/Core/include/OpenLoco/Core/SourceLocation.h
+@@ -7,13 +7,37 @@ namespace OpenLoco
+ {
+     namespace Detail
+     {
++        constexpr bool isPathSeparator(char c)
++        {
++            return c == '/' || c == '\\';
++        }
++
++        // Returns path relative to projectPath, or path unchanged when it is not inside projectPath
++        // (e.g. already relative because of -ffile-prefix-map, or a sibling directory with the same prefix).
++        // Forward and back slashes are treated as equal, as __FILE__ and CMAKE_SOURCE_DIR may differ on Windows.
++        constexpr std::string_view sanitizePath(std::string_view path, std::string_view projectPath)
++        {
++            if (path.size() <= projectPath.size() + 1 || !isPathSeparator(path[projectPath.size()]))
++            {
++                return path;
++            }
++            for (size_t i = 0; i < projectPath.size(); i++)
++            {
++                const bool bothSeparators = isPathSeparator(path[i]) && isPathSeparator(projectPath[i]);
++                if (path[i] != projectPath[i] && !bothSeparators)
++                {
++                    return path;
++                }
++            }
++            // Removes also the first slash.
++            return path.substr(projectPath.size() + 1);
++        }
++
+         // NOTE: Making this consteval triggers a bug in clang, leave it constexpr for now.
+         constexpr std::string_view sanitizePath(std::string_view path)
+         {
+ #if defined(OPENLOCO_PROJECT_PATH)
+-            constexpr std::string_view projectPath = OPENLOCO_PROJECT_PATH;
+-            // Removes also the first slash.
+-            return path.substr(projectPath.size() + 1);
++            return sanitizePath(path, OPENLOCO_PROJECT_PATH);
+ #else
+             return path;
+ #endif
+diff --git a/src/Core/tests/SourceLocationTests.cpp b/src/Core/tests/SourceLocationTests.cpp
+new file mode 100644
+index 00000000..d72ab0d1
+--- /dev/null
++++ b/src/Core/tests/SourceLocationTests.cpp
+@@ -0,0 +1,43 @@
++#include <OpenLoco/Core/SourceLocation.h>
++#include <gtest/gtest.h>
++
++using namespace OpenLoco;
++
++TEST(SourceLocationTest, sanitizePathStripsProjectPath)
++{
++    EXPECT_EQ(Detail::sanitizePath("/home/user/OpenLoco/src/Core/src/Prng.cpp", "/home/user/OpenLoco"), "src/Core/src/Prng.cpp");
++}
++
++TEST(SourceLocationTest, sanitizePathKeepsPathShorterThanProjectPath)
++{
++    // e.g. a build with -ffile-prefix-map, where __FILE__ is already relative
++    EXPECT_EQ(Detail::sanitizePath("src/Core/src/Prng.cpp", "/home/user/OpenLoco"), "src/Core/src/Prng.cpp");
++    EXPECT_EQ(Detail::sanitizePath("src/x.cpp", "/home/user/OpenLoco"), "src/x.cpp");
++}
++
++TEST(SourceLocationTest, sanitizePathKeepsPathOutsideProjectPath)
++{
++    EXPECT_EQ(Detail::sanitizePath("/usr/include/c++/v1/string_view", "/home/user/OpenLoco"), "/usr/include/c++/v1/string_view");
++}
++
++TEST(SourceLocationTest, sanitizePathKeepsSiblingDirectoryWithSamePrefix)
++{
++    EXPECT_EQ(Detail::sanitizePath("/home/user/OpenLoco-fork/src/Core/src/Prng.cpp", "/home/user/OpenLoco"), "/home/user/OpenLoco-fork/src/Core/src/Prng.cpp");
++}
++
++TEST(SourceLocationTest, sanitizePathKeepsProjectPathItself)
++{
++    EXPECT_EQ(Detail::sanitizePath("/home/user/OpenLoco", "/home/user/OpenLoco"), "/home/user/OpenLoco");
++}
++
++TEST(SourceLocationTest, sanitizePathAcceptsBackslashSeparators)
++{
++    // MSVC's __FILE__ uses backslashes while CMAKE_SOURCE_DIR uses forward slashes
++    EXPECT_EQ(Detail::sanitizePath("C:\\dev\\OpenLoco\\src\\Core\\src\\Prng.cpp", "C:/dev/OpenLoco"), "src\\Core\\src\\Prng.cpp");
++}
++
++TEST(SourceLocationTest, sanitizePathIsConstexpr)
++{
++    static_assert(Detail::sanitizePath("/a/OpenLoco/src/x.cpp", "/a/OpenLoco") == "src/x.cpp");
++    static_assert(Detail::sanitizePath("src/x.cpp", "/a/OpenLoco") == "src/x.cpp");
++}
+-- 
+2.54.0 (Apple Git-157)
+
