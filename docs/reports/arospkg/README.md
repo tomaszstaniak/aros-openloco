@@ -92,3 +92,8 @@ test roots `SYS:PkgLoco2`/`3`, deleted afterwards. Evidence:
 | `apkg remove` | rc 0; console: `note: 1 file(s) changed locally were kept in SYS:PkgLoco3/openloco: openloco.yml` then `removed openloco`; save kept |
 
 The OpenLoco entry passed; the default-stack crash is apkg's.
+
+Re-check on the fixed `apkg` `a513aea7…` (v0.2 re-freeze), 2026-09-25 21:14,
+`v11-1`, Shell set to `stack 40960`: install rc 0 with `objects/` created,
+remove rc 0. The default-stack crash is gone. Evidence:
+`evidence-2026-09-25-a513/`.
