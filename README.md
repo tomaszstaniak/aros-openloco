@@ -2,6 +2,9 @@
 
 A port of [OpenLoco](https://github.com/OpenLoco/OpenLoco) - an open-source
 re-implementation of Chris Sawyer's Locomotion - to native 64-bit AROS.
+For the game itself - what it is, its releases for other systems, its
+community - see the [OpenLoco project](https://github.com/OpenLoco/OpenLoco)
+and its [website](https://openloco.io).
 **Supported target: AROS One 1.3, x86_64, ABIv11.** Nothing else is supported:
 not 32-bit AROS, and not mainline ABI v1 (work on it is deferred).
 
@@ -23,17 +26,55 @@ Packages are on the [Releases](../../releases) page:
 
 - **AROS One 1.3, 64-bit (ABIv11).** Tested on emulated machines (QEMU) only.
 - **Your own copy of Chris Sawyer's Locomotion** - the installed game's files
-  (`Data`, `ObjData`, `Scenarios`, `g1.DAT` and the rest). They are commercial
-  and are not, and cannot be, part of this port.
+  (`Data`, `ObjData`, `Scenarios`). They are commercial and are not, and cannot
+  be, part of this port; see
+  [Getting the Locomotion files](#getting-the-locomotion-files).
 - About 2 GB of RAM for the machine and a writable disk: the game writes its
   config, saved games and screenshots next to itself.
+
+## Getting the Locomotion files
+
+Like OpenLoco itself, this port needs the files of the original **Chris
+Sawyer's Locomotion** - graphics, sounds, music, vehicles and scenarios. They
+are commercial and cannot be distributed with OpenLoco or with this port. The
+OpenLoco project's own advice applies here unchanged (see
+[Downloading the game](https://github.com/OpenLoco/OpenLoco#2-downloading-the-game-pre-built)
+in its README): buy the game, for example on
+[Steam](https://store.steampowered.com/app/356430/) or
+[GOG.com](https://www.gog.com/game/chris_sawyers_locomotion).
+
+Neither store has an AROS client, so the files travel through another
+computer:
+
+1. **Install the game on another computer** with the Steam or GOG client.
+2. **Find its installation folder** - in Steam: right-click the game →
+   *Manage* → *Browse local files*; in GOG Galaxy: the game's settings →
+   *Manage installation* → *Show folder*. It is the folder that contains the
+   drawers `Data`, `ObjData` and `Scenarios`; `Data/g1.DAT` is the file OpenLoco
+   looks for to recognise it. The copy used for testing this port was about
+   510 MB.
+3. **Copy that whole folder to the AROS machine** - over the network, a USB
+   stick, a CD image, or on an emulator a disk image or shared folder - for
+   example to `Work:Games/Locomotion`. The game only reads these files, so a
+   read-only volume is fine. The case of file names does not matter on AROS.
+4. **Tell the game where it is**, in one of two ways:
+   - edit `openloco.yml` in the `OpenLoco` drawer:
+     `loco_install_path: Work:Games/Locomotion`
+   - or keep the default `Locodata:Locomotion` and make it point there:
+     `assign Locodata: Work:Games` (put that line in `S:User-Startup` to keep
+     it after a reboot).
+
+Check it from a Shell: `list Work:Games/Locomotion/Data/g1.DAT` must show the
+file. If the path is wrong, the game reports that the folder is missing
+`Data/g1.DAT` - check the path before looking for anything else.
 
 ## Installing and running
 
 1. Extract the archive somewhere writable, e.g. `Work:Games/`. It creates the
    drawer `OpenLoco`.
-2. Put your Locomotion files where `OpenLoco/openloco.yml` points, or edit that
-   line. The default is `loco_install_path: Locodata:Locomotion`.
+2. Make your Locomotion files reachable at the path in `OpenLoco/openloco.yml`
+   (default `loco_install_path: Locodata:Locomotion`) - see
+   [Getting the Locomotion files](#getting-the-locomotion-files).
 3. From a Shell:
 
        cd Work:Games/OpenLoco
