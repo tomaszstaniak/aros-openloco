@@ -1,0 +1,5 @@
+Directory "save" on Friday 09/25/26:
+apkg-test-01.SV5         1504669 ---rwed Today       18:05:18
+1 file - 2939 blocks used
+
+TOTAL: 1 files - 0 directories - 2939 blocks used

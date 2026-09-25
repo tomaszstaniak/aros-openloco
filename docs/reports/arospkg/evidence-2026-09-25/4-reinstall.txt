@@ -1,0 +1,3 @@
+apkg: a directory of that name is already there
+     SYS:PkgLoco/openloco
+     Usually left by an earlier removal that kept files you had changed. Nothing was changed. Move it away and install again.

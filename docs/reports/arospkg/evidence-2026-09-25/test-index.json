@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "source": "https://archives.arosworld.org/share/FULLINDEX.readme",
+  "packages": [
+    {
+      "id": "openloco",
+      "version": "0.1.0-rc1",
+      "summary": "OpenLoco (Locomotion re-implementation), TEST release - needs your own Locomotion files, start with Run-OpenLoco",
+      "arch": "x86_64",
+      "abi": "v11",
+      "category": "game/strategy",
+      "url": "https://github.com/tomaszstaniak/aros-openloco/releases/download/v0.1.0-rc1/openloco.x86_64-aros-v11.lha",
+      "size": 16998333,
+      "sha256": "59fb5f11a8fe848f249d2a3399b67d6d28f617d52c167307c3d2a596d320efe0",
+      "depends": [],
+      "requires_system": [
+        {
+          "type": "library",
+          "id": "openal.library"
+        }
+      ],
+      "installs_on": [],
+      "runs_on": [],
+      "does_not_run_on": [],
+      "kind": "app",
+      "subdir": "OpenLoco",
+      "icon": "",
+      "install": {}
+    }
+  ]
+}
