@@ -1,0 +1,19 @@
+[2026-09-25 20:07:39] [INF] OpenLoco, 7f8c90cf+aros (5c0eaac on openloco-next+21)
+[2026-09-25 20:07:39] [INF] AROS (x86-64)
+[2026-09-25 20:10:47] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 20:10:47] [INF] Creating directory: AROS:PkgLoco3/openloco/save/
+[2026-09-25 20:10:47] [INF] Using save path: AROS:PkgLoco3/openloco/save/
+[2026-09-25 20:10:47] [INF] Creating directory: AROS:PkgLoco3/openloco/landscape/
+[2026-09-25 20:10:47] [INF] Using landscape path: AROS:PkgLoco3/openloco/landscape/
+[2026-09-25 20:10:47] [INF] OpenAL 1.1 ALSOFT 1.16.0, Vendor: OpenAL Community, Renderer: OpenAL Soft, initialized.
+[2026-09-25 20:10:47] [INF] OpenAL EFX reverb initialized.
+[2026-09-25 20:10:47] [INF] OpenAL supports 224 mono sources and 32 stereo sources, total 256 sources.
+[2026-09-25 20:10:59] [ERR] Object has too few images for bogie sprites!
+[2026-09-25 20:10:59] [ERR] Object has too few images for bogie sprites!
+[2026-09-25 20:11:01] [ERR] Warning: file AROS:PkgLoco3/openloco/scores.dat could not be found
+[2026-09-25 20:11:02] [ERR] Warning: file AROS:PkgLoco3/openloco/scores.dat could not be found
+[2026-09-25 20:11:02] [INF] Scene transition: boot -> title
+[2026-09-25 20:12:06] [INF] Scene transition: title -> gameplay
+[2026-09-25 20:12:49] [INF] Using Locomotion install path: Locodata:Locomotion
+[2026-09-25 20:12:49] [INF] Using save path: AROS:PkgLoco3/openloco/save/
+[2026-09-25 20:12:49] [INF] Using landscape path: AROS:PkgLoco3/openloco/landscape/

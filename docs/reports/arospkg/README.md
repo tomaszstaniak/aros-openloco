@@ -76,3 +76,19 @@ all three on AROS One and none on mainline, so they are listed (2026-09-25).
   nothing to change in the package; the kept-files console message is planned for
   arospkg v0.2;
 - approval after arospkg's v0.2 freeze.
+
+## apkg v0.2 test, 2026-09-25 evening
+
+Same slot and archive, final `apkg` 0.2 (SHA-256 `ba9a94d9…58b9`, the binary
+arospkg's v0.2 is frozen on), fresh test index from the corrected draft,
+test roots `SYS:PkgLoco2`/`3`, deleted afterwards. Evidence:
+`evidence-2026-09-25-v02/`.
+
+| step | result |
+|---|---|
+| install from a Shell with the **default 40 KB stack** | **apkg crashed**: `Stack extends out of range` (screenshot `apkg02-crash-default-stack.png`); its lock stayed held until reboot. An apkg issue, reported to arospkg |
+| install with `stack 262144`, fresh boot | rc 0, `installed openloco`; **empty `objects/` now created** |
+| `Run-OpenLoco` | menu, scenario map, saved `apkg02-test` (1,484,437 B), exit |
+| `apkg remove` | rc 0; console: `note: 1 file(s) changed locally were kept in SYS:PkgLoco3/openloco: openloco.yml` then `removed openloco`; save kept |
+
+The OpenLoco entry passed; the default-stack crash is apkg's.
