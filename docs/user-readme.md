@@ -5,8 +5,9 @@ SHA-256 `@SHA@`
 
 OpenLoco is an open-source re-implementation of Chris Sawyer's Locomotion -
 https://github.com/OpenLoco/OpenLoco and https://openloco.io. This is a port
-of it to AROS; its own page is https://github.com/tomaszstaniak/aros-openloco. It is not made by the OpenLoco project and any
-problem you find here is this port's to answer for until shown otherwise.
+of it to AROS; its own page is https://github.com/tomaszstaniak/aros-openloco.
+It is not made by the OpenLoco project, and any problem you find here is this
+port's to answer for until shown otherwise.
 
 ## What you need
 
