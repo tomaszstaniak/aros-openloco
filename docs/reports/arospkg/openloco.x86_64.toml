@@ -29,7 +29,7 @@ depends         = []
 depends_checked = true
 subdir          = "OpenLoco"
 # no icon: rc1 has no drawer icon (planned for a later release)
-installs_on     = ["aros-one"]         # apkg 0.1 (ca010440), AROS One 1.3, 2026-09-25
+installs_on     = ["aros-one"]         # apkg 0.1 (ca010440) and 0.2 (ba9a94d9), AROS One 1.3, 2026-09-25
 runs_on         = ["aros-one"]         # menu, map, save, reload after reinstall - same run
 does_not_run_on = ["mainline-x86_64"]  # ABIv11 binary; mainline is ABIv1
 
