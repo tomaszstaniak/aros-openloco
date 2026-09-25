@@ -2,9 +2,8 @@
 # the index maintainer. status stays "draft" until the apkg test on AROS One
 # passes and the maintainer approves it.
 #
-# The archive is the GitHub PRERELEASE v0.1.0-rc1 of the port: a test
-# release. How the index shows a prerelease to users is to be agreed with the
-# index maintainer (there is no field for it yet); the summary says it.
+# The archive is the GitHub PRERELEASE v0.1.0-rc1 of the port; the version
+# string says so (index maintainer, 2026-09-25: no other marker needed).
 #
 # Before use: the player needs their OWN copy of Chris Sawyer's Locomotion
 # (not included, commercial) and must start the game with Run-OpenLoco, which
@@ -17,7 +16,7 @@ status          = "draft"
 id              = "openloco"
 version         = "0.1.0-rc1"
 revision        = 1
-summary         = "OpenLoco (Locomotion re-implementation), TEST release - needs your own Locomotion files, start with Run-OpenLoco"
+summary         = "Open-source re-implementation of Chris Sawyer's Locomotion"
 arch            = "x86_64"
 abi             = "v11"
 category        = "game/strategy"
@@ -35,17 +34,27 @@ runs_on         = ["aros-one"]         # menu, map, save, reload after reinstall
 does_not_run_on = ["mainline-x86_64"]  # ABIv11 binary; mainline is ABIv1
 
 # Derived from the rc1 binary (tools/deps.py + strings), filtered per the
-# manifest guide 4.3. openal.library is opened by the link stubs at startup,
-# so without it the program cannot start. bsdsocket.library is NOT required:
-# the port opens it only when networking is first used. crt/m/stdlib: see the
-# note sent with this draft - to be settled with the maintainer, not copied.
-# On the test machine all four were present: openal.library 45.2 (apkg:
-# "satisfied, already open, version 45"), crt.library 5.2, m.library 1.0,
-# stdlib.library 3.0. crt/m/stdlib are part of AROS One itself, so by guide
-# 4.3 step 1 they are left out here; the maintainer decides.
+# manifest guide 4.3, confirmed by the index maintainer against arospkg's
+# measured AROS One 1.3 and mainline library lists: all four are on AROS One
+# and not on mainline. On the test machine: openal 45.2 (apkg: satisfied),
+# crt 5.2, m 1.0, stdlib 3.0. openal.library is opened at start-up.
+# bsdsocket.library is NOT required: the port opens it only when networking
+# is first used.
 [[requires_system]]
 type = "library"
 id   = "openal.library"
+
+[[requires_system]]
+type = "library"
+id   = "crt.library"
+
+[[requires_system]]
+type = "library"
+id   = "m.library"
+
+[[requires_system]]
+type = "library"
+id   = "stdlib.library"
 
 [source]
 repository = "https://github.com/tomaszstaniak/aros-openloco"

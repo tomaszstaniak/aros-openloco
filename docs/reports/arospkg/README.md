@@ -50,9 +50,8 @@ guide 4.3: `openal.library` is the one listed - it is opened at start-up, so
 without it the program cannot start. `bsdsocket.library` is opened only when
 networking is used (patch 25): not a requirement. `crt.library`,
 `m.library`, `stdlib.library` are referenced and present on AROS One 1.3
-(5.2, 1.0, 3.0); they belong to AROS One itself, so they are left out of the
-draft. The Micropolis entry lists them; that was not copied - the maintainer
-decides whether they belong in an ABIv11-only entry.
+(5.2, 1.0, 3.0). First left out; the index maintainer's measured lists show
+all three on AROS One and none on mainline, so they are listed (2026-09-25).
 
 ## For a later release (not rc1)
 
@@ -65,10 +64,14 @@ decides whether they belong in an ABIv11-only entry.
 - consider shipping `objects/` with a placeholder file, or creating it in
   `Run-OpenLoco`, so package-manager installs do not warn.
 
-## To agree with the index maintainer
+## Agreed with the index maintainer (2026-09-25)
 
-- how the index shows a **prerelease** (no field yet; the summary says
-  "TEST release");
-- the three AROS One libraries above;
-- whether "needs your own Locomotion files" and "start with Run-OpenLoco" can
-  go anywhere but `summary` (no description/instructions field yet).
+- prerelease: the version string `0.1.0-rc1` says it; the summary describes
+  the program only;
+- requirements: all four libraries;
+- own Locomotion files and `Run-OpenLoco`: in the archive's README for now;
+  an optional `notes` field is planned in arospkg after its v0.2 freeze;
+- the missing `objects/`: the archive has a `-lhd-` entry for it, so it is
+  for arospkg to reproduce; the kept-files console message is planned for
+  arospkg v0.2;
+- approval after arospkg's v0.2 freeze.
