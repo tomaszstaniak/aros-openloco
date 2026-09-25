@@ -71,7 +71,8 @@ all three on AROS One and none on mainline, so they are listed (2026-09-25).
 - requirements: all four libraries;
 - own Locomotion files and `Run-OpenLoco`: in the archive's README for now;
   an optional `notes` field is planned in arospkg after its v0.2 freeze;
-- the missing `objects/`: the archive has a `-lhd-` entry for it, so it is
-  for arospkg to reproduce; the kept-files console message is planned for
+- the missing `objects/`: an arospkg bug - its LHA reader skipped empty
+  `-lhd-` members. Fixed in arospkg (host test added), shipping with its v0.2;
+  nothing to change in the package; the kept-files console message is planned for
   arospkg v0.2;
 - approval after arospkg's v0.2 freeze.
