@@ -33,10 +33,13 @@ something the package can change.
 
 Other observations:
 
-- the empty `objects/` drawer in the archive is **not created** by `apkg`
-  (it is by `lha x`); the game then logs
-  `Warning: file …/objects could not be found`. Harmless; worth a line to the
-  arospkg maintainer (empty directories in an archive);
+- the empty `objects/` drawer in the archive is **not created** by `apkg` 0.1
+  (it is by `lha x`). This was an extraction bug in apkg (its LHA reader
+  skipped empty `-lhd-` members), fixed in apkg 0.2. In this 0.1 run it did
+  **not** stop the game: menu, map, save and reload all worked, and the only
+  effect was the log line `Warning: file …/objects could not be found`.
+  `data/objects/` (the shipped objects) was present. Adding custom objects to
+  the missing drawer was not tested;
 - the removal report goes to `db/doctor/<id>-*.json`; nothing about the kept
   files is printed on the console;
 - the other `[ERR]` lines in the logs are the upstream ones known from every
@@ -61,8 +64,9 @@ all three on AROS One and none on mainline, so they are listed (2026-09-25).
   with its stack set to 1,048,576, tested separately;
 - an embedded `.arospkg/manifest.toml`, with `openloco.yml` as
   `[[files]] kind = "config"` - the game rewrites it on first exit;
-- consider shipping `objects/` with a placeholder file, or creating it in
-  `Run-OpenLoco`, so package-manager installs do not warn.
+- optional: a placeholder file in `objects/` or a `makedir` in
+  `Run-OpenLoco`, only to silence the warning on apkg 0.1 installs - not
+  needed for the game to run.
 
 ## Agreed with the index maintainer (2026-09-25)
 
