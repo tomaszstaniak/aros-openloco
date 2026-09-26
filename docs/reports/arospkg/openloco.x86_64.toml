@@ -12,7 +12,7 @@
 #     execute Run-OpenLoco
 # Details: https://github.com/tomaszstaniak/aros-openloco#getting-the-locomotion-files
 
-status          = "draft"
+status          = "approved"   # published in arospkg-index 865b625, 2026-09-25
 id              = "openloco"
 version         = "0.1.0-rc1"
 revision        = 1

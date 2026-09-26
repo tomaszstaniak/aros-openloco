@@ -97,3 +97,12 @@ Re-check on the fixed `apkg` `a513aea7…` (v0.2 re-freeze), 2026-09-25 21:14,
 `v11-1`, Shell set to `stack 40960`: install rc 0 with `objects/` created,
 remove rc 0. The default-stack crash is gone. Evidence:
 `evidence-2026-09-25-a513/`.
+
+## Published
+
+In `tomaszstaniak/arospkg-index` at commit `865b625` (2026-09-25), by the
+index maintainer. Checked 2026-09-26 on `v11-1` with the public apkg 0.2
+(`a513aea7`) and no local index: `apkg update` fetched the public index,
+`apkg search openloco` lists `0.1.0-rc1`, `apkg install openloco` installed
+and verified it; the downloaded archive, copied off the guest, has SHA-256
+`59fb5f11…efe0`. Evidence: `evidence-2026-09-26-published/`.
