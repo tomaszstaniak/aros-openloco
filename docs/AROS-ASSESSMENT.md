@@ -10,7 +10,7 @@ Assessment of 2026-09-12. Scope: native AROS x86_64, two separate ABIs.
 **Primary target: ABIv11.** mainline v1 as the second target.
 
 Backlog of open items: `docs/backlog/open-questions.md`.
-Shared rules: `../../AGENTS.md`, platform facts: `../../docs/platform/`.
+Shared rules: `../AGENTS.md` and the AROS-dev rules it names; platform facts: AROS-dev `docs/platform/`.
 
 ## Verdict
 
@@ -48,7 +48,7 @@ From `thirdparty/CMakeLists.txt`, not from the README:
   game's own callbacks, a pixel-for-pixel round trip, with no reference to
   `Z1Base`/`PNGBase` in the binary - `tests/png-smoke/`. An earlier version of
   this assessment simply said both SDKs have them, which was too strong.
-  Details: `../../docs/platform/libraries.md`.
+  Details: AROS-dev `docs/platform/libraries.md`.
 - **fmt 11.1.4, sfl 2.2.0, yaml-cpp 0.9.0** - fetched by CMake, plain C++.
 - **TBB** - through `<execution>`. More below; it is not a one-line change.
 - **libzip** - **not used.** The README lists it, but there is not a single

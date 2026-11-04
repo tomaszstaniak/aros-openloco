@@ -33,7 +33,7 @@ can be recreated by `git clone` alone:
 
 | What | Where | Why not in the repository | If it is lost |
 |---|---|---|---|
-| original game assets, 510 MB | `~/Work/AROS/assets-staging/Locomotion/` | copyrighted, your own copy of the game | copy them again from a Locomotion installation |
+| original game assets, 510 MB | `local/Locomotion/` in the product workspace | copyrighted, your own copy of the game | copy them again from a Locomotion installation |
 | asset disk image, 700 MB | `~/Work/AROS/loco-assets.img` | derived from the above | rebuild it with the procedure in `../evidence/menu-abiv11/RESULTS.md` |
 | the AROS One guest system | `~/Work/AROS/aros-one-hd.qcow2` | shared testbench | outside this project |
 | the `loco` machine disk, 3 GB | `~/Work/AROS/aros-loco-hd.qcow2` | a copy of the above | `cp aros-one-hd.qcow2 aros-loco-hd.qcow2` |
@@ -1155,7 +1155,7 @@ that machine had been filled in by hand months ago:
    game warns on every start.
 
 **Assets on the slot:** the 510 MB `Locomotion` directory from
-`~/Work/AROS/assets-staging/Locomotion` (642 files, no resource-fork debris) is
+the product workspace's `local/Locomotion` (642 files, no resource-fork debris) is
 extracted to `AROS:Locomotion` on `v11-1` and **left there**. It is not in this
 repository and not in the release package - it is a copyrighted game's data.
 A later user of that slot will find it; a reused machine is not a clean

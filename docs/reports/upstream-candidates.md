@@ -106,7 +106,7 @@ because the code is fragile for everyone.
 **Prepared 2026-09-25, not sent:**
 `upstream-patches/0001-Only-strip-the-project-path-from-source-locations-th.patch`,
 against upstream `b805fa1a` (2026-09-24; applies cleanly), kept on branch
-`source-location-prefix-check` in `~/Work/AROS-dev/openloco-upstream-fix`.
+`source-location-prefix-check` in the ignored OpenLoco clone `work/openloco-upstream-fix`.
 It adds a two-argument `Detail::sanitizePath(path, projectPath)` that strips
 the prefix only when `path` starts with it and a separator follows (`/` and
 `\` treated as equal, because MSVC's `__FILE__` uses backslashes while

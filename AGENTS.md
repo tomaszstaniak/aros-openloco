@@ -1,16 +1,18 @@
 # aros-openloco - project rules
 
-The shared rules are in `../AGENTS.md` and apply here in full. Below is only
+The workspace rules in `../AGENTS.md` and the shared AROS-dev rules they
+name apply here in full. Below is only
 what is specific to this port.
 
 ## This is the working repository
 
 Since the first public release (2026-09-25) this checkout -
-`~/Work/AROS-dev/aros-openloco-publish`, remote
+`aros-openloco/` in the product workspace
+`/Volumes/Work/AROS-dev/aros-games/aros-openloco`, remote
 `github.com/tomaszstaniak/aros-openloco` - is the **only** place where the port
-is developed. `~/Work/AROS-dev/aros-openloco` is the archive of the history
-before publication and of evidence that was not published; its history
-diverged when this copy was cleaned for publication. Do not develop in both.
+is developed. The history before publication, with evidence that was not
+published, is kept privately in the workspace (`docs/archive/`, a Git bundle);
+its history diverged when this copy was cleaned for publication. Do not develop in both.
 
 Releases: a published tag and its assets are never replaced. A fix ships as
 the next release candidate (`v0.1.0-rc2`, ...), tested again from its own
@@ -77,7 +79,7 @@ today, but as a static build alongside the AROS build system - not as contrib's
 
 ## Traps that have already cost an afternoon
 
-Full list: `../docs/platform/porting-notes.md` - **read it before the first
+Full list: the shared AROS-dev `docs/platform/porting-notes.md` - **read it before the first
 build**, not after. Three of them hit this port directly:
 
 - **Do not strip the binary fully.** `x86_64-aros-strip` without flags produces
@@ -96,6 +98,6 @@ build**, not after. Three of them hit this port directly:
 
 ## Running on the machines
 
-The testbench is shared - rules in `../docs/platform/testbench.md`. ABIv11 is
+The testbench is shared - rules in the shared AROS-dev `docs/platform/testbench.md`. ABIv11 is
 machine `one`. Test programs write their result to a file (`PROGDIR:*.log`)
 rather than the console, because the Shell may contain another session's output.

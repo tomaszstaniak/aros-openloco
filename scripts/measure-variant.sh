@@ -3,7 +3,7 @@
 # alone for the measured stretch, capture, exit, shut the guest down.
 #   runvariant.sh <label>
 set -e
-S=$(dirname "$0"); L=$1
+S=$(cd "$(dirname "$0")" && pwd); L=$1
 export AROS_QEMU_QMP=/tmp/aros-loco-qmp.sock AROS_QEMU_MONITOR=/tmp/aros-loco-monitor.sock
 cd ~/Work/AROS
 V() { python3 tools/vmctl.py "$@"; }
@@ -12,7 +12,7 @@ if hdiutil info | grep -q "loco-home.img"; then
     echo "loco-home.img is still attached on the host - detach it first" >&2; exit 1
 fi
 "$S/hoststate.sh" "$L before" > /tmp/aros-openloco/M-$L.host
-(cd ~/Work/AROS-dev/aros-openloco && AROS_VM_OWNER=openloco-session nohup scripts/run-loco-vm.sh > /tmp/aros-openloco/vm-$L.log 2>&1 &)
+(cd "$S/.." && AROS_VM_OWNER=openloco-session nohup scripts/run-loco-vm.sh > /tmp/aros-openloco/vm-$L.log 2>&1 &)
 until [ -S /tmp/aros-loco-qmp.sock ]; do sleep 2; done
 sleep 3; V type "" ret                       # past GRUB
 until V shot /tmp/aros-openloco/M-$L-boot.png 2>/dev/null | grep -q 1680x1050; do sleep 5; done
