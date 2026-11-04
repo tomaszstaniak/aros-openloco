@@ -193,7 +193,8 @@ refuses such a binary.
 
 Tested on an emulated Raspberry Pi 3 only (QEMU, AROS nightly 2026-10-29,
 single-core and SMP kernels), never on real hardware; sound reached only AHI's
-silent VOID unit. The archive `openloco.aarch64-aros-raspi.lha` carries its own
+silent VOID unit. The archives `openloco.aarch64-aros-raspi.lha` and `.zip`
+(the Pi system has no lha or unzip, so users extract elsewhere) carry their own
 README (`docs/user-readme.aros-aarch64-abiv1-raspi.md`) with what was tested
 and what was not.
 

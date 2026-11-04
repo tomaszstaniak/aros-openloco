@@ -66,10 +66,13 @@ file. If the path is wrong, the game reports that the folder is missing
 
 ## Installing
 
-1. Extract the archive somewhere writable, for example
-   `cd Work:Games` then `lha x openloco.aarch64-aros-raspi.lha`. It creates the
-   drawer `OpenLoco`. If your system has no `lha`, extract the archive on
-   another computer and copy the `OpenLoco` drawer over.
+1. **Extract the archive on another computer** and copy the drawer it
+   creates, `OpenLoco`, onto the Pi - onto its SD card or a USB stick, for
+   example to `Work:Games/OpenLoco`. AROS for the Raspberry Pi has no `lha`
+   or `unzip` of its own, which is why there is a `.zip` next to the `.lha`:
+   macOS and Windows open a `.zip` without extra tools. If you have installed
+   an `lha` on the Pi, `lha x openloco.aarch64-aros-raspi.lha` there works
+   too.
 2. Make your Locomotion files reachable at the path in `openloco.yml`
    (default `Locodata:Locomotion`), as described above.
 3. From a Shell: `cd` into the drawer and run
@@ -81,9 +84,9 @@ stack is too small for the game; `Run-OpenLoco` raises it to 1 MB, checks that
 it is run from the right drawer with nothing missing, and starts the game. If
 you prefer to type it yourself, `stack 1048576` once per Shell does the same.
 
-If the program was copied over from another computer and the Shell says
-`file is not executable`, set its execute bit with `protect OpenLoco +e`
-(FAT volumes do not keep it).
+If the Shell says `file is not executable` (the copy lost the program's
+execute bit, which FAT volumes and some extractors do not keep), set it once
+with `protect OpenLoco +e` in the drawer.
 
 The first run writes the rest of `openloco.yml` itself. Log lines go to the
 Shell; redirect them with `OpenLoco >run.log` if you want to keep them.
@@ -99,7 +102,8 @@ Pi is **not known yet** - please report it.
 ## What was tested
 
 On an emulated Raspberry Pi 3 (QEMU raspi3b, 1 GB, AROS nightly 2026-10-29),
-with this archive as published: extracted with `lha`, started through
+with this release as published: the `.zip` extracted on another computer and
+the drawer copied to the Pi, started through
 `Run-OpenLoco`, the title menu, a scenario, track, a station and a train built
 and running, keyboard text entry, saving under a new name, a clean exit, a
 reboot, and the save loaded again. On the SMP kernel: start, a scenario and a

@@ -9,7 +9,8 @@
 # expects and what is known to be wrong with it.
 #
 # With OPENLOCO_ARCHIVE_NAME set it also packs the drawer into that .lha and
-# writes its SHA-256 next to it. It uploads nothing; publishing is separate.
+# writes its SHA-256 next to it; OPENLOCO_ZIP_NAME does the same as a .zip.
+# It uploads nothing; publishing is separate.
 set -e
 . "$(dirname "$0")/env.sh"
 
@@ -155,6 +156,17 @@ if [ -n "${OPENLOCO_ARCHIVE_NAME:-}" ]; then
     (cd "$PORT_ROOT/release/$ABI" && shasum -a 256 "$OPENLOCO_ARCHIVE_NAME" > "$OPENLOCO_ARCHIVE_NAME.sha256")
     echo "archive: $LHA"
     cat "$LHA.sha256"
+fi
+# A .zip of the same drawer, for an ABI whose system has no lha (AROS on the
+# Raspberry Pi): users extract it on another computer. -X leaves out host
+# file attributes; the drawer name is stored, as in the .lha.
+if [ -n "${OPENLOCO_ZIP_NAME:-}" ]; then
+    ZIP=$PORT_ROOT/release/$ABI/$OPENLOCO_ZIP_NAME
+    rm -f "$ZIP" "$ZIP.sha256"
+    (cd "$PORT_ROOT/release/$ABI" && zip -qrX "$OPENLOCO_ZIP_NAME" OpenLoco)
+    (cd "$PORT_ROOT/release/$ABI" && shasum -a 256 "$OPENLOCO_ZIP_NAME" > "$OPENLOCO_ZIP_NAME.sha256")
+    echo "archive: $ZIP"
+    cat "$ZIP.sha256"
 fi
 echo "prepared $OUT"
 echo "  version: $VERSION"
