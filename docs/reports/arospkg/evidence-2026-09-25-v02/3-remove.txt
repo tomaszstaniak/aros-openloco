@@ -1,3 +1,0 @@
-note: 1 file(s) changed locally were kept in SYS:PkgLoco3/openloco:
-      openloco.yml
-removed openloco

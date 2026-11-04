@@ -114,7 +114,8 @@ the cycle gadget at the top, choose your card's mode (e.g.
   kept running and the cause is unknown.
 - One unfreed signal bit is reported on exit; harmless as far as seen.
 
-The full list, with evidence, is in `docs/backlog/open-questions.md`.
+The full list of open issues is kept in the port's private tracker; the
+limitations above are the ones that affect users.
 
 ## What the package contains
 
@@ -174,11 +175,10 @@ from a dirty tree or a reused CMake configuration. Do not fully strip the
 binary: AROS needs its relocations.
 Absolute source paths end up in the binary through `__FILE__` (upstream strips
 them at run time, so they cannot be remapped with `-ffile-prefix-map` - see
-backlog item 33); release builds are therefore made from a checkout whose path
+tracker item 33); release builds are therefore made from a checkout whose path
 says nothing about the builder.
 
-A newer GCC (13.4) was evaluated and not adopted for the release; see
-`docs/reports/gcc13-evaluation.md`.
+A newer GCC (13.4) was evaluated and not adopted for the release.
 
 ## Layout
 
@@ -191,12 +191,13 @@ scripts/                bootstrap, dependencies, builds, packaging
 toolchains/             CMake toolchain files, one per ABI
 tests/                  the port's own reproducers and runtime tests
 licenses/               licence texts of everything in the package
-docs/                   assessment, backlog, reports and the evidence they cite
+patches/upstream/       fixes prepared for submission to OpenLoco itself
+docs/                   user-facing documentation shipped in the package
 ```
 
 `upstream*/`, `work*/`, `build*/`, `deps/` and `release/` are generated and
 not versioned. Upstream checkouts are never edited; changes are made in the
 work tree and saved as patches with `scripts/save-patch.sh`.
 
-Testing used a shared pool of QEMU machines on the author's machine; the
-procedures and evidence in `docs/` refer to it.
+Testing used a shared pool of QEMU machines on the author's machine. Test
+records and the development backlog are kept outside this repository.

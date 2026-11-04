@@ -5,7 +5,7 @@
 # QEMU directly, with its own disks and raw QMP, outside the pool's ownership
 # and its five-machine limit.
 #
-# Kept in the tree because every result in docs/evidence up to 2026-09-23 was
+# Kept in the tree because every test result up to 2026-09-23 was
 # produced with it, and those records refer to it. Use ./vm.sh in ~/Work/AROS.
 echo "run-loco-vm.sh is retired - use the VM pool (AROS/documentation/vm-pool.md)." >&2
 echo "Set LOCO_LEGACY_VM=1 to run it anyway, knowing it bypasses the pool." >&2
@@ -58,7 +58,7 @@ DISK=aros-loco-hd.qcow2
 DISK2=${LOCO_DISK2:-loco-home.img}
 DISK3=${LOCO_DISK3:-loco-assets.img}
 for img in "$DISK2" "$DISK3"; do
-    [ -f "$img" ] || { echo "no $img in $AROS_TESTBENCH - see docs/backlog/open-questions.md, 'Returning after a break'" >&2; exit 1; }
+    [ -f "$img" ] || { echo "no $img in $AROS_TESTBENCH - see the project notes, 'Returning after a break'" >&2; exit 1; }
 done
 
 # Refuse to run twice: two QEMUs on one qcow2 is the failure this script exists

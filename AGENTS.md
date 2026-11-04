@@ -12,7 +12,13 @@ Since the first public release (2026-09-25) this checkout -
 `github.com/tomaszstaniak/aros-openloco` - is the **only** place where the port
 is developed. The history before publication, with evidence that was not
 published, is kept privately in the workspace (`docs/archive/`, a Git bundle);
-its history diverged when this copy was cleaned for publication. Do not develop in both.
+its history diverged when this copy was cleaned for publication.
+
+Since 2026-11-04 the backlog (`open-questions.md`, the "backlog items" cited in
+comments), test evidence, reports and the assessment are private: they live in
+the workspace `../docs/` (`backlog/`, `evidence/`, `reports/`, `research/`), not
+in this public repository. Do not add them back here; `docs/` holds only
+user-facing documentation. Do not develop in both.
 
 Releases: a published tag and its assets are never replaced. A fix ships as
 the next release candidate (`v0.1.0-rc2`, ...), tested again from its own

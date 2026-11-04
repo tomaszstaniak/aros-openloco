@@ -13,8 +13,8 @@ Flags mirror upstream's cmake/OpenLocoCommon.cmake. Any divergence has to be
 explicit and commented: a probe with different flags invents failures the real
 build never sees, and we were bitten by exactly that once (-fno-char8_t).
 
-Results land in docs/evidence/compile-probe/<abi>/ so they are versioned with
-the claims that cite them.
+Results land in build/compile-probe/<abi>/ (generated, not versioned), or in
+COMPILE_PROBE_DIR when set; keep the runs a claim cites with the private records.
 """
 from pathlib import Path
 import json
@@ -24,7 +24,7 @@ import sys
 
 PORT_ROOT = Path(__file__).resolve().parent.parent
 WORK = Path(os.environ.get('WORK_DIR', PORT_ROOT / 'work/OpenLoco'))
-EVIDENCE = PORT_ROOT / 'docs/evidence/compile-probe'
+EVIDENCE = Path(os.environ.get('COMPILE_PROBE_DIR', PORT_ROOT / 'build/compile-probe'))
 
 ABIS = [
     # ABIv11 first: it is the primary target.

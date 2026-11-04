@@ -1,3 +1,0 @@
-apkg: another instance is running
-     SYS:PkgLoco2/db/lock.owner
-     RAM:ap/apkg
