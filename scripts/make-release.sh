@@ -62,8 +62,11 @@ cp "$PORT_ROOT"/licenses/*.txt "$OUT/Licenses/"
 [ -d "$PORT_ROOT/licenses/$ABI" ] && cp "$PORT_ROOT/licenses/$ABI"/*.txt "$OUT/Licenses/"
 cp "$PORT_ROOT/THIRD-PARTY-NOTICES.md" "$OUT/Licenses/"
 cp "$PORT_ROOT/LICENSE" "$OUT/Licenses/aros-openloco-LICENSE.txt"
+# An ABI with its own user README (the Raspberry Pi build) uses that one.
+README_SRC=$PORT_ROOT/docs/user-readme.md
+[ -f "$PORT_ROOT/docs/user-readme.$ABI.md" ] && README_SRC=$PORT_ROOT/docs/user-readme.$ABI.md
 sed -e "s|@VERSION@|$VERSION|" -e "s|@SHA@|$SHA|" \
-    "$PORT_ROOT/docs/user-readme.md" > "$OUT/README.md"
+    "$README_SRC" > "$OUT/README.md"
 cat > "$OUT/openloco.yml" <<'EOF'
 # Where your own copy of Chris Sawyer's Locomotion is installed.
 # Change this line if your assets are somewhere else; everything else is
