@@ -33,7 +33,10 @@ fi
 
 DEST=$PATCH_DIR
 mkdir -p "$DEST"
-NN=$(printf '%02d' $(( $(ls "$DEST"/*.diff 2>/dev/null | wc -l | tr -d ' ') + 1 )))
+# One above the highest number in use, not the count plus one: the set has
+# gaps (18, 19, 22, 24 were retired), and the count collided with patch 23.
+LAST=$(ls "$DEST"/*.diff 2>/dev/null | sed 's|.*/||' | cut -d- -f1 | sort -n | tail -1)
+NN=$(printf '%02d' $(( 10#${LAST:-0} + 1 )))
 OUT=$DEST/$NN-$NAME.diff
 
 {

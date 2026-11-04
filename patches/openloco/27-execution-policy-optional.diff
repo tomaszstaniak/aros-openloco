@@ -1,0 +1,40 @@
+# execution-policy-optional
+#
+# libc++, the C++ library of the Raspberry Pi build, has no
+# std::execution::par (libc++ 20 offers it only as an experimental feature),
+# so Viewport::paint draws its columns with the sequential overload there.
+# The x86_64 builds use libstdc++ without TBB, which already runs the
+# parallel overload sequentially; nothing changes for them.
+#
+# Against OpenLoco af445f8dc6632c6341fc7b26c3246685406e6815, applied with -p1 by scripts/bootstrap.sh.
+# Saved 2026-11-04.
+
+diff --git a/src/OpenLoco/src/Viewport.cpp b/src/OpenLoco/src/Viewport.cpp
+index 6bfa899..a2e9e75 100644
+--- a/src/OpenLoco/src/Viewport.cpp
++++ b/src/OpenLoco/src/Viewport.cpp
+@@ -184,7 +184,7 @@ namespace OpenLoco::Ui
+             columns.push_back(columnRt);
+         }
+ 
+-        std::for_each(std::execution::par, columns.begin(), columns.end(), [&](const auto& columnRt) {
++        auto drawColumn = [&](const auto& columnRt) {
+             // TODO: This bypasses the interface currently, needs refactoring to create a new drawing context per thread.
+             Gfx::SoftwareDrawingContext columnDrawingCtx;
+             columnDrawingCtx.pushRenderTarget(columnRt);
+@@ -213,7 +213,14 @@ namespace OpenLoco::Ui
+ 
+             sess.drawStringStructs(columnDrawingCtx);
+             drawRoutingNumbers(columnDrawingCtx, zoom);
+-        });
++        };
++        // Parallel execution policies need a standard library that implements
++        // them; libc++ 20 does so only as an experimental feature.
++#if defined(__cpp_lib_execution) && !defined(_LIBCPP_VERSION)
++        std::for_each(std::execution::par, columns.begin(), columns.end(), drawColumn);
++#else
++        std::for_each(columns.begin(), columns.end(), drawColumn);
++#endif
+     }
+ 
+     // 0x004CA444

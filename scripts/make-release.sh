@@ -57,6 +57,9 @@ done
 # Licences of everything the binary contains or ships with.
 mkdir -p "$OUT/Licenses"
 cp "$PORT_ROOT"/licenses/*.txt "$OUT/Licenses/"
+# Components only one ABI's binary contains (the Raspberry Pi build links
+# openal-soft, libiconv and LLVM's C++ runtime statically).
+[ -d "$PORT_ROOT/licenses/$ABI" ] && cp "$PORT_ROOT/licenses/$ABI"/*.txt "$OUT/Licenses/"
 cp "$PORT_ROOT/THIRD-PARTY-NOTICES.md" "$OUT/Licenses/"
 cp "$PORT_ROOT/LICENSE" "$OUT/Licenses/aros-openloco-LICENSE.txt"
 sed -e "s|@VERSION@|$VERSION|" -e "s|@SHA@|$SHA|" \

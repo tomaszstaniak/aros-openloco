@@ -38,6 +38,7 @@ SDL3_VER=3.4.12
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-langinfo-guard.diff"
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-hidden-window-framebuffer.diff"
     patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-text-input.diff"
+    patch -p1 -d "SDL3-$SDL3_VER" < "$PORT_ROOT/patches/dependencies/sdl3-3.4.12-aros-gl-optional.diff"
 }
 
 # OpenAL, only where the SDK has none. ABIv11's SDK ships libopenal.a - link
@@ -69,6 +70,29 @@ if [ ! -f "$(abi_sdk "$ABI")/lib/libopenal.a" ]; then
     [ -d "openal-soft-$OPENAL_VER" ] || {
         tar xjf "openal-soft-$OPENAL_VER.tar.bz2"
         patch -p1 -s -d "openal-soft-$OPENAL_VER" < "contrib-openal/openal-soft-$OPENAL_VER-aros.diff"
+    }
+fi
+
+# libiconv, only where the SDK has no iconv.h: the Raspberry Pi SDK. Both
+# SDL3's AROS configuration and OpenLoco's Utility/String.cpp use iconv.
+# GNU libiconv 1.19 with contrib's AROS diff, the recipe burntime-rs uses for
+# the same SDK; scripts/build-iconv.sh builds it.
+if [ ! -f "$(abi_sdk "$ABI")/include/iconv.h" ] && [ ! -f "$(abi_sdk "$ABI")/SDK/Extras/include/iconv.h" ]; then
+    ICONV_VER=1.19
+    ICONV_TAR_SHA256=88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6
+    CONTRIB_ICONV_COMMIT=45327d2cee6bf27830de1ecef816804dc9259560
+    CONTRIB_ICONV_DIFF_SHA256=8511387230138865a27facc7549b354caa7273d0d53c9308eca9bb2b5b307212
+    [ -f "libiconv-$ICONV_VER.tar.gz" ] || curl -fsSL -o "libiconv-$ICONV_VER.tar.gz" \
+        "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$ICONV_VER.tar.gz"
+    [ "$(shasum -a 256 "libiconv-$ICONV_VER.tar.gz" | cut -d' ' -f1)" = "$ICONV_TAR_SHA256" ] || {
+        echo "libiconv-$ICONV_VER.tar.gz: checksum mismatch - refusing" >&2; exit 1; }
+    [ -f "libiconv-$ICONV_VER-aros.diff" ] || curl -fsSL -o "libiconv-$ICONV_VER-aros.diff" \
+        "https://raw.githubusercontent.com/aros-development-team/contrib/$CONTRIB_ICONV_COMMIT/development/libs/libiconv/libiconv-$ICONV_VER-aros.diff"
+    [ "$(shasum -a 256 "libiconv-$ICONV_VER-aros.diff" | cut -d' ' -f1)" = "$CONTRIB_ICONV_DIFF_SHA256" ] || {
+        echo "libiconv-$ICONV_VER-aros.diff: checksum mismatch - refusing" >&2; exit 1; }
+    [ -d "libiconv-$ICONV_VER" ] || {
+        tar xzf "libiconv-$ICONV_VER.tar.gz"
+        patch -p1 -s -d "libiconv-$ICONV_VER" < "libiconv-$ICONV_VER-aros.diff"
     }
 fi
 

@@ -37,6 +37,25 @@ through the SDK's link stubs; it is part of AROS One, not of this package.
 Locomotion (graphics, sounds, music, scenarios). You need your own copy of
 the original game.
 
+## The Raspberry Pi build
+
+The `aros-aarch64-abiv1-raspi` binary (not released yet) is built with Clang
+20.1.0 instead of GCC and against the SDK of the AROS Raspberry Pi nightly of
+2026-10-29. Its SDL3 has the OpenGL backend compiled out. Besides the table
+above, without the GCC runtime, it contains:
+
+| component | version | where | licence | text |
+|---|---|---|---|---|
+| openal-soft | 1.19.1 with contrib's AROS diff (AHI backend) | linked in | LGPL-2.0-or-later | `openal-soft-COPYING.txt` |
+| GNU libiconv | 1.19 with contrib's AROS diff | linked in | LGPL-2.1-or-later | `libiconv-COPYING.LIB.txt` |
+| libc++, libc++abi, libunwind, compiler-rt builtins | LLVM 20.1.0 with the AROS diffs | linked in | Apache-2.0 WITH LLVM-exception | `LLVM-LICENSE.txt` |
+| libpng, zlib | from the Raspberry Pi SDK | linked in | as above | as above |
+
+The two LGPL libraries are linked statically. Their exact sources are the
+release tarballs and contrib diffs pinned by checksum in
+`scripts/fetch-deps.sh`; this repository's scripts rebuild them and relink the
+game from source.
+
 ## Names
 
 OpenLoco is an open-source re-implementation of Chris Sawyer's Locomotion.

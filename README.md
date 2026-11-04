@@ -180,6 +180,29 @@ says nothing about the builder.
 
 A newer GCC (13.4) was evaluated and not adopted for the release.
 
+### Raspberry Pi (aarch64, ABIv1): built, not yet run
+
+The ABI `aros-aarch64-abiv1-raspi` builds the same release sources with the
+Raspberry Pi toolchain (Clang 20.1.0) against the SDK of the AROS Raspberry
+Pi nightly of 2026-10-29. That SDK has no C++ library, SDL3, OpenAL or iconv,
+so all four are built here and linked statically; SDL3's OpenGL backend is
+compiled out, since the game draws with SDL's software renderer anyway. The
+binary has not been started on a Pi yet.
+
+```sh
+# with the release variant exported as above
+scripts/fetch-cxxrt.sh <aros-boxerapp>/deps/aros-aarch64-abiv1-raspi/cxxrt
+scripts/fetch-deps.sh aros-aarch64-abiv1-raspi
+scripts/build-iconv.sh aros-aarch64-abiv1-raspi
+scripts/build-sdl3.sh aros-aarch64-abiv1-raspi
+scripts/build-openal.sh aros-aarch64-abiv1-raspi
+scripts/make-cmake-packages.sh aros-aarch64-abiv1-raspi
+OPENLOCO_FRESH_CONFIGURE=1 scripts/build-openloco.sh aros-aarch64-abiv1-raspi
+```
+
+`AROS_RASPI_TOOLCHAIN` and `AROS_RASPI_SDK` override the toolchain and SDK
+paths (`scripts/env.sh`).
+
 ## Layout
 
 ```

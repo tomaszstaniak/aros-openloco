@@ -30,6 +30,9 @@ for f in SDL3_static.c SDL3_intern.h mmakefile.src; do
         "https://raw.githubusercontent.com/aros-development-team/contrib/master/SDL3/main/$f"
 done
 
+# No OpenGL on the Raspberry Pi: see build-sdl3.py.
+case "$ABI" in aros-aarch64-abiv1-raspi) NO_GL=--no-gl ;; *) NO_GL= ;; esac
 exec python3 "$(dirname "$0")/build-sdl3.py" \
     --deps "$DEPS" --toolchain "$(abi_toolchain "$ABI")" --sdk "$(abi_sdk "$ABI")" \
+    --cc "$(abi_cc "$ABI")" --ar "$(abi_tool "$ABI" ar)" $NO_GL \
     --build "$(abi_build "$ABI")"

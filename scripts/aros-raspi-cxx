@@ -1,0 +1,16 @@
+#!/bin/sh
+# C++ compiler for aros-aarch64-abiv1-raspi. Neither the toolchain nor the SDK
+# has a C++ standard library; deps/<abi>/cxxrt holds libc++, libc++abi and
+# libunwind 20.1.0 (see scripts/fetch-cxxrt.sh). Plain char is unsigned on
+# this target and OpenLoco was written where it is signed: -fsigned-char.
+. "$(dirname "$0")/env.sh"
+ABI=aros-aarch64-abiv1-raspi
+RPI_SDK=$(abi_sdk $ABI); export RPI_SDK
+CXXRT=${AROS_RASPI_CXXRT:-$(abi_deps $ABI)/cxxrt}
+# The library directory only where something is linked.
+LINK=-L$CXXRT/lib
+for arg in "$@"; do
+    case "$arg" in -c|-E|-S|-M|-MM|-fsyntax-only) LINK= ;; esac
+done
+exec "$(abi_toolchain $ABI)/bin/aarch64-aros-clang++" -fsigned-char -nostdinc++ \
+    -isystem "$CXXRT/include/c++/v1" $LINK "$@"

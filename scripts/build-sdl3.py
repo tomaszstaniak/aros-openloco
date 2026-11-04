@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compile contrib's SDL3-aros-staticlib file list with the ABIv11 toolchain."""
+"""Compile contrib's SDL3-aros-staticlib file list with one ABI's toolchain.
+
+--no-gl compiles the OpenGL video backend and renderer out (Raspberry Pi):
+OpenLoco draws with SDL's software renderer anyway, and without GL the game
+never opens gl.library."""
 import argparse, re, subprocess, sys, datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -9,12 +13,15 @@ ap.add_argument('--deps', required=True)
 ap.add_argument('--toolchain', required=True)
 ap.add_argument('--sdk', required=True)
 ap.add_argument('--build', required=True)
+ap.add_argument('--cc')
+ap.add_argument('--ar')
+ap.add_argument('--no-gl', action='store_true')
 a = ap.parse_args()
 
 deps, prefix = Path(a.deps), Path(a.deps)
 src = deps / 'src/SDL3-3.4.12'
-cc = Path(a.toolchain) / 'x86_64-aros-gcc'
-ar = Path(a.toolchain) / 'x86_64-aros-ar'
+cc = Path(a.cc or Path(a.toolchain) / 'x86_64-aros-gcc')
+ar = Path(a.ar or Path(a.toolchain) / 'x86_64-aros-ar')
 sdk = Path(a.sdk)
 
 # FILES := \ ... one $(ARCHSRCDIR)/path per line, no extension.
@@ -47,6 +54,24 @@ extras_inc = sdk / 'SDK/Extras/include'
 extras_lib = sdk / 'SDK/Extras/lib'
 if extras_inc.is_dir():
     INCLUDES.append(f'-I{extras_inc}')
+# An SDK without iconv (Raspberry Pi): scripts/build-iconv.sh puts iconv.h and
+# libiconv.a under deps/<abi>.
+own_iconv = (deps / 'include/iconv.h').is_file()
+if own_iconv:
+    INCLUDES.append(f'-I{deps}/include')
+
+# The configuration header is edited in place for --no-gl, so keep the
+# original once and always start from it.
+cfg = src / 'include/build_config/SDL_build_config_aros.h'
+orig = cfg.with_suffix('.h.orig')
+if not orig.exists():
+    orig.write_bytes(cfg.read_bytes())
+text = orig.read_text()
+if a.no_gl:
+    for d in ('SDL_VIDEO_OPENGL', 'SDL_VIDEO_OPENGL_AGL', 'SDL_VIDEO_RENDER_OGL'):
+        text, n = re.subn(rf'^#define {d} 1$', f'/* #undef {d} */ /* --no-gl */', text, flags=re.M)
+        assert n == 1, f'{d} not found once in {orig}'
+cfg.write_text(text)
 CFLAGS = ['-std=gnu99', '-O2', '-DSDL3_AROS_STATIC', f'-DADATE="{adate}"',
           '-Wno-stringop-truncation', '-w']
 
@@ -99,8 +124,9 @@ if(NOT TARGET SDL3::SDL3)
     set_target_properties(SDL3::SDL3 PROPERTIES
         IMPORTED_LOCATION "{lib}"
         INTERFACE_INCLUDE_DIRECTORIES "{prefix / 'include'}"
-        INTERFACE_LINK_LIBRARIES "GL;iconv;pthread;m"{f'''
-        INTERFACE_LINK_DIRECTORIES "{extras_lib}"''' if extras_lib.is_dir() else ''})
+        INTERFACE_LINK_LIBRARIES "{'' if a.no_gl else 'GL;'}iconv;pthread;m"{f'''
+        INTERFACE_LINK_DIRECTORIES "{extras_lib}"''' if extras_lib.is_dir() else ''}{f'''
+        INTERFACE_LINK_DIRECTORIES "{deps / 'lib'}"''' if own_iconv else ''})
 endif()
 # OpenLoco links SDL3::SDL3; these aliases exist because upstream projects vary.
 if(NOT TARGET SDL3::SDL3-static)

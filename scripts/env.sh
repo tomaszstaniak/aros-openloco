@@ -34,13 +34,16 @@ export UPSTREAM_DIR WORK_DIR PATCH_DIR
 # a result that does not say which ABI it came from is not a result.
 #   abiv11      AROS One 64-bit, deadwood's ABI  -- primary target
 #   mainline-v1 mainline AROS x86_64             -- second target
-ABIS="abiv11 mainline-v1"
+#   aros-aarch64-abiv1-raspi  native AROS on the Raspberry Pi (aarch64, ABIv1)
+ABIS="abiv11 mainline-v1 aros-aarch64-abiv1-raspi"
 export ABIS
 
 abi_toolchain() {
     case "$1" in
         abiv11)      echo "${AROS_ABIV11_TOOLCHAIN:-$HOME/Work/AROS/toolchain}" ;;
         mainline-v1) echo "${AROS_MAINLINE_TOOLCHAIN:-/Volumes/arosmain/toolchain-mainline}" ;;
+        # Clang 20.1.0; the directory holds bin/aarch64-aros-*.
+        aros-aarch64-abiv1-raspi) echo "${AROS_RASPI_TOOLCHAIN:-$HOME/Work/AROS/toolchains/raspi-aarch64}" ;;
         *) echo "unknown ABI '$1'" >&2; return 1 ;;
     esac
 }
@@ -49,6 +52,9 @@ abi_sdk() {
     case "$1" in
         abiv11)      echo "${AROS_ABIV11_SDK:-$HOME/Work/AROS/sdk}" ;;
         mainline-v1) echo "${AROS_MAINLINE_SDK:-/Volumes/arosmain/build/bin/pc-x86_64/AROS/Developer}" ;;
+        # Developer/ of the system the Pi runs; the default is the private
+        # workspace copy of the 2026-10-29 nightly (../local/raspi/).
+        aros-aarch64-abiv1-raspi) echo "${AROS_RASPI_SDK:-$PORT_ROOT/../local/raspi/sdk-20261029/Developer}" ;;
         *) echo "unknown ABI '$1'" >&2; return 1 ;;
     esac
 }
@@ -57,3 +63,26 @@ abi_sdk() {
 # a broken startup, not a mismatch. Toolchain, SDK and machine must agree.
 abi_deps()  { echo "${OPENLOCO_DEPS_ROOT:-$PORT_ROOT/deps}/$1"; }
 abi_build() { echo "${OPENLOCO_BUILD_ROOT:-$PORT_ROOT/build}/$1"; }
+
+# Tool names per ABI. The x86_64 toolchains are flat directories of GCC tools;
+# the Raspberry Pi toolchain is Clang with no C++ standard library, so its
+# compilers are our wrappers (scripts/aros-raspi-cc, -cxx), which add the SDK
+# and the libc++ in deps/<abi>/cxxrt.
+abi_cc() {
+    case "$1" in
+        aros-aarch64-abiv1-raspi) echo "$PORT_ROOT/scripts/aros-raspi-cc" ;;
+        *) echo "$(abi_toolchain "$1")/x86_64-aros-gcc" ;;
+    esac
+}
+abi_cxx() {
+    case "$1" in
+        aros-aarch64-abiv1-raspi) echo "$PORT_ROOT/scripts/aros-raspi-cxx" ;;
+        *) echo "$(abi_toolchain "$1")/x86_64-aros-g++" ;;
+    esac
+}
+abi_tool() {   # abi_tool <abi> ar|ranlib|nm|objdump
+    case "$1" in
+        aros-aarch64-abiv1-raspi) echo "$(abi_toolchain "$1")/bin/aarch64-aros-$2" ;;
+        *) echo "$(abi_toolchain "$1")/x86_64-aros-$2" ;;
+    esac
+}

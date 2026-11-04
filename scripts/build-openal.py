@@ -21,14 +21,18 @@ ap.add_argument('--deps', required=True)
 ap.add_argument('--toolchain', required=True)
 ap.add_argument('--sdk', required=True)
 ap.add_argument('--build', required=True)
+ap.add_argument('--cc')
+ap.add_argument('--ar')
+ap.add_argument('--arch', default='x86_64')
 a = ap.parse_args()
 
 VER = '1.19.1'
 deps = Path(a.deps)
 src = deps / f'src/openal-soft-{VER}'
 contrib = deps / 'src/contrib-openal'
-cc = Path(a.toolchain) / 'x86_64-aros-gcc'
-ar = Path(a.toolchain) / 'x86_64-aros-ar'
+cc = Path(a.cc or Path(a.toolchain) / 'x86_64-aros-gcc')
+ar = Path(a.ar or Path(a.toolchain) / 'x86_64-aros-ar')
+x86 = a.arch == 'x86_64'
 sdk = Path(a.sdk)
 gen = Path(a.build) / 'openal-gen'
 objdir = Path(a.build) / 'openal'
@@ -58,13 +62,16 @@ OPENAL32 = ['alAuxEffectSlot', 'alBuffer', 'alEffect', 'alError', 'alExtension',
             'alFilter', 'alListener', 'alSource', 'alState', 'sample_cvt', 'event']
 COMMON = ['alcomplex', 'almalloc', 'atomic', 'threads', 'rwlock', 'uintmap']
 ALC = ['ALc', 'ALu', 'bs2b', 'helpers', 'hrtf', 'panning',
-       'mixer/mixer_c', 'mixer/mixer_sse', 'mixer/mixer_sse2', 'mixer/mixer_sse3',
-       'alconfig', 'converter', 'mastering', 'ringbuffer', 'uhjfilter',
+       'mixer/mixer_c', 'alconfig', 'converter', 'mastering', 'ringbuffer', 'uhjfilter',
        'ambdec', 'bformatdec', 'mixvoice']
 BACKENDS = ['ahi', 'base', 'null', 'loopback', 'wave']
 EFFECTS = ['autowah', 'chorus', 'compressor', 'dedicated', 'distortion', 'echo',
            'equalizer', 'modulator', 'reverb', 'fshifter', 'pshifter']
 FILTERS = ['filter', 'nfc', 'splitter']
+# contrib's config.h enables SSE only for __x86_64__ and NEON nowhere, so on
+# aarch64 the C mixer is the only one, as in contrib's own build there.
+if x86:
+    ALC += ['mixer/mixer_sse', 'mixer/mixer_sse2', 'mixer/mixer_sse3']
 
 files = ([src / 'OpenAL32' / f for f in OPENAL32] +
          [src / 'common' / f for f in COMMON] +
@@ -78,11 +85,19 @@ for f in files:
     rel = f.relative_to(src) if f.is_relative_to(src) else Path('gen') / f.name
     units.append((f.with_suffix('.c'), objdir / (str(rel).replace('/', '_') + '.o')))
 
+# The SDK's own AL/ headers where it has them (mainline); otherwise the ones of
+# this openal-soft, installed under deps/include/AL for the game as well.
+sdk_al = (sdk / 'include/AL/al.h').is_file()
+if not sdk_al:
+    (deps / 'include/AL').mkdir(parents=True, exist_ok=True)
+    for h in (src / 'include/AL').glob('*.h'):
+        (deps / 'include/AL' / h.name).write_bytes(h.read_bytes())
 INCLUDES = [f'-I{gen}', f'-I{contrib}', f'-I{src}', '-iquote', f'{src}/include',
+            *([] if sdk_al else [f'-I{deps}/include']),
             f'-I{src}/OpenAL32/Include', f'-I{src}/Alc', f'-I{src}/common',
             f'-I{sdk}/include']
 CFLAGS = ['-std=gnu99', '-O2', '-ffast-math', '-Wall', '-w',
-          '-DAL_ALEXT_PROTOTYPES', '-D_GNU_SOURCE=1', '-msse', '-mfpmath=sse']
+          '-DAL_ALEXT_PROTOTYPES', '-D_GNU_SOURCE=1'] + (['-msse', '-mfpmath=sse'] if x86 else [])
 
 
 def build(u):

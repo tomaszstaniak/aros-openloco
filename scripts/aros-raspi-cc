@@ -1,0 +1,8 @@
+#!/bin/sh
+# C compiler for aros-aarch64-abiv1-raspi: the toolchain's Clang driver with
+# the SDK named by scripts/env.sh (abi_sdk). The toolchain's wrapper reads
+# RPI_SDK, so -t at link time names only this SDK.
+. "$(dirname "$0")/env.sh"
+ABI=aros-aarch64-abiv1-raspi
+RPI_SDK=$(abi_sdk $ABI); export RPI_SDK
+exec "$(abi_toolchain $ABI)/bin/aarch64-aros-gcc" "$@"

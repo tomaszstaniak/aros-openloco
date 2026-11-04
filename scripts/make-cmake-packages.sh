@@ -32,6 +32,10 @@ else
     exit 1
 fi
 
+# AL/ headers: the SDK's, or those build-openal.py installed under deps/include.
+AL_INC=$SDK/include
+[ -f "$AL_INC/AL/al.h" ] || AL_INC=$DEPS/include
+
 DIR=$DEPS/lib/cmake/OpenAL
 mkdir -p "$DIR"
 cat > "$DIR/OpenALConfig.cmake" <<CFG
@@ -41,10 +45,10 @@ if(NOT TARGET OpenAL::OpenAL)
     add_library(OpenAL::OpenAL STATIC IMPORTED)
     set_target_properties(OpenAL::OpenAL PROPERTIES
         IMPORTED_LOCATION "$OPENAL_LIB"
-        INTERFACE_INCLUDE_DIRECTORIES "$SDK/include"
+        INTERFACE_INCLUDE_DIRECTORIES "$AL_INC"
         INTERFACE_LINK_LIBRARIES "$OPENAL_DEPS")
 endif()
-set(OPENAL_INCLUDE_DIR "$SDK/include")
+set(OPENAL_INCLUDE_DIR "$AL_INC")
 set(OPENAL_LIBRARY "$OPENAL_LIB")
 set(OpenAL_FOUND TRUE)
 CFG

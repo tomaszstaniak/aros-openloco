@@ -24,12 +24,15 @@ TOOLCHAIN=$PORT_ROOT/toolchains/$ABI.cmake
 # that image mounted, CMake's very first compiler check fails to link and
 # reports "is not able to compile a simple test program" - which reads like a
 # broken toolchain, not a missing mount. Say what it really is, up front.
+# The Raspberry Pi toolchain carries its own collect-aros and linker.
 AROS_LD=/Volumes/arosbuild/toolchain-core-x86_64/x86_64-aros-ld
+case "$ABI" in aros-aarch64-*) AROS_LD=$(abi_tool "$ABI" ld) ;; esac
 if [ ! -x "$AROS_LD" ]; then
     echo "$AROS_LD not found - /Volumes/arosbuild is not mounted." >&2
     echo "Mount it first:  hdiutil attach -readonly ~/Work/AROS/aros-build.sparseimage" >&2
     exit 1
 fi
+SDK=$(abi_sdk "$ABI")
 [ -d "$WORK_DIR/src" ] || { echo "no work tree - run scripts/bootstrap.sh" >&2; exit 1; }
 [ -f "$(abi_deps "$ABI")/lib/libSDL3_static.a" ] || {
     echo "no SDL3 for $ABI - run scripts/build-sdl3.sh $ABI" >&2; exit 1; }
@@ -175,7 +178,7 @@ if [ -f "$OUT" ]; then
         # it, and neither the toolchain nor the SDK is kept here.
         {
             echo "toolchain:  $(abi_toolchain "$ABI")"
-            echo "  g++:      $("$(abi_toolchain "$ABI")/x86_64-aros-g++" --version 2>/dev/null | head -1)"
+            echo "  c++:      $("$(abi_cxx "$ABI")" --version 2>/dev/null | head -1)"
             echo "sdk:        $SDK"
             echo "  version:  $(cat "$SDK/.version" 2>/dev/null || echo 'no .version file')"
             echo "cmake:      $(cmake --version 2>/dev/null | head -1)"

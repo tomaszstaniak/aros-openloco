@@ -1,0 +1,27 @@
+# sdl3-3.4.12-aros-gl-optional
+#
+# Install the AROS OpenGL entry points only when the OpenGL backend is built.
+# SDL_arosopengl.c compiles to nothing without SDL_VIDEO_OPENGL_AGL, but
+# SDL_arosvideo.c assigned its functions unconditionally, so a build with
+# OpenGL configured out (the Raspberry Pi build, scripts/build-sdl3.py
+# --no-gl) failed to link with nine undefined AROS_GL_* symbols. No change
+# where OpenGL is enabled. Applies on top of contrib's SDL3-3.4.12-aros.diff.
+#
+--- a/src/video/aros/SDL_arosvideo.c	2026-11-04 11:46:22
++++ b/src/video/aros/SDL_arosvideo.c	2026-11-04 11:46:22
+@@ -425,6 +425,7 @@
+ 			device->UpdateWindowFramebuffer = AROS_UpdateWindowFramebuffer;
+ 			device->DestroyWindowFramebuffer = AROS_DestroyWindowFramebuffer;
+ 			device->UpdateWindowShape = AROS_UpdateWindowShape;
++#if SDL_VIDEO_OPENGL_AGL
+ 			device->GL_LoadLibrary = AROS_GL_LoadLibrary;
+ 			device->GL_GetProcAddress = AROS_GL_GetProcAddress;
+ 			device->GL_UnloadLibrary = AROS_GL_UnloadLibrary;
+@@ -434,6 +435,7 @@
+ 			device->GL_GetSwapInterval = AROS_GL_GetSwapInterval;
+ 			device->GL_SwapWindow = AROS_GL_SwapWindow;
+ 			device->GL_DestroyContext = AROS_GL_DestroyContext;
++#endif
+ 			device->SetClipboardText = AROS_SetClipboardText;
+ 			device->GetClipboardText = AROS_GetClipboardText;
+ 			device->HasClipboardText = AROS_HasClipboardText;
