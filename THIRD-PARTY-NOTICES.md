@@ -39,7 +39,7 @@ the original game.
 
 ## The Raspberry Pi build
 
-The `aros-aarch64-abiv1-raspi` binary (not released yet) is built with Clang
+The `aros-aarch64-abiv1-raspi` binary (`openloco.aarch64-aros-raspi.lha`) is built with Clang
 20.1.0 instead of GCC and against the SDK of the AROS Raspberry Pi nightly of
 2026-10-29. Its SDL3 has the OpenGL backend compiled out. Besides the table
 above, without the GCC runtime, it contains:
