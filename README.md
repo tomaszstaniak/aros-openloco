@@ -180,14 +180,22 @@ says nothing about the builder.
 
 A newer GCC (13.4) was evaluated and not adopted for the release.
 
-### Raspberry Pi (aarch64, ABIv1): built, not yet run
+### Raspberry Pi (aarch64, ABIv1): experimental
 
 The ABI `aros-aarch64-abiv1-raspi` builds the same release sources with the
 Raspberry Pi toolchain (Clang 20.1.0) against the SDK of the AROS Raspberry
 Pi nightly of 2026-10-29. That SDK has no C++ library, SDL3, OpenAL or iconv,
 so all four are built here and linked statically; SDL3's OpenGL backend is
-compiled out, since the game draws with SDL's software renderer anyway. The
-binary has not been started on a Pi yet.
+compiled out, since the game draws with SDL's software renderer anyway.
+`thread_local` is compiled as emulated TLS: the AROS loader on the Pi refuses
+a program with a TLS segment ("file is not executable"), and the build
+refuses such a binary.
+
+Tested once, on an emulated Raspberry Pi 3 (QEMU, AROS nightly 2026-10-29,
+non-SMP): the game starts, loads a scenario, takes keyboard input, runs and
+quits cleanly, with sound initialised on AHI's VOID unit. Speed, sound by
+ear, saving and loading, and real Pi hardware have not been checked; there is
+no Pi release.
 
 ```sh
 # with the release variant exported as above

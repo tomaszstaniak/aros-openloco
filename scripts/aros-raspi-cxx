@@ -3,6 +3,9 @@
 # has a C++ standard library; deps/<abi>/cxxrt holds libc++, libc++abi and
 # libunwind 20.1.0 (see scripts/fetch-cxxrt.sh). Plain char is unsigned on
 # this target and OpenLoco was written where it is signed: -fsigned-char.
+# The AROS ELF loader on the Pi refuses a program with a TLS segment ("file is
+# not executable", rpi-1, 2026-11-04: one thread_local in PaletteMap.cpp), so
+# thread_local goes through compiler-rt's __emutls_get_address (pthread keys).
 . "$(dirname "$0")/env.sh"
 ABI=aros-aarch64-abiv1-raspi
 RPI_SDK=$(abi_sdk $ABI); export RPI_SDK
@@ -12,5 +15,5 @@ LINK=-L$CXXRT/lib
 for arg in "$@"; do
     case "$arg" in -c|-E|-S|-M|-MM|-fsyntax-only) LINK= ;; esac
 done
-exec "$(abi_toolchain $ABI)/bin/aarch64-aros-clang++" -fsigned-char -nostdinc++ \
+exec "$(abi_toolchain $ABI)/bin/aarch64-aros-clang++" -fsigned-char -femulated-tls -nostdinc++ \
     -isystem "$CXXRT/include/c++/v1" $LINK "$@"

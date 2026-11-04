@@ -131,6 +131,14 @@ cmake --build "$BUILD" -j "$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
 # is not provably the same file. Each result is copied under its own SHA-256
 # with a note of where it came from, and nothing here ever deletes one.
 OUT="$BUILD/OpenLoco"
+# The Pi's loader rejects native TLS ("file is not executable"); every
+# thread_local must have become emulated TLS. Refuse the binary otherwise.
+case "$ABI" in aros-aarch64-*)
+    if "$(abi_tool "$ABI" readelf)" -S -W "$OUT" | grep -qE ' \.t(data|bss)'; then
+        echo "refusing $OUT: it has a TLS section, which the AROS Pi loader rejects" >&2
+        rm -f "$OUT"; exit 1
+    fi ;;
+esac
 if [ -f "$OUT" ]; then
     SHA=$(shasum -a 256 "$OUT" | cut -d' ' -f1)
     ARCHIVE=${AROS_TESTBENCH:-$HOME/Work/AROS}/loco-variants/builds/$SHA
