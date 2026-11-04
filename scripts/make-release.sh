@@ -135,6 +135,11 @@ if error
     quit 10
 endif
 cd //
+; A copy that went through a FAT volume or an extractor on another computer
+; can lose the execute bit, and the Shell then says "file is not executable"
+; (seen on the Raspberry Pi build, 2026-11-04). Setting it is harmless when it
+; is already set.
+protect OpenLoco +e >NIL:
 stack 1048576
 OpenLoco
 LAUNCH

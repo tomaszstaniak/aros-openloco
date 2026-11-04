@@ -84,9 +84,10 @@ stack is too small for the game; `Run-OpenLoco` raises it to 1 MB, checks that
 it is run from the right drawer with nothing missing, and starts the game. If
 you prefer to type it yourself, `stack 1048576` once per Shell does the same.
 
-If the Shell says `file is not executable` (the copy lost the program's
-execute bit, which FAT volumes and some extractors do not keep), set it once
-with `protect OpenLoco +e` in the drawer.
+`Run-OpenLoco` also sets the program's execute bit, which a copy through a
+FAT volume or an extractor on another computer can lose; without it the Shell
+says `file is not executable`. If you start the game yourself, run
+`protect OpenLoco +e` in the drawer once.
 
 The first run writes the rest of `openloco.yml` itself. Log lines go to the
 Shell; redirect them with `OpenLoco >run.log` if you want to keep them.
