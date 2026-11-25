@@ -15,8 +15,10 @@ it with saves you care about.
 
 ## What you need
 
-- **AROS for the Raspberry Pi (aarch64, ABIv1)**, a nightly from 2026-10-29 or
-  later. Built against that nightly's SDK and tested only on it. It will not
+- **AROS for the Raspberry Pi (aarch64, ABIv1)**, a nightly from 2026-11-24 or
+  later; on an earlier nightly use the first build of this release
+  (v0.1.0-rc1-raspi). Built against the SDK of the nightly of 2026-11-24 and
+  started only on it. It will not
   run on x86 AROS or AROS One; those have their own build.
 - **Your own copy of Chris Sawyer's Locomotion.** The game data is not included
   and cannot be: it is commercial. You need the installed game's files -
